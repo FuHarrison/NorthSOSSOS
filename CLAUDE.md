@@ -47,6 +47,13 @@ This split is the core of the multiplayer design. Keep it when adding features.
 - Each player sends `sendState()` at 15 Hz (`t:'st', all:1`). The server fans these out to everyone. Remote players live in the `others` Map and are drawn with `drawPlayer(pl)`.
 - Mob AI targets the nearest entry in `TG = targets()`: the local `P` if started and alive, plus the remote players in `others`. `hurt(T, …)` either hits `P` locally or sends `hurt` to that client. Roll and invulnerability frames are checked on the receiving client.
 
+### Pets
+
+- The player owns `pets` (any number) and `petOut` (the id of the summoned pet). Each pet's runtime fields live on the same object, but only `id/k/name/hp/bag/down` are saved.
+- The summoned pet is simulated by its **owner** in `updatePet`, the same way as the player. The pet's hits and pickups go through `act` with `pet:1`. Gathered items go to `pet.bag` through `give(..., toPet)`.
+- Mobs target a pet only after that pet hits them (`m.petT`). `hurt()` routes damage to the owner (`hurtPet` locally, or the `phurt` message).
+- Taming (`feed`) and dropped loot bags (`drop`/`pick`, kept in the `loots` world list) are host-side intents. Taming progress and new pets reach a player through `toPlayer`/`toAll` → `onPrivate`.
+
 ### Server routing (`onMsg` in server.js)
 
 - A message with `all` goes to everyone except the sender.

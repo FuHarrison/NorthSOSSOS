@@ -32,6 +32,8 @@ kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--lin
 .food.empty{opacity:.35;border-style:dashed}
 .food svg{position:absolute;inset:-2px;width:38px;height:38px;transform:rotate(-90deg)}
 #buffs{font-size:11px;color:var(--accent2);text-shadow:0 1px 2px #000;min-height:14px}
+#petHud{font-size:11px;color:var(--good);text-shadow:0 1px 2px #000}
+#petHud.down{color:var(--bad)}
 
 #top{top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;transform:translateX(-50%);text-align:center;width:min(520px,92vw)}
 #clock{font-family:var(--display);font-weight:900;font-size:15px;letter-spacing:.08em;text-shadow:0 1px 3px #000}
@@ -126,6 +128,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
   <div class="bar st"><i id="stFill"></i></div>
   <div id="foods"></div>
   <div id="buffs"></div>
+  <div id="petHud"></div>
 </div>
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
 <div class="hud" id="topr"><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
@@ -152,6 +155,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
       <h2>行囊</h2>
       <button class="tab on" data-tab="craft" type="button">製作</button>
       <button class="tab" data-tab="inv" type="button">背包</button>
+      <button class="tab" data-tab="pets" type="button">寵物</button>
       <button class="tab" data-tab="help" type="button">說明</button>
       <button class="x" id="panelX" type="button" aria-label="關閉">×</button>
     </header>
@@ -242,12 +246,19 @@ const RECIPES=[
   {id:'狼牙劍',name:'狼牙劍',cost:{狼王之牙:1,木頭:6,燧石:4},bench:true,desc:'用狼王的牙磨成的劍。'}
 ];
 
+// pets: boar = tamed by feeding berries, gathers; wolf = pup from the Wolf King, fights
+const PETS={
+  boar:{name:'野豬',role:'採集',hp:60,dmg:4,spd:120,r:12,cd:1.0,gather:true},
+  wolf:{name:'狼崽',role:'戰鬥',hp:40,dmg:14,spd:175,r:11,cd:.7,gather:false}
+};
+const TAME_N=5,PET_DOWN=60,PET_LEASH=300;
+
 /* ---------- state ---------- */
 const biome=new Uint8Array(COLS*ROWS),cellCol=new Array(COLS*ROWS),cellH=new Float32Array(COLS*ROWS);
 const resGrid=new Array(COLS*ROWS).fill(null),structGrid=new Array(COLS*ROWS).fill(null);
 let structs=[],mobs=[],parts=[],floats=[],regrow=[];
 let altar=null,boss=null;
-let inv={},foods=[],ate=false;
+let inv={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
@@ -316,7 +327,8 @@ function populate(){
 /* ---------- load / save ---------- */
 // solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
 function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y}))}}
-function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon}}}
+function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},
+  pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 function writeSave(){if(!ready)return;try{
   if(MODE==='solo'){const w=worldData();w.flags.ate=ate;localStorage.setItem(SKEY,JSON.stringify(Object.assign(personal(),w)))}
@@ -326,12 +338,15 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
   for(const st of s.structs||[])addStruct(st.k,st.x,st.y);
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
-  if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}}
+  if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}
+  pets=(s.pets||[]).filter(p=>PETS[p.k]).map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp>0?p.hp:PETS[p.k].hp,bag:p.bag||{},down:p.down||0}));
+  petOut=pets.some(p=>p.id===s.petOut)?s.petOut:null;const cp=curPet();if(cp)placePet(cp,false)}
 function bootSolo(){MODE='solo';save=loadKey(SKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
 function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
 function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
   for(const[k,x,y]of m.structs)addStruct(k,x,y);
+  loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
 function addStruct(k,x,y){const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};structs.push(s);structGrid[c]=s;return s}
 
@@ -352,7 +367,9 @@ function foodVal(f,key){const d=FOODS[f.k];return d[key]*Math.min(1,f.t/(d.t*.4)
 function maxHp(){return 25+foods.reduce((s,f)=>s+foodVal(f,'hp'),0)}
 function maxSt(){return 50+foods.reduce((s,f)=>s+foodVal(f,'st'),0)}
 const has=k=>(inv[k]||0)>0;
-function give(k,n,x,y){if(n<=0)return;inv[k]=(inv[k]||0)+n;floats.push({x:x??P.x,y:(y??P.y)-18,txt:`+${n} ${k}`,t:1.4,col:ITEM[k]||'#fff'})}
+function give(k,n,x,y,toPet){if(n<=0)return;const cp=toPet&&curPet();
+  if(cp){cp.bag[k]=(cp.bag[k]||0)+n;floats.push({x:x??cp.x,y:(y??cp.y)-18,txt:`+${n} ${k}`,t:1.2,col:'#bfe3a0'});return}
+  inv[k]=(inv[k]||0)+n;floats.push({x:x??P.x,y:(y??P.y)-18,txt:`+${n} ${k}`,t:1.4,col:ITEM[k]||'#fff'})}
 function take(cost){for(const k in cost)inv[k]-=cost[k]}
 function afford(cost){for(const k in cost)if((inv[k]||0)<cost[k])return false;return true}
 function nearBench(){return structs.some(s=>s.k==='bench'&&dist(s,P)<240)}
@@ -434,18 +451,20 @@ function hitRes(o){const d=RES[o.k];let dmg=0;
   else{dmg=bestTool(CHOP)[0];shake=Math.max(shake,2)}
   act({t:'res',c:o.cell,dmg})}
 // world side (solo / host)
-function worldRes(c,dmg,from){const o=resGrid[c];if(!o)return;const d=RES[o.k];
+function worldRes(c,dmg,from,toPet){const o=resGrid[c];if(!o)return;const d=RES[o.k];
   if(d.pick){if(o.k==='bush'){if(o.dep>0)return;evt({t:'bd',c})}else removeRes(o);
-    for(const[k,a,b]of d.drop)giveTo(from,k,ri(a,b),o.x,o.y);return}
+    for(const[k,a,b]of d.drop)giveTo(from,k,ri(a,b),o.x,o.y,toPet);return}
+  if(toPet)return;
   evt({t:'rh',c,hp:o.hp-dmg});
   if(o.hp<=0){for(const[k,a,b]of d.drop)giveTo(from,k,ri(a,b),o.x,o.y);removeRes(o)}}
 function removeRes(o){evt({t:'rx',c:o.cell});regrow.push({k:o.k,x:o.x,y:o.y,cell:o.cell,at:time+(o.k==='rock'?400:o.k.length<5?260:200)})}
-function hitMob(m,dmg,from,ax,ay){m.hp-=dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
+function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
+  m.petT=byPet?{o:from,until:time+8}:null; // mobs only turn on a pet that hit them
   if(m.hp<=0)killMob(m,from)}
 function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y});
   if(m.k==='boar'){giveTo(from,'生肉',ri(1,2),m.x,m.y);if(Math.random()<.8)giveTo(from,'皮革',ri(1,2),m.x,m.y-14);if(Math.random()<.4)giveTo(from,'獠牙',1,m.x,m.y-28)}
   if(m.k==='moss'){giveTo(from,'樹脂',ri(1,2),m.x,m.y);if(Math.random()<.25)giveTo(from,'燧石',1,m.x,m.y-14)}
-  if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);evt({t:'bn',h:'狼王倒下了',s:'到工作台用狼王之牙打造狼牙劍'});writeSave()}}
+  if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'每個人都得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
 function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;if(has('皮甲'))dmg*=.7;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
@@ -459,12 +478,18 @@ function eat(k){if(!FOODS[k]||!has(k))return;if(foods.some(f=>f.k===k)){toast('�
 
 function nearestUse(){let best=null,bd=1e9;
   for(const s of [...structs,altar]){const d=dist(s,P),lim=s.k==='altar'?84:62;if(d<lim&&d<bd&&s.k!=='wall'){best={s};bd=d}}
+  if(best)return best;
+  for(const l of loots){const d=dist(l,P);if(d<46&&d<bd){bd=d;best={l}}}
+  if(has('莓果'))for(const m of mobs)if(m.k==='boar'&&m.aggro<=0){const d=dist(m,P)-m.r;if(d<40&&d<bd){bd=d;best={m}}}
   if(best)return best;forCells(P.x,P.y,1,o=>{if(RES[o.k].pick&&!(o.k==='bush'&&o.dep>0)){const d=dist(o,P);if(d<46&&d<bd){bd=d;best={o}}}});return best}
-function useLabel(u){if(!u)return null;if(u.o)return'撿起';const s=u.s;
+function useLabel(u){if(!u)return null;if(u.o||u.l)return'撿起';if(u.m)return'餵莓果';const s=u.s;
   if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';
   if(s.k==='altar')return flags.boss?'祭壇已沉寂':boss?'狼王已醒':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
-  if(u.o){hitRes(u.o);return}const s=u.s;
+  if(u.o){hitRes(u.o);return}
+  if(u.l){act({t:'pick',id:u.l.id});return}
+  if(u.m){inv['莓果']--;act({t:'feed',id:u.m.id});return}
+  const s=u.s;
   if(s.k==='fire'){if(has('生肉')){const n=inv['生肉'];inv['生肉']=0;give('烤肉',n,s.x,s.y);burst(s.x,s.y-10,'#ffb347',12)}else toast('靠近營火一會兒就能獲得「休息」')}
   else if(s.k==='bench')togglePanel(true,'craft');
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
@@ -501,9 +526,19 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
     b.querySelectorAll('[data-eat]').forEach(x=>x.addEventListener('click',()=>{eat(x.dataset.eat);renderPanel()}));
     b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}))}
+  else if(panelTab==='pets'){
+    b.innerHTML=pets.length?`<p class="note">一次只能召喚一隻。野豬會幫忙撿東西，狼崽擅長戰鬥。寵物撿到的東西放在牠身上，倒下時會掉在地上。</p><div class="grid">`+pets.map(p=>{const D=PETS[p.k],out=p.id===petOut,n=Object.values(p.bag).reduce((a,b)=>a+b,0);
+      return`<div class="card"><h3>${p.name}<em>${D.name}・${D.role}${out?'・召喚中':''}</em></h3><p>${p.down>0?`倒下了，${Math.ceil(p.down)} 秒後回來`:`血量 ${Math.ceil(p.hp)}/${D.hp}・傷害 ${D.dmg}`}・攜帶 ${n} 件</p>
+      <div class="costs">${Object.entries(p.bag).map(([k,v])=>`<span class="cost">${k} ×${v}</span>`).join('')}</div>
+      <button class="act ${out?'':'go'}" type="button" data-sum="${p.id}">${out?'收回':'召喚'}</button><button class="act" type="button" data-take="${p.id}" ${n?'':'disabled'}>取出物品</button></div>`}).join('')+`</div>`
+      :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠；打倒狼王後，每個人都會得到一隻狼崽。</p>`;
+    b.querySelectorAll('[data-sum]').forEach(x=>x.addEventListener('click',()=>{const id=+x.dataset.sum;if(petOut===id)petOut=null;else summonPet(id);writeSave();renderPanel()}));
+    b.querySelectorAll('[data-take]').forEach(x=>x.addEventListener('click',()=>{const p=pets.find(q=>q.id===+x.dataset.take);if(!p)return;
+      for(const k in p.bag)inv[k]=(inv[k]||0)+p.bag[k];toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li></ul></div>
+    <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>打倒狼王後每個人都會得到一隻狼崽。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
@@ -573,7 +608,9 @@ function updateFx(dt){
 function updateMob(m,dt){
   m.anim+=dt;m.acd-=dt;m.flash-=dt;m.aggro-=dt;
   if(m.kx||m.ky){move(m,m.kx*dt,m.ky*dt);m.kx*=.82;m.ky*=.82;if(Math.abs(m.kx)<4)m.kx=0;if(Math.abs(m.ky)<4)m.ky=0}
-  let T=null,d=1e9;for(const t of TG){const e=dist(m,t);if(e<d){d=e;T=t}}
+  let T=null,d=1e9;
+  if(m.petT&&time<m.petT.until){const pt=petOf(m.petT.o);if(pt){T=pt;d=dist(m,pt)}}
+  if(!T)for(const t of TG){const e=dist(m,t);if(e<d){d=e;T=t}}
   const a=T?Math.atan2(T.y-m.y,T.x-m.x):0;
   if(m.k==='boss'){updateBoss(m,dt,d,a,T);return}
   const chase=T&&(m.k==='boar'?m.aggro>0&&d<520:(d<(isNight()?560:340)||m.aggro>0));
@@ -582,7 +619,9 @@ function updateMob(m,dt){
   else{m.wt-=dt;if(m.wt<=0){m.wt=rnd(1.5,4);const go=Math.random()<.6;m.wx=go?Math.cos(m.face=Math.random()*6.28):0;m.wy=go?Math.sin(m.face):0}
     const bx=m.x,by=m.y;move(m,m.wx*m.spd*.6*dt,m.wy*m.spd*.6*dt);if(m.x===bx&&m.y===by)m.wt=0}
 }
-function hurt(T,dmg,src){if(T===P)hitPlayer(dmg,src);else sendTo(T.id,{t:'hurt',dmg,x:src.x,y:src.y})}
+function hurt(T,dmg,src){
+  if(T.isPet){if(T.owner===ME)hurtPet(dmg,src);else sendTo(T.owner,{t:'phurt',dmg,x:src.x,y:src.y});return}
+  if(T===P)hitPlayer(dmg,src);else sendTo(T.id,{t:'hurt',dmg,x:src.x,y:src.y})}
 function updateBoss(m,dt,d,a,T){
   if(Math.hypot(m.x-altar.x,m.y-altar.y)>1100||d>1000){m.face=Math.atan2(altar.y-m.y,altar.x-m.x);move(m,Math.cos(m.face)*m.spd*dt,Math.sin(m.face)*m.spd*dt);m.hp=Math.min(m.max,m.hp+30*dt);return}
   m.howlT-=dt;if(m.howlT<=0){m.howlT=15;for(let i=0;i<2;i++){const s=findSpot(m.x,m.y,60,140);if(s)spawnMob('moss',s.x,s.y).aggro=30}floats.push({x:m.x,y:m.y-46,txt:'嗷——',t:1.2,col:'#cfe3ef'});shake=6}
@@ -594,17 +633,67 @@ function updateBoss(m,dt,d,a,T){
     if(m.t<=0){m.state='chase';m.dashT=rnd(2.2,3.6)}}
 }
 
+/* ---------- pets ---------- */
+// each player simulates their own summoned pet locally (like the player); its hits/pickups go through act()
+const curPet=()=>pets.find(p=>p.id===petOut&&p.down<=0)||null;
+function petOf(owner){if(owner===ME){const p=curPet();return p&&!P.dead?p:null}const o=others.get(owner);return o&&!o.dead&&o.pet||null}
+function addPet(k){const n=pets.filter(p=>p.k===k).length+1;const p={id:Date.now()+Math.floor(Math.random()*1000),k,name:`${PETS[k].name} ${n}`,hp:PETS[k].hp,bag:{},down:0};
+  pets.push(p);if(!curPet())summonPet(p.id);writeSave();if(!$('panel').hidden)renderPanel()}
+function placePet(p,glow){Object.assign(p,{isPet:true,owner:ME,r:PETS[p.k].r,face:P.face,anim:Math.random()*9,cd:0,gcd:0,flash:0,glow:0,moving:false});
+  let x=P.x-Math.cos(P.face)*28,y=P.y-Math.sin(P.face)*28;for(let k=0;k<20&&blocked(x,y,p.r);k++){x=P.x+rnd(-40,40);y=P.y+rnd(-40,40)}
+  if(blocked(x,y,p.r)){x=P.x;y=P.y}p.x=x;p.y=y;
+  if(glow){p.glow=1.4;burst(x,y-8,'#ffe08a',26);burst(x,y-8,'#fff6d0',12)}}
+function summonPet(id){petOut=id;const p=curPet();if(p)placePet(p,true)}
+function hurtPet(dmg,src){const p=curPet();if(!p)return;p.hp-=dmg;p.flash=.15;
+  const a=Math.atan2(p.y-src.y,p.x-src.x);move(p,Math.cos(a)*12,Math.sin(a)*12);floats.push({x:p.x,y:p.y-22,txt:'-'+Math.round(dmg),t:.8,col:'#ffb0a0'});
+  if(p.hp<=0)petDown(p)}
+function petDown(p){p.hp=0;p.down=PET_DOWN;burst(p.x,p.y-6,'#6a4a3a',16);
+  if(Object.keys(p.bag).length){act({t:'drop',x:p.x,y:p.y,bag:p.bag});p.bag={}}
+  toast(`${p.name}倒下了，${PET_DOWN} 秒後回來`);writeSave()}
+function petStep(p,tx,ty,spd,dt){const a=Math.atan2(ty-p.y,tx-p.x);p.face=a;p.moving=true;move(p,Math.cos(a)*spd*dt,Math.sin(a)*spd*dt)}
+function updatePet(dt){
+  for(const p of pets)if(p.down>0){p.down-=dt;if(p.down<=0){p.down=0;p.hp=PETS[p.k].hp;if(p.id===petOut){placePet(p,true);toast(`${p.name}回來了`)}}}
+  const p=curPet();if(!p)return;const D=PETS[p.k];
+  p.anim+=dt;p.cd-=dt;p.gcd-=dt;p.flash-=dt;p.glow-=dt;p.moving=false;
+  if(P.dead)return;
+  const od=dist(p,P);if(od>500){placePet(p,false);return}
+  // fight: hostile mobs near the owner (wild boars only once they're angry, so taming isn't interrupted)
+  let tgt=null,bd=1e9;for(const m of mobs){if(m.k==='boar'&&m.aggro<=0)continue;const dm=dist(m,P);if(dm<220){const d=dist(m,p);if(d<bd){bd=d;tgt=m}}}
+  if(tgt){const reach=p.r+tgt.r+4;if(bd>reach)petStep(p,tgt.x,tgt.y,D.spd*1.1,dt);else p.face=Math.atan2(tgt.y-p.y,tgt.x-p.x);
+    if(bd<=reach+4&&p.cd<=0){p.cd=D.cd;floats.push({x:tgt.x,y:tgt.y-tgt.r-8,txt:String(D.dmg),t:.7,col:'#d8f0b0'});burst(tgt.x,tgt.y,tgt.k==='moss'?'#9fc069':'#b84a3a',4);
+      act({t:'hit',id:tgt.id,dmg:D.dmg,x:p.x,y:p.y,pet:1})}
+    return}
+  // gather: loose pickables near the owner
+  if(D.gather&&p.gcd<=0){let g=null,gd=1e9;forCells(P.x,P.y,4,o=>{const R=RES[o.k];if(!R.pick||o.k==='bush'&&o.dep>0)return;if(dist(o,P)>160)return;const d=dist(o,p);if(d<gd){gd=d;g=o}});
+    if(g){if(gd>16)petStep(p,g.x,g.y,D.spd,dt);else{p.gcd=1.2;act({t:'res',c:g.cell,dmg:0,pet:1})}return}}
+  // follow
+  if(od>56)petStep(p,P.x,P.y,od>200?D.spd*1.4:D.spd,dt)}
+
 /* ---------- network ---------- */
 function net(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
 function sendTo(id,o){o.to=id;net(o)}
 function evt(o){applyEvt(o);if(MODE==='host')net(o)}          // world change: apply here, mirror to clients
 function act(o){if(MODE==='client')net(o);else handleAct(o,ME)} // player intent: host/solo decide
-function giveTo(from,k,n,x,y){if(n<=0)return;if(from===ME)give(k,n,x,y);else sendTo(from,{t:'give',k,n,x,y})}
+function giveTo(from,k,n,x,y,toPet){if(n<=0)return;if(from===ME)give(k,n,x,y,toPet);else sendTo(from,{t:'give',k,n,x,y,p:toPet?1:0})}
+function toPlayer(from,o){if(from===ME)onPrivate(o);else sendTo(from,o)}
+function toAll(o){onPrivate(o);for(const id of others.keys())sendTo(id,Object.assign({},o))}
+// messages meant for one player only (taming progress, new pets)
+function onPrivate(m){switch(m.t){
+  case'love':floats.push({x:m.x,y:m.y-24,txt:`♥ ${m.n}/${TAME_N}`,t:1.2,col:'#ff9fb8'});break;
+  case'tame':addPet('boar');banner('馴服了野豬','打開背包的「寵物」分頁可以召喚或收回');break;
+  case'pup':addPet('wolf');break;
+}}
 function giveAll(k,n,x,y){giveTo(ME,k,n,x,y);for(const id of others.keys())giveTo(id,k,n,x,y)}
 function refund(from,cost,msg){if(from===ME){for(const k in cost)inv[k]=(inv[k]||0)+cost[k];toast(msg)}else sendTo(from,{t:'refund',cost,msg})}
 function handleAct(m,from){switch(m.t){
-  case'hit':{const mob=mobs.find(o=>o.id===m.id);if(mob)hitMob(mob,m.dmg,from,m.x,m.y);break}
-  case'res':worldRes(m.c,m.dmg,from);break;
+  case'hit':{const mob=mobs.find(o=>o.id===m.id);if(mob)hitMob(mob,m.dmg,from,m.x,m.y,m.pet);break}
+  case'res':worldRes(m.c,m.dmg,from,m.pet);break;
+  case'feed':{const b=mobs.find(o=>o.id===m.id);if(!b||b.k!=='boar'||b.aggro>0){refund(from,{莓果:1},'牠現在不肯吃');break}
+    b.love=(b.love||0)+1;b.wt=2;b.wx=b.wy=0;
+    if(b.love>=TAME_N){mobs.splice(mobs.indexOf(b),1);evt({t:'tm',id:b.id,x:b.x,y:b.y});toPlayer(from,{t:'tame'})}
+    else toPlayer(from,{t:'love',n:b.love,x:b.x,y:b.y});break}
+  case'drop':evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag:m.bag});break;
+  case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
@@ -619,9 +708,12 @@ function applyEvt(m){switch(m.t){
   case'sa':if(!structGrid[ci(m.x,m.y)]){addStruct(m.k,m.x,m.y);burst(m.x,m.y,'#c9a26a',10)}break;
   case'bn':banner(m.h,m.s);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
+  case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
+  case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
+  case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>[s.k,s.x,s.y]),res})}
+  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -629,11 +721,16 @@ function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;co
     if(!m){m=makeMob(k,x,y);m.id=id;mobs.push(m)}
     m.tx=x;m.ty=y;m.face=f;m.hp=hp;m.max=max;if(fl)m.flash=.15;m.state=st;m.aggro=ag}
   mobs=mobs.filter(m=>seen.has(m.id));boss=mobs.find(m=>m.id===s.b)||null}
-function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:has('皮甲')?1:0,d:P.dead?1:0})}
+function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:has('皮甲')?1:0,d:P.dead?1:0,...petState()})}
+function petState(){const p=curPet();return p?{pk:p.k,px:Math.round(p.x),py:Math.round(p.y),pf:Math.round(p.face*100)/100,ph:Math.ceil(p.hp),pg:p.glow>0?1:0,pw:p.moving?1:0}:{}}
 function updateOther(m){let o=others.get(m.from);if(!o){o={id:m.from,x:m.x,y:m.y,r:12,walk:0,inv:0,swing:0};others.set(m.from,o)}
-  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=!!m.a;o.dead=!!m.d}
+  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=!!m.a;o.dead=!!m.d;
+  if(PETS[m.pk]){if(!o.pet||o.pet.k!==m.pk)o.pet={isPet:true,owner:m.from,k:m.pk,x:m.px,y:m.py,r:PETS[m.pk].r,anim:0,flash:0,glow:0};
+    Object.assign(o.pet,{tx:m.px,ty:m.py,face:m.pf,hp:m.ph,moving:!!m.pw});if(m.pg)o.pet.glow=Math.max(o.pet.glow,.3)}
+  else o.pet=null}
 function tickOthers(dt){for(const o of others.values()){const dx=o.tx-o.x,dy=o.ty-o.y,l=Math.hypot(dx,dy),k=Math.min(1,dt*15);
-  if(l>300){o.x=o.tx;o.y=o.ty}else{o.x+=dx*k;o.y+=dy*k}if(l>1)o.walk+=dt*9;o.swing-=dt}}
+  if(l>300){o.x=o.tx;o.y=o.ty}else{o.x+=dx*k;o.y+=dy*k}if(l>1)o.walk+=dt*9;o.swing-=dt;
+  const p=o.pet;if(p){if(Math.hypot(p.tx-p.x,p.ty-p.y)>300){p.x=p.tx;p.y=p.ty}else{p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k}p.anim+=dt;p.flash-=dt;p.glow-=dt}}}
 function tickClient(dt){time+=dt;dayT=Math.min(.9999,dayT+dt/DAY_LEN);
   for(const m of mobs){m.anim+=dt;m.flash-=dt;const k=Math.min(1,dt*12);m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k}
   for(const s of structs)s.anim+=dt}
@@ -657,9 +754,11 @@ function onNet(m){
   if(MODE==='host'){handleAct(m,m.from);return}
   switch(m.t){
   case'snap':applySnap(m);break;
-  case'give':if(started)give(m.k,m.n,m.x,m.y);break;
+  case'give':if(started)give(m.k,m.n,m.x,m.y,m.p);break;
   case'refund':for(const k in m.cost)inv[k]=(inv[k]||0)+m.cost[k];toast(m.msg);break;
   case'hurt':if(started)hitPlayer(m.dmg,m);break;
+  case'phurt':if(started)hurtPet(m.dmg,m);break;
+  case'love':case'tame':case'pup':if(started)onPrivate(m);break;
   default:applyEvt(m)}}
 function connect(){
   try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws')}catch(e){bootSolo();return}
@@ -691,9 +790,11 @@ function render(){
   if(Math.abs(altar.x-cx)<hw+80&&Math.abs(altar.y-cy)<hh+80)list.push([altar.y,1,altar]);
   for(const m of mobs)if(Math.abs(m.x-cx)<hw+60&&Math.abs(m.y-cy)<hh+60)list.push([m.y,2,m]);
   if(MODE==='solo'||started)list.push([P.y,3,P]);
-  for(const o of others.values())if(!o.dead)list.push([o.y,3,o]);
+  for(const o of others.values()){if(!o.dead)list.push([o.y,3,o]);if(o.pet)list.push([o.pet.y,4,o.pet])}
+  const cp=curPet();if(cp)list.push([cp.y,4,cp]);
+  for(const l of loots)if(Math.abs(l.x-cx)<hw+40&&Math.abs(l.y-cy)<hh+40)list.push([l.y,5,l]);
   list.sort((a,b)=>a[0]-b[0]);
-  for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else drawPlayer(o)}
+  for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else if(t===3)drawPlayer(o);else if(t===4)drawPet(o);else drawLoot(o)}
   // ghost
   if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,anim:0});ctx.globalAlpha=1;
     ctx.strokeStyle=ok?'#9fe07a':'#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.strokeRect(g.x-20,g.y-20,40,40);ctx.setLineDash([])}
@@ -775,6 +876,16 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
     ctx.fillStyle=wind?'#ff5a3a':'#bfe8ff';ctx.fillRect(32,-5,3,3);ctx.fillRect(32,2,3,3);ctx.restore()}
   if(m.hp<m.max&&m.k!=='boss'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
 const CAPES=['#7a3b33','#2f5d7a','#4f6b2a','#8a6a2a','#5f3a7a','#2a6b62'];
+// pets reuse the boar / Wolf King art (pup = shrunken wolf), plus a heart in the owner's cape colour and a green hp bar
+function drawPet(p){const D=PETS[p.k],wolf=p.k==='wolf';
+  if(p.glow>0){const g=ctx.createRadialGradient(p.x,p.y-8,0,p.x,p.y-8,46);g.addColorStop(0,`rgba(255,230,140,${Math.min(1,p.glow)*.75})`);g.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=g;ctx.fillRect(p.x-46,p.y-54,92,92)}
+  const m={x:p.x,y:p.y,face:p.face,anim:p.anim,flash:p.flash,aggro:p.moving?1:0,hp:1,max:1,r:p.r,k:wolf?'boss':'boar',state:'chase'};
+  if(wolf){ctx.save();ctx.translate(p.x,p.y);ctx.scale(.42,.42);ctx.translate(-p.x,-p.y);drawMob(m);ctx.restore()}else drawMob(m);
+  const top=p.y-(wolf?24:30),w=24;
+  ctx.fillStyle='#000a';ctx.fillRect(p.x-w/2,top,w,3);ctx.fillStyle='#7fb069';ctx.fillRect(p.x-w/2,top,w*Math.max(0,p.hp)/D.hp,3);
+  ctx.textAlign='center';ctx.font='700 11px system-ui,sans-serif';ctx.fillStyle='#000a';ctx.fillText('♥',p.x+1,top-3);ctx.fillStyle=CAPES[(p.owner===ME?myId:p.owner)%CAPES.length];ctx.fillText('♥',p.x,top-4)}
+function drawLoot(l){shadow(l.x+1,l.y+3,9,4);ctx.fillStyle='#8a6236';ctx.beginPath();ctx.ellipse(l.x,l.y-4,8,7,0,0,6.28);ctx.fill();
+  ctx.fillStyle='#5a3d22';ctx.fillRect(l.x-4,l.y-12,8,3);ctx.fillStyle='#e0a646';ctx.fillRect(l.x-1,l.y-6,2,2)}
 function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a);
   if(pl.inv>0&&pl.roll<=0&&Math.floor(time*20)%2)ctx.globalAlpha=.55;
   shadow(x,y+5,12,5);
@@ -808,6 +919,9 @@ function hud(){const MH=maxHp(),MS=maxSt();
   let fh='';for(let i=0;i<3;i++){const f=foods[i];if(f){const d=FOODS[f.k],p=f.t/d.t,C=2*Math.PI*17;fh+=`<div class="food" style="color:${d.col};border-color:${d.col}66" title="${f.k}"><svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="none" stroke="${d.col}" stroke-width="2.5" stroke-dasharray="${C*p} ${C}"/></svg><span style="color:var(--ink)">${f.k[0]}</span></div>`}else fh+='<div class="food empty"></div>'}
   $('foods').innerHTML=fh;
   $('buffs').textContent=P.rest>0?`休息 ${Math.ceil(P.rest)}s`:'';
+  const po=pets.find(p=>p.id===petOut);
+  $('petHud').textContent=!po?'':po.down>0?`${po.name} 倒下了・${Math.ceil(po.down)} 秒後回來`:`${po.name}  ${Math.ceil(po.hp)}/${PETS[po.k].hp}`+(Object.keys(po.bag).length?`・攜帶 ${Object.values(po.bag).reduce((a,b)=>a+b,0)} 件`:'');
+  $('petHud').classList.toggle('down',!!po&&po.down>0);
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   $('weaponTag').innerHTML=`手持 <b>${WEAPONS[P.weapon].name}</b>${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>Q</kbd> 換武器'}`;
@@ -818,8 +932,8 @@ let last=performance.now();
 // solo pauses everything; in multiplayer the world keeps going while your panel is open or you're down
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(ready){if(!paused)updateLocal(dt);
-    if(MODE==='solo'){if(!paused){updateWorld(dt);updateFx(dt)}}
-    else{if(MODE==='host')updateWorld(dt);else tickClient(dt);tickOthers(dt);updateFx(dt);netTick(dt)}
+    if(MODE==='solo'){if(!paused){updateWorld(dt);updatePet(dt);updateFx(dt)}}
+    else{if(MODE==='host')updateWorld(dt);else tickClient(dt);if(started)updatePet(dt);tickOthers(dt);updateFx(dt);netTick(dt)}
     render();hudT-=dt;if(hudT<=0){hudT=.1;hud()}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
