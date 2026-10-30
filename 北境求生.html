@@ -50,6 +50,12 @@ kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--lin
 #bossBar span{font-family:var(--display);font-weight:900;letter-spacing:.2em;font-size:14px;text-shadow:0 1px 3px #000}
 #bossBar .bar{height:10px;margin-top:4px}
 #bossFill{background:linear-gradient(90deg,#6d7d8c,#c7d6e2)}
+#mini{display:block;width:140px;height:140px;border-radius:8px;border:1px solid #ffffff2a;box-shadow:0 2px 8px #0008;pointer-events:auto;cursor:pointer;margin-top:2px}
+#bigmap .sheet{width:min(640px,100%);max-height:none;padding:0}
+#bigmap header{padding:10px 10px 8px 16px}
+#bigCv{display:block;width:100%;aspect-ratio:1;background:#0b1a22}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 16px 12px;font-size:12px;color:var(--mute)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 #banner{top:34%;left:50%;transform:translate(-50%,-50%);font-family:var(--display);font-weight:900;font-size:clamp(26px,6vw,46px);letter-spacing:.12em;color:var(--accent);text-shadow:0 2px 14px #000,0 0 30px #e0a64655;opacity:0;transition:opacity .6s;text-align:center;white-space:nowrap}
 #banner small{display:block;font-family:var(--body);font-weight:400;font-size:14px;letter-spacing:0;color:var(--ink);margin-top:6px}
 #banner.on{opacity:1}
@@ -126,6 +132,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
   <div class="bar st"><i id="stFill"></i></div>
   <div id="foods"></div>
   <div id="buffs"></div>
+  <canvas id="mini" width="280" height="280"aria-label="小地圖（點一下或按 M 開大地圖）"></canvas>
 </div>
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
 <div class="hud" id="topr"><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
@@ -167,6 +174,14 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
     <p id="introNet" hidden></p>
     <div class="row" id="introBtns"></div>
     <div class="ctl" id="introCtl"></div>
+  </div>
+</div>
+
+<div class="modal" id="bigmap" hidden>
+  <div class="sheet" role="dialog" aria-label="地圖">
+    <header><h2>地圖</h2><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
+    <canvas id="bigCv" width="640" height="640"></canvas>
+    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span></div>
   </div>
 </div>
 
@@ -245,6 +260,18 @@ const RECIPES=[
 /* ---------- state ---------- */
 const biome=new Uint8Array(COLS*ROWS),cellCol=new Array(COLS*ROWS),cellH=new Float32Array(COLS*ROWS);
 const resGrid=new Array(COLS*ROWS).fill(null),structGrid=new Array(COLS*ROWS).fill(null);
+const mapImg=document.createElement('canvas');mapImg.width=COLS;mapImg.height=ROWS;
+// fog of war: per player, one flag per cell; fogImg is the matching dark mask (cleared where seen)
+const seen=new Uint8Array(COLS*ROWS),fogImg=document.createElement('canvas');fogImg.width=COLS;fogImg.height=ROWS;
+const fctx=fogImg.getContext('2d'),FOG_R=6;
+function resetFog(){seen.fill(0);fctx.fillStyle='#0b1a22';fctx.fillRect(0,0,COLS,ROWS)}
+resetFog();
+function reveal(x,y){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);
+  for(let j=j0-FOG_R;j<=j0+FOG_R;j++)for(let i=i0-FOG_R;i<=i0+FOG_R;i++){if(i<0||j<0||i>=COLS||j>=ROWS||(i-i0)**2+(j-j0)**2>FOG_R*FOG_R)continue;
+    const c=j*COLS+i;if(!seen[c]){seen[c]=1;fctx.clearRect(i,j,1,1)}}}
+function packSeen(){let s='';for(let b=0;b<seen.length;b+=8){let v=0;for(let k=0;k<8;k++)if(seen[b+k])v|=1<<k;s+=String.fromCharCode(v)}return btoa(s)}
+function unpackSeen(str){resetFog();let s;try{s=atob(str)}catch(e){return}
+  for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[];
 let altar=null,boss=null;
 let inv={},foods=[],ate=false;
@@ -300,6 +327,8 @@ function genWorld(){
   // guaranteed starter kit near spawn
   const kit=[['flint',4],['pebble',5],['tree',8],['bush',3]];
   for(const[k,n]of kit)for(let m=0;m<n;m++)for(let t=0;t<30;t++){const a=R()*6.28,rr=110+R()*260,x=W/2+Math.cos(a)*rr,y=H/2+Math.sin(a)*rr,c=ci(x,y);if(c>=0&&biome[c]&&!resGrid[c]){addRes(k,x,y,c);break}}
+  // terrain image for the maps: one pixel per cell
+  const g=mapImg.getContext('2d');for(let c=0;c<COLS*ROWS;c++){g.fillStyle=cellCol[c];g.fillRect(c%COLS,Math.floor(c/COLS),1,1)}
 }
 function addRes(k,x,y,c){const o={k,x,y,cell:c,hp:RES[k].hp,flash:0,dep:0,sz:.85+hash(c,3,seed)*.35};resGrid[c]=o;return o}
 
@@ -316,7 +345,7 @@ function populate(){
 /* ---------- load / save ---------- */
 // solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
 function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y}))}}
-function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon}}}
+function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},seen:packSeen()}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 function writeSave(){if(!ready)return;try{
   if(MODE==='solo'){const w=worldData();w.flags.ate=ate;localStorage.setItem(SKEY,JSON.stringify(Object.assign(personal(),w)))}
@@ -326,7 +355,8 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
   for(const st of s.structs||[])addStruct(st.k,st.x,st.y);
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
-  if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}}
+  if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}
+  if(s.seen)unpackSeen(s.seen)}
 function bootSolo(){MODE='solo';save=loadKey(SKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
 function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
 function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
@@ -369,7 +399,8 @@ const keys={};let mouse={x:0,y:0,on:false},atkHeld=false,joy={id:null,ox:0,oy:0,
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
   if(e.key==='Tab'||e.key==='i'||e.key==='I'){e.preventDefault();if(!$('intro').hidden)return;togglePanel();return}
-  if(e.key==='Escape'){if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();return}
+  if(e.key==='Escape'){if(!$('bigmap').hidden)toggleMap(false);else if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();return}
+  if(e.code==='KeyM'){toggleMap();return}
   if(paused)return;
   keys[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doRoll()}
@@ -449,7 +480,7 @@ function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);
 function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;if(has('皮甲'))dmg*=.7;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
-function die(){P.dead=true;paused=true;$('dead').hidden=false;atkHeld=false}
+function die(){P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
 $('respawn').addEventListener('click',()=>{foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
   for(let k=0;k<20&&blocked(P.x,P.y,P.r);k++){P.x+=rnd(-30,30);P.y+=rnd(-30,30)}
   for(const m of mobs)if(m.k!=='boss'&&dist(m,P)<400)m.x+=600;
@@ -485,7 +516,7 @@ function tryPlace(){if(!placing)return;const r=placing;if(!afford(r.cost)){toast
   if(r.id!=='wall')stopPlace();else if(!afford(r.cost)){toast('木頭用完了');stopPlace()}writeSave()}
 
 /* ---------- panel ---------- */
-function togglePanel(on,tab){const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
+function togglePanel(on,tab){const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));const b=$('panelBody');
   if(panelTab==='craft'){const nb=nearBench();
@@ -502,7 +533,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.querySelectorAll('[data-eat]').forEach(x=>x.addEventListener('click',()=>{eat(x.dataset.eat);renderPanel()}));
     b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}))}
   else{b.innerHTML=`<div class="help">
-    <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包</li>'}</ul></div>
+    <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
@@ -811,7 +842,28 @@ function hud(){const MH=maxHp(),MS=maxSt();
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   $('weaponTag').innerHTML=`手持 <b>${WEAPONS[P.weapon].name}</b>${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>Q</kbd> 換武器'}`;
-  $('bossBar').hidden=!boss;if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%'}
+  $('bossBar').hidden=!boss;if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
+  if(MODE==='solo'||started)reveal(P.x,P.y);
+  drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
+
+/* ---------- maps ---------- */
+// minimap = MINI_SPAN world units around you (top-left); big map = whole world (M key or click the minimap)
+const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17'};
+function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=S/span,u=big?S/260:S/140;
+  g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b1a22';g.fillRect(0,0,S,S);
+  g.imageSmoothingEnabled=false;g.setTransform(k,0,0,k,S/2-cx*k,S/2-cy*k);g.drawImage(mapImg,0,0,W,H);
+  g.imageSmoothingEnabled=true;g.drawImage(fogImg,0,0,W,H);g.setTransform(1,0,0,1,0,0); // smoothing softens the fog edge
+  const at=(x,y)=>[S/2+(x-cx)*k,S/2+(y-cy)*k];
+  for(const s of structs){if(!seen[s.cell])continue;const[x,y]=at(s.x,s.y),r=(s.k==='wall'?1.6:2.6)*u;g.fillStyle=MAPCOL[s.k];g.fillRect(x-r,y-r,r*2,r*2)}
+  if(seen[altar.cell]){const[x,y]=at(altar.x,altar.y);g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle=flags.boss?'#6d7873':'#e0a646';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(-3.5*u,-3.5*u,7*u,7*u);g.strokeRect(-3.5*u,-3.5*u,7*u,7*u);g.restore()}
+  for(const o of others.values())if(!o.dead){const[x,y]=at(o.x,o.y);g.fillStyle=CAPES[o.id%CAPES.length];g.strokeStyle='#fff';g.lineWidth=u;g.beginPath();g.arc(x,y,3.2*u,0,6.28);g.fill();g.stroke()}
+  {const[x,y]=at(P.x,P.y);g.save();g.translate(x,y);g.rotate(P.face);g.fillStyle='#ffe08a';g.strokeStyle='#000';g.lineWidth=u;g.beginPath();g.moveTo(6*u,0);g.lineTo(-4*u,-4*u);g.lineTo(-2*u,0);g.lineTo(-4*u,4*u);g.closePath();g.fill();g.stroke();g.restore()}}
+function toggleMap(on){const m=$('bigmap');on=on===undefined?m.hidden:on;if(on&&(!$('intro').hidden||!$('dead').hidden))return;
+  if(on)$('panel').hidden=true;m.hidden=!on;paused=on||!$('panel').hidden||!$('dead').hidden||!$('intro').hidden;
+  if(on){atkHeld=false;drawMap($('bigCv'),W/2,H/2,W,true)}}
+$('mini').addEventListener('click',()=>toggleMap(true));
+$('mapX').addEventListener('click',()=>toggleMap(false));
+$('bigmap').addEventListener('pointerdown',e=>{if(e.target.id==='bigmap')toggleMap(false)});
 
 /* ---------- loop ---------- */
 let last=performance.now();
@@ -827,7 +879,7 @@ requestAnimationFrame(frame);
 /* ---------- intro ---------- */
 function setupIntro(){
   cam.x=P.x;cam.y=P.y;
-  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵／空白翻滾・E 互動・Q 換武器・Tab 背包';
+  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵／空白翻滾・E 互動・Q 換武器・Tab 背包・M 地圖';
   if(MODE==='solo')$('introBtns').innerHTML=save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`;
   else{const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     $('introBtns').innerHTML=`<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">`+
