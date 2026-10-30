@@ -99,6 +99,9 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 .slot .n small{display:block;color:var(--mute);font-size:11px;font-variant-numeric:tabular-nums}
 .slot button{border:1px solid var(--line);background:#2c372f;border-radius:6px;padding:4px 8px;font-size:12px}
 .slot button.on{background:var(--accent);color:#1b1407;border-color:var(--accent)}
+.slot{flex-wrap:wrap}
+.droprow{display:flex;gap:4px;flex-basis:100%}
+.dropn{width:56px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;font-size:12px;color:var(--ink)}
 .help{display:grid;gap:14px;font-size:13px;line-height:1.6}
 .help h4{margin:0 0 4px;font-family:var(--display);font-size:14px;color:var(--accent);letter-spacing:.05em}
 .help ul{margin:0;padding-left:18px;color:var(--ink)}
@@ -247,7 +250,7 @@ const biome=new Uint8Array(COLS*ROWS),cellCol=new Array(COLS*ROWS),cellH=new Flo
 const resGrid=new Array(COLS*ROWS).fill(null),structGrid=new Array(COLS*ROWS).fill(null);
 let structs=[],mobs=[],parts=[],floats=[],regrow=[];
 let altar=null,boss=null;
-let inv={},foods=[],ate=false;
+let inv={},foods=[],ate=false,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
@@ -332,6 +335,7 @@ function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9
 function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
   for(const[k,x,y]of m.structs)addStruct(k,x,y);
+  loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
 function addStruct(k,x,y){const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};structs.push(s);structGrid[c]=s;return s}
 
@@ -459,12 +463,16 @@ function eat(k){if(!FOODS[k]||!has(k))return;if(foods.some(f=>f.k===k)){toast('�
 
 function nearestUse(){let best=null,bd=1e9;
   for(const s of [...structs,altar]){const d=dist(s,P),lim=s.k==='altar'?84:62;if(d<lim&&d<bd&&s.k!=='wall'){best={s};bd=d}}
+  if(best)return best;
+  for(const l of loots){const d=dist(l,P);if(d<46&&d<bd){bd=d;best={l}}}
   if(best)return best;forCells(P.x,P.y,1,o=>{if(RES[o.k].pick&&!(o.k==='bush'&&o.dep>0)){const d=dist(o,P);if(d<46&&d<bd){bd=d;best={o}}}});return best}
-function useLabel(u){if(!u)return null;if(u.o)return'撿起';const s=u.s;
+function useLabel(u){if(!u)return null;if(u.o||u.l)return'撿起';const s=u.s;
   if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';
   if(s.k==='altar')return flags.boss?'祭壇已沉寂':boss?'狼王已醒':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
-  if(u.o){hitRes(u.o);return}const s=u.s;
+  if(u.o){hitRes(u.o);return}
+  if(u.l){act({t:'pick',id:u.l.id});return}
+  const s=u.s;
   if(s.k==='fire'){if(has('生肉')){const n=inv['生肉'];inv['生肉']=0;give('烤肉',n,s.x,s.y);burst(s.x,s.y-10,'#ffb347',12)}else toast('靠近營火一會兒就能獲得「休息」')}
   else if(s.k==='bench')togglePanel(true,'craft');
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
@@ -498,15 +506,28 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.innerHTML=(ks.length?`<p class="note">食物最多同時吃 3 種，每種都會提高血量與耐力上限。</p><div class="inv">`+ks.map(k=>{let btn='';
       if(FOODS[k])btn=`<button type="button" data-eat="${k}">吃</button>`;else if(WEAPONS[k])btn=`<button type="button" data-eq="${k}" class="${P.weapon===k?'on':''}">${P.weapon===k?'手持':'裝備'}</button>`;else if(k==='皮甲')btn=`<button type="button" class="on" disabled>穿著</button>`;
       const sub=FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:WEAPONS[k]?`傷害 ${WEAPONS[k].dmg}`:'';
-      return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
+      const drop=dropK===k?`<div class="droprow"><input type="number" class="dropn" min="1" max="${inv[k]}" value="1" aria-label="丟出數量"><button type="button" data-dropn="${k}">丟</button><button type="button" data-dropall="${k}">全部</button><button type="button" data-dropx>取消</button></div>`
+        :`<button type="button" data-drop="${k}">丟出</button>`;
+      return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}${drop}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
     b.querySelectorAll('[data-eat]').forEach(x=>x.addEventListener('click',()=>{eat(x.dataset.eat);renderPanel()}));
-    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}))}
+    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}));
+    b.querySelectorAll('[data-drop]').forEach(x=>x.addEventListener('click',()=>{dropK=x.dataset.drop;renderPanel();const n=b.querySelector('.dropn');if(n){n.focus();n.select()}}));
+    b.querySelectorAll('[data-dropx]').forEach(x=>x.addEventListener('click',()=>{dropK=null;renderPanel()}));
+    b.querySelectorAll('[data-dropall]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropall,inv[x.dataset.dropall])));
+    b.querySelectorAll('[data-dropn]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropn,b.querySelector('.dropn').value)));
+    const dn=b.querySelector('.dropn');if(dn)dn.addEventListener('keydown',e=>{if(e.key==='Enter')dropItem(dropK,dn.value);else if(e.key==='Escape'){e.stopPropagation();dropK=null;renderPanel()}})}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
+// drop items as a sack in front of the player; anyone can pick it up with E
+let dropK=null;
+function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){dropK=null;renderPanel();return}n=Math.min(n,inv[k]);
+  inv[k]-=n;if(P.weapon===k&&!has(k))P.weapon='none';
+  act({t:'drop',x:P.x+Math.cos(P.face)*26,y:P.y+Math.sin(P.face)*26,bag:{[k]:n}});
+  toast(`丟出 ${k} ×${n}`);dropK=null;writeSave();renderPanel()}
 function craft(r){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;take(r.cost);inv[r.id]=(inv[r.id]||0)+1;
   if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg)P.weapon=r.id;toast(`做好了：${r.name}`);writeSave();renderPanel()}
 
@@ -605,6 +626,8 @@ function refund(from,cost,msg){if(from===ME){for(const k in cost)inv[k]=(inv[k]|
 function handleAct(m,from){switch(m.t){
   case'hit':{const mob=mobs.find(o=>o.id===m.id);if(mob)hitMob(mob,m.dmg,from,m.x,m.y);break}
   case'res':worldRes(m.c,m.dmg,from);break;
+  case'drop':evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag:m.bag});break;
+  case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
@@ -619,9 +642,11 @@ function applyEvt(m){switch(m.t){
   case'sa':if(!structGrid[ci(m.x,m.y)]){addStruct(m.k,m.x,m.y);burst(m.x,m.y,'#c9a26a',10)}break;
   case'bn':banner(m.h,m.s);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
+  case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
+  case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>[s.k,s.x,s.y]),res})}
+  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -692,8 +717,9 @@ function render(){
   for(const m of mobs)if(Math.abs(m.x-cx)<hw+60&&Math.abs(m.y-cy)<hh+60)list.push([m.y,2,m]);
   if(MODE==='solo'||started)list.push([P.y,3,P]);
   for(const o of others.values())if(!o.dead)list.push([o.y,3,o]);
+  for(const l of loots)if(Math.abs(l.x-cx)<hw+40&&Math.abs(l.y-cy)<hh+40)list.push([l.y,5,l]);
   list.sort((a,b)=>a[0]-b[0]);
-  for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else drawPlayer(o)}
+  for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else if(t===3)drawPlayer(o);else drawLoot(o)}
   // ghost
   if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,anim:0});ctx.globalAlpha=1;
     ctx.strokeStyle=ok?'#9fe07a':'#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.strokeRect(g.x-20,g.y-20,40,40);ctx.setLineDash([])}
@@ -775,6 +801,8 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
     ctx.fillStyle=wind?'#ff5a3a':'#bfe8ff';ctx.fillRect(32,-5,3,3);ctx.fillRect(32,2,3,3);ctx.restore()}
   if(m.hp<m.max&&m.k!=='boss'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
 const CAPES=['#7a3b33','#2f5d7a','#4f6b2a','#8a6a2a','#5f3a7a','#2a6b62'];
+function drawLoot(l){shadow(l.x+1,l.y+3,9,4);ctx.fillStyle='#8a6236';ctx.beginPath();ctx.ellipse(l.x,l.y-4,8,7,0,0,6.28);ctx.fill();
+  ctx.fillStyle='#5a3d22';ctx.fillRect(l.x-4,l.y-12,8,3);ctx.fillStyle='#e0a646';ctx.fillRect(l.x-1,l.y-6,2,2)}
 function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a);
   if(pl.inv>0&&pl.roll<=0&&Math.floor(time*20)%2)ctx.globalAlpha=.55;
   shadow(x,y+5,12,5);
