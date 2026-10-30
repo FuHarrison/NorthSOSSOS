@@ -101,6 +101,9 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 .slot .n small{display:block;color:var(--mute);font-size:11px;font-variant-numeric:tabular-nums}
 .slot button{border:1px solid var(--line);background:#2c372f;border-radius:6px;padding:4px 8px;font-size:12px}
 .slot button.on{background:var(--accent);color:#1b1407;border-color:var(--accent)}
+.slot{flex-wrap:wrap}
+.droprow{display:flex;gap:4px;flex-basis:100%}
+.dropn{width:56px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;font-size:12px;color:var(--ink)}
 .help{display:grid;gap:14px;font-size:13px;line-height:1.6}
 .help h4{margin:0 0 4px;font-family:var(--display);font-size:14px;color:var(--accent);letter-spacing:.05em}
 .help ul{margin:0;padding-left:18px;color:var(--ink)}
@@ -523,9 +526,16 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.innerHTML=(ks.length?`<p class="note">食物最多同時吃 3 種，每種都會提高血量與耐力上限。</p><div class="inv">`+ks.map(k=>{let btn='';
       if(FOODS[k])btn=`<button type="button" data-eat="${k}">吃</button>`;else if(WEAPONS[k])btn=`<button type="button" data-eq="${k}" class="${P.weapon===k?'on':''}">${P.weapon===k?'手持':'裝備'}</button>`;else if(k==='皮甲')btn=`<button type="button" class="on" disabled>穿著</button>`;
       const sub=FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:WEAPONS[k]?`傷害 ${WEAPONS[k].dmg}`:'';
-      return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
+      const drop=dropK===k?`<div class="droprow"><input type="number" class="dropn" min="1" max="${inv[k]}" value="1" aria-label="丟出數量"><button type="button" data-dropn="${k}">丟</button><button type="button" data-dropall="${k}">全部</button><button type="button" data-dropx>取消</button></div>`
+        :`<button type="button" data-drop="${k}">丟出</button>`;
+      return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}${drop}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
     b.querySelectorAll('[data-eat]').forEach(x=>x.addEventListener('click',()=>{eat(x.dataset.eat);renderPanel()}));
-    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}))}
+    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}));
+    b.querySelectorAll('[data-drop]').forEach(x=>x.addEventListener('click',()=>{dropK=x.dataset.drop;renderPanel();const n=b.querySelector('.dropn');if(n){n.focus();n.select()}}));
+    b.querySelectorAll('[data-dropx]').forEach(x=>x.addEventListener('click',()=>{dropK=null;renderPanel()}));
+    b.querySelectorAll('[data-dropall]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropall,inv[x.dataset.dropall])));
+    b.querySelectorAll('[data-dropn]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropn,b.querySelector('.dropn').value)));
+    const dn=b.querySelector('.dropn');if(dn)dn.addEventListener('keydown',e=>{if(e.key==='Enter')dropItem(dropK,dn.value);else if(e.key==='Escape'){e.stopPropagation();dropK=null;renderPanel()}})}
   else if(panelTab==='pets'){
     b.innerHTML=pets.length?`<p class="note">一次只能召喚一隻。野豬會幫忙撿東西，狼崽擅長戰鬥。寵物撿到的東西放在牠身上，倒下時會掉在地上。</p><div class="grid">`+pets.map(p=>{const D=PETS[p.k],out=p.id===petOut,n=Object.values(p.bag).reduce((a,b)=>a+b,0);
       return`<div class="card"><h3>${p.name}<em>${D.name}・${D.role}${out?'・召喚中':''}</em></h3><p>${p.down>0?`倒下了，${Math.ceil(p.down)} 秒後回來`:`血量 ${Math.ceil(p.hp)}/${D.hp}・傷害 ${D.dmg}`}・攜帶 ${n} 件</p>
@@ -542,6 +552,12 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
+// drop items as a sack in front of the player; anyone can pick it up with E
+let dropK=null;
+function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){dropK=null;renderPanel();return}n=Math.min(n,inv[k]);
+  inv[k]-=n;if(P.weapon===k&&!has(k))P.weapon='none';
+  act({t:'drop',x:P.x+Math.cos(P.face)*26,y:P.y+Math.sin(P.face)*26,bag:{[k]:n}});
+  toast(`丟出 ${k} ×${n}`);dropK=null;writeSave();renderPanel()}
 function craft(r){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;take(r.cost);inv[r.id]=(inv[r.id]||0)+1;
   if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg)P.weapon=r.id;toast(`做好了：${r.name}`);writeSave();renderPanel()}
 
