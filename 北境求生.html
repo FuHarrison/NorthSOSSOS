@@ -48,7 +48,7 @@ kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--lin
 #weaponTag b{color:var(--ink);font-weight:600}
 #toast{top:calc(env(safe-area-inset-top,0px) + 92px);left:50%;transform:translateX(-50%);font-size:13px;background:#000b;border-radius:6px;padding:6px 12px;opacity:0;transition:opacity .3s;white-space:nowrap}
 #toast.on{opacity:1}
-#bossBar{bottom:calc(env(safe-area-inset-bottom,0px) + 110px);left:50%;transform:translateX(-50%);width:min(420px,80vw);text-align:center}
+#bossBar{bottom:calc(env(safe-area-inset-bottom,0px) + 130px);left:50%;transform:translateX(-50%);width:min(420px,80vw);text-align:center}
 #bossBar span{font-family:var(--display);font-weight:900;letter-spacing:.2em;font-size:14px;text-shadow:0 1px 3px #000}
 #bossBar .bar{height:10px;margin-top:4px}
 #bossFill{background:linear-gradient(90deg,#6d7d8c,#c7d6e2)}
@@ -74,10 +74,20 @@ kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--lin
 #bUse{right:0;bottom:96px;width:58px;height:58px}
 #bSwap{right:78px;bottom:78px;width:50px;height:50px;font-size:12px}
 
-#placeBar{position:fixed;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;gap:8px;align-items:center;background:#0d130fe6;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+#placeBar{position:fixed;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 76px);display:flex;gap:8px;align-items:center;background:#0d130fe6;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
 #placeBar button{border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:7px 14px}
 #placeOk{background:var(--accent)!important;color:#1b1407;border-color:var(--accent)!important;font-weight:700}
 body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
+/* hotbar: one row at the bottom on desktop, a 4×2 grid above the weapon tag on touch (the right side is taken by the buttons) */
+#hotbar{position:fixed;z-index:5;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;gap:4px;padding:4px;background:#0d130fb3;border:1px solid #ffffff1f;border-radius:10px}
+.hs{position:relative;width:46px;height:46px;border:1px solid #ffffff26;border-radius:7px;background:#00000059;display:grid;place-items:center;align-content:center;gap:2px;padding:0;color:var(--ink);touch-action:none}
+.hs.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:#e0a64626}
+.hs kbd{position:absolute;left:3px;top:1px;border:0;padding:0;font-size:9px}
+.hs .sw{width:16px;height:16px;border-radius:4px}
+.hs .hn{font-size:10px;line-height:1;white-space:nowrap;overflow:hidden;max-width:42px}
+.hs small{position:absolute;right:3px;top:1px;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums}
+body.touch #hotbar{left:calc(env(safe-area-inset-left,0px) + 10px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 36px);display:grid;grid-template-columns:repeat(4,38px)}
+body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 
 /* panels */
 .modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#05080699;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
@@ -146,6 +156,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
 <div class="hud" id="topr"><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
 <div class="hud" id="weaponTag"></div>
+<div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
 <div class="hud" id="bossBar" hidden><span>灰鬃狼王</span><div class="bar"><i id="bossFill"></i></div></div>
 <div class="hud" id="banner"></div>
@@ -156,7 +167,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
     <button class="tb" id="bAtk" type="button">攻擊</button>
     <button class="tb" id="bRoll" type="button">翻滾</button>
     <button class="tb" id="bUse" type="button">互動</button>
-    <button class="tb" id="bSwap" type="button">換武器</button>
+    <button class="tb" id="bSwap" type="button">切換</button>
   </div>
 </div>
 
@@ -382,7 +393,7 @@ function populate(){
 /* ---------- load / save ---------- */
 // solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
 function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
-function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},
+function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen()}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 function writeSave(){if(!ready)return;try{
@@ -399,6 +410,9 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
   if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}
+  // older saves have no hotbar: fill it from the bag and select the weapon that was in hand
+  if(Array.isArray(s.hot)&&s.hot.length===HOT_N){hot=s.hot.map(k=>typeof k==='string'&&ITEM[k]?k:null);hotSel=Math.min(HOT_N-1,Math.max(0,s.hotSel|0))}
+  else{hotDefault();hotSel=Math.max(0,hot.indexOf(P.weapon))}syncHeld();
   pets=(s.pets||[]).filter(p=>PETS[p.k]).map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp>0?p.hp:PETS[p.k].hp,bag:p.bag||{},down:p.down||0}));
   petOut=pets.some(p=>p.id===s.petOut)?s.petOut:null;const cp=curPet();if(cp)placePet(cp,false);
   if(s.seen)unpackSeen(s.seen)}
@@ -440,7 +454,7 @@ function maxSt(){return 50+foods.reduce((s,f)=>s+foodVal(f,'st'),0)}
 const has=k=>(inv[k]||0)>0;
 function give(k,n,x,y,toPet){if(n<=0)return;const cp=toPet&&curPet();
   if(cp){cp.bag[k]=(cp.bag[k]||0)+n;floats.push({x:x??cp.x,y:(y??cp.y)-18,txt:`+${n} ${k}`,t:1.2,col:'#bfe3a0'});return}
-  inv[k]=(inv[k]||0)+n;floats.push({x:x??P.x,y:(y??P.y)-18,txt:`+${n} ${k}`,t:1.4,col:ITEM[k]||'#fff'})}
+  inv[k]=(inv[k]||0)+n;hotAdd(k);floats.push({x:x??P.x,y:(y??P.y)-18,txt:`+${n} ${k}`,t:1.4,col:ITEM[k]||'#fff'})}
 function take(cost){for(const k in cost)inv[k]-=cost[k]}
 function afford(cost){for(const k in cost)if((inv[k]||0)<cost[k])return false;return true}
 function nearBench(){return structs.some(s=>s.k==='bench'&&dist(s,P)<240)}
@@ -464,7 +478,8 @@ addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doRoll()}
   if(e.code==='KeyE')doUse();
-  if(e.code==='KeyQ')swapWeapon();
+  if(e.code==='KeyQ')hotNext();
+  if(/^Digit[1-8]$/.test(e.code))hotSelect(+e.code[5]-1);
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;atkHeld=false});
@@ -474,7 +489,7 @@ cv.addEventListener('pointerdown',e=>{
   if(e.pointerType==='mouse'){mouse.on=true;mouse.x=e.clientX;mouse.y=e.clientY;
     if(e.button===2){doRoll();return}
     if(placing){tryPlace();return}
-    atkHeld=true;return}
+    if(useHeld())return;atkHeld=true;return}
   if(joy.id===null&&e.clientX<VW*.55){joy.id=e.pointerId;joy.ox=e.clientX;joy.oy=e.clientY;joy.dx=joy.dy=0;const s=$('stick');s.style.display='block';s.style.left=joy.ox+'px';s.style.top=joy.oy+'px';s.firstElementChild.style.transform='';cv.setPointerCapture(e.pointerId)}
 });
 cv.addEventListener('pointermove',e=>{
@@ -484,8 +499,10 @@ cv.addEventListener('pointermove',e=>{
 function endPtr(e){if(e.pointerType==='mouse'){atkHeld=false;return}if(e.pointerId===joy.id){joy.id=null;joy.dx=joy.dy=0;$('stick').style.display='none'}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 function tbtn(id,down,up){const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();b.classList.add('down');if(!paused)down()});const u=e=>{b.classList.remove('down');up&&up()};b.addEventListener('pointerup',u);b.addEventListener('pointercancel',u);b.addEventListener('pointerleave',u)}
-tbtn('bAtk',()=>{if(placing)tryPlace();else atkHeld=true},()=>{atkHeld=false});
-tbtn('bRoll',doRoll);tbtn('bUse',doUse);tbtn('bSwap',swapWeapon);
+tbtn('bAtk',()=>{if(placing)tryPlace();else if(!useHeld())atkHeld=true},()=>{atkHeld=false});
+tbtn('bRoll',doRoll);tbtn('bUse',doUse);tbtn('bSwap',hotNext);
+cv.addEventListener('wheel',e=>{if(paused)return;e.preventDefault();hotSelect(hotSel+(e.deltaY>0?1:-1))},{passive:false});
+$('hotbar').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-hs]');if(!b)return;e.preventDefault();e.stopPropagation();if(!paused)hotSelect(+b.dataset.hs)});
 $('btnPanel').addEventListener('click',()=>togglePanel());
 $('placeOk').addEventListener('click',tryPlace);$('placeRot').addEventListener('click',rotPlace);$('placeCancel').addEventListener('click',stopPlace);
 $('panelX').addEventListener('click',()=>togglePanel(false));
@@ -497,8 +514,19 @@ function worldMouse(){return{x:(mouse.x-VW/2)/SCALE+cam.x,y:(mouse.y-VH/2)/SCALE
 function doRoll(){if(P.roll>0||P.st<14||placing)return;P.st-=14;P.stDelay=.9;P.roll=.32;
   let dx=0,dy=0;if(TOUCH){dx=joy.dx;dy=joy.dy}else{dx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);dy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0)}
   if(!dx&&!dy){dx=Math.cos(P.face);dy=Math.sin(P.face)}const l=Math.hypot(dx,dy);P.rdx=dx/l;P.rdy=dy/l}
-function ownedWeapons(){return['none',...Object.keys(WEAPONS).filter(k=>k!=='none'&&has(k))]}
-function swapWeapon(){const o=ownedWeapons();P.weapon=o[(o.indexOf(P.weapon)+1)%o.length];toast('裝備：'+WEAPONS[P.weapon].name)}
+/* ---------- hotbar ---------- */
+// 8 slots; the selected slot is what you hold. Weapons and tools set P.weapon, food in the selected slot is eaten on attack
+const HOT_N=8;let hot=new Array(HOT_N).fill(null),hotSel=0,hotSig='';
+function hotAdd(k){if(!(WEAPONS[k]||FOODS[k])||hot.includes(k))return;const i=hot.indexOf(null);if(i>=0)hot[i]=k} // new weapons/food fill the first empty slot
+function hotPut(k){const i=hot.indexOf(k);if(i>=0)hot[i]=null;hot[hotSel]=k;syncHeld()}                       // bag button: into the selected slot
+const held=()=>hot[hotSel];
+function syncHeld(){for(let i=0;i<HOT_N;i++)if(hot[i]&&!has(hot[i]))hot[i]=null;const k=hot[hotSel];P.weapon=WEAPONS[k]?k:'none'}
+function hotSelect(i,quiet){hotSel=(i+HOT_N)%HOT_N;syncHeld();if(!quiet)toast(`${hotSel+1}：${held()||'空手'}`)}
+function hotNext(){for(let d=1;d<=HOT_N;d++){const i=(hotSel+d)%HOT_N;if(hot[i]){hotSelect(i);return}}toast('快捷欄是空的')}
+function useHeld(){const k=held();if(!FOODS[k])return false;eat(k);syncHeld();return true}
+function hotDefault(){hot=new Array(HOT_N).fill(null);for(const k of [...Object.keys(WEAPONS),...Object.keys(FOODS)])if(k!=='none'&&has(k))hotAdd(k)}
+function renderHot(){const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k])]);if(sig===hotSig)return;hotSig=sig;
+  $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k||'空'}"><kbd>${i+1}</kbd>${k?`<span class="sw" style="background:${ITEM[k]||'#888'}"></span><span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</button>`).join('')}
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;return Math.abs(d)}
 function attack(){
   const w=WEAPONS[P.weapon];if(P.cd>0||P.roll>0)return;if(P.st<w.st){P.stDelay=Math.max(P.stDelay,.4);return}
@@ -602,13 +630,13 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.querySelectorAll('[data-r]').forEach(x=>x.addEventListener('click',()=>craft(RECIPES[+x.dataset.r])))}
   else if(panelTab==='inv'){const ks=Object.keys(inv).filter(k=>inv[k]>0);
     b.innerHTML=(ks.length?`<p class="note">食物最多同時吃 3 種，每種都會提高血量與耐力上限。</p><div class="inv">`+ks.map(k=>{let btn='';
-      if(FOODS[k])btn=`<button type="button" data-eat="${k}">吃</button>`;else if(WEAPONS[k])btn=`<button type="button" data-eq="${k}" class="${P.weapon===k?'on':''}">${P.weapon===k?'手持':'裝備'}</button>`;else if(k==='皮甲')btn=`<button type="button" class="on" disabled>穿著</button>`;
+      if(FOODS[k])btn=`<button type="button" data-eat="${k}">吃</button>`;if(k!=='皮甲'){const hi=hot.indexOf(k);btn+=`<button type="button" data-eq="${k}" class="${held()===k?'on':''}" title="放進目前選的快捷欄第 ${hotSel+1} 格">${held()===k?'手持':hi>=0?`快捷 ${hi+1}`:'放快捷欄'}</button>`}else if(k==='皮甲')btn=`<button type="button" class="on" disabled>穿著</button>`;
       const sub=FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:WEAPONS[k]?`傷害 ${WEAPONS[k].dmg}`:'';
       const drop=dropK===k?`<div class="droprow"><input type="number" class="dropn" min="1" max="${inv[k]}" value="1" aria-label="丟出數量"><button type="button" data-dropn="${k}">丟</button><button type="button" data-dropall="${k}">全部</button><button type="button" data-dropx>取消</button></div>`
         :`<button type="button" data-drop="${k}">丟出</button>`;
       return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}${drop}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
     b.querySelectorAll('[data-eat]').forEach(x=>x.addEventListener('click',()=>{eat(x.dataset.eat);renderPanel()}));
-    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{P.weapon=x.dataset.eq;renderPanel()}));
+    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{hotPut(x.dataset.eq);writeSave();renderPanel()}));
     b.querySelectorAll('[data-drop]').forEach(x=>x.addEventListener('click',()=>{dropK=x.dataset.drop;renderPanel();const n=b.querySelector('.dropn');if(n){n.focus();n.select()}}));
     b.querySelectorAll('[data-dropx]').forEach(x=>x.addEventListener('click',()=>{dropK=null;renderPanel()}));
     b.querySelectorAll('[data-dropall]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropall,inv[x.dataset.dropall])));
@@ -632,9 +660,9 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠；打倒狼王後，每個人都會得到一隻狼崽。</p>`;
     b.querySelectorAll('[data-sum]').forEach(x=>x.addEventListener('click',()=>{const id=+x.dataset.sum;if(petOut===id)petOut=null;else summonPet(id);writeSave();renderPanel()}));
     b.querySelectorAll('[data-take]').forEach(x=>x.addEventListener('click',()=>{const p=pets.find(q=>q.id===+x.dataset.take);if(!p)return;
-      for(const k in p.bag)inv[k]=(inv[k]||0)+p.bag[k];toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
+      for(const k in p.bag){inv[k]=(inv[k]||0)+p.bag[k];hotAdd(k)}toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
-    <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li>'}</ul></div>
+    <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>打倒狼王後每個人都會得到一隻狼崽。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
@@ -651,11 +679,11 @@ function refreshFurnacePanel(){if($('panel').hidden||panelTab!=='furnace')return
 // drop items as a sack in front of the player; anyone can pick it up with E
 let dropK=null;
 function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){dropK=null;renderPanel();return}n=Math.min(n,inv[k]);
-  inv[k]-=n;if(P.weapon===k&&!has(k))P.weapon='none';
+  inv[k]-=n;syncHeld();
   act({t:'drop',x:P.x+Math.cos(P.face)*26,y:P.y+Math.sin(P.face)*26,bag:{[k]:n}});
   toast(`丟出 ${k} ×${n}`);dropK=null;writeSave();renderPanel()}
-function craft(r){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;take(r.cost);inv[r.id]=(inv[r.id]||0)+1;
-  if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg)P.weapon=r.id;toast(`做好了：${r.name}`);writeSave();renderPanel()}
+function craft(r){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;take(r.cost);inv[r.id]=(inv[r.id]||0)+1;hotAdd(r.id);
+  if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg&&hot.includes(r.id))hotSelect(hot.indexOf(r.id),true);toast(`做好了：${r.name}`);writeSave();renderPanel()}
 
 /* ---------- goals ---------- */
 const GOALS=[
@@ -1067,7 +1095,8 @@ function hud(){const MH=maxHp(),MS=maxSt();
   $('petHud').classList.toggle('down',!!po&&po.down>0);
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
-  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[P.weapon].name}</b>${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>Q</kbd> 換武器'}`;
+  syncHeld();renderHot();const hk=held();
+  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
   $('bossBar').hidden=!boss;if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
@@ -1106,7 +1135,7 @@ requestAnimationFrame(frame);
 /* ---------- intro ---------- */
 function setupIntro(){
   cam.x=P.x;cam.y=P.y;
-  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵／空白翻滾・E 互動・Q 換武器・Tab 背包・M 地圖';
+  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵／空白翻滾・E 互動・1～8／滾輪／Q 快捷欄・Tab 背包・M 地圖';
   if(MODE==='solo')$('introBtns').innerHTML=save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`;
   else{const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     $('introBtns').innerHTML=`<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">`+
