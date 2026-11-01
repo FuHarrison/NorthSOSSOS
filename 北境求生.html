@@ -416,7 +416,7 @@ function reveal(x,y){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);
 function packSeen(){let s='';for(let b=0;b<seen.length;b+=8){let v=0;for(let k=0;k<8;k++)if(seen[b+k])v|=1<<k;s+=String.fromCharCode(v)}return btoa(s)}
 function unpackSeen(str){resetFog();let s;try{s=atob(str)}catch(e){return}
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1)}}}}
-let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[];
+let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
 let altar=null,boss=null;
 let inv={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
@@ -487,7 +487,7 @@ function addRes(k,x,y,c){const o={k,x,y,cell:c,hp:RES[k].hp,flash:0,dep:0,sz:.85
 /* ---------- mobs ---------- */
 function findSpot(cx,cy,minD,maxD,want){for(let t=0;t<40;t++){const a=Math.random()*6.28,r=rnd(minD,maxD),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r,c=ci(x,y);if(c<0)continue;const b=biome[c];if(b===0||resGrid[c]&&RES[resGrid[c].k].solid||structGrid[c])continue;if(want&&!want.includes(b))continue;return{x,y}}return null}
 function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100}}[k];
-  return{id:++mobSeq,k,x,y,tx:x,ty:y,hp:base.hp,max:base.hp,r:base.r,spd:base.spd,face:Math.random()*6.28,wt:0,wx:0,wy:0,aggro:0,acd:0,kx:0,ky:0,flash:0,state:'chase',t:0,dashT:3,howlT:9,clawT:4,cn:0,cph:'',hitDash:false,anim:Math.random()*9}}
+  return{id:++mobSeq,k,x,y,tx:x,ty:y,hp:base.hp,max:base.hp,r:base.r,spd:base.spd,face:Math.random()*6.28,wt:0,wx:0,wy:0,aggro:0,acd:0,kx:0,ky:0,flash:0,state:'chase',t:0,atkT:2.5,lastAtk:'',howlT:9,cn:0,cph:'',hitDash:false,anim:Math.random()*9}}
 function spawnMob(k,x,y){const m=makeMob(k,x,y);mobs.push(m);return m}
 function populate(){
   for(let n=0;n<24;n++){const s=findSpot(W/2,H/2,350,1500,[2]);if(s)spawnMob('boar',s.x,s.y)}
@@ -929,6 +929,7 @@ function updateFx(dt){
   for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.9;p.vy*=.9;if(p.t<=0)parts.splice(i,1)}
   for(let i=floats.length-1;i>=0;i--){const f=floats[i];f.t-=dt;f.y-=22*dt;if(f.t<=0)floats.splice(i,1)}
   for(let i=slashes.length-1;i>=0;i--)if((slashes[i].t-=dt)<=0)slashes.splice(i,1);
+  for(let i=rings.length-1;i>=0;i--)if((rings[i].t-=dt)<=0)rings.splice(i,1);
   shake=Math.max(0,shake-dt*30);
   cam.x+=(P.x-cam.x)*Math.min(1,dt*8);cam.y+=(P.y-cam.y)*Math.min(1,dt*8);
   saveT-=dt;if(saveT<=0){saveT=8;writeSave()}
@@ -954,6 +955,11 @@ function hurt(T,dmg,src){
   if(T===P)hitPlayer(dmg,src);else sendTo(T.id,{t:'hurt',dmg,x:src.x,y:src.y})}
 // Wolf King claw combo: three short lunges, each ending in a swipe in front of it
 const CLAW_LUNGE=.14,CLAW_SPD=430,CLAW_PAUSE=.24,CLAW_DMG=12,CLAW_ARC=1.0;
+// roar: green glow in place, then a hit on everyone within ROAR_R around it
+const ROAR_R=180,ROAR_DMG=15,ROAR_WIND=.9;
+function bossRoar(m,T){const L=T&&!TG.includes(T)?[...TG,T]:TG;
+  for(const t of L)if(dist(m,t)<ROAR_R+t.r)hurt(t,ROAR_DMG,m);
+  evt({t:'rr',x:Math.round(m.x),y:Math.round(m.y)})}
 function clawSwipe(m,T){const L=T&&!TG.includes(T)?[...TG,T]:TG;
   for(const t of L)if(dist(m,t)<m.r+t.r+40&&angDiff(Math.atan2(t.y-m.y,t.x-m.x),m.face)<CLAW_ARC)hurt(t,CLAW_DMG,m);
   evt({t:'cl',x:Math.round(m.x),y:Math.round(m.y),a:Math.round(m.face*100)/100,n:m.cn})}
@@ -962,17 +968,20 @@ function updateBoss(m,dt,d,a,T){
   m.howlT-=dt;if(m.howlT<=0){m.howlT=15;for(let i=0;i<2;i++){const s=findSpot(m.x,m.y,60,140);if(s)spawnMob('moss',s.x,s.y).aggro=30}floats.push({x:m.x,y:m.y-46,txt:'嗷——',t:1.2,col:'#cfe3ef'});shake=6}
   if(m.state==='chase'){m.face=a;if(d>m.r+T.r)move(m,Math.cos(a)*m.spd*dt,Math.sin(a)*m.spd*dt);
     if(d<m.r+T.r+8&&m.acd<=0){hurt(T,11,m);m.acd=1.2}
-    m.clawT-=dt;if(m.clawT<=0&&d<170){m.state='cwind';m.t=.5;m.face=a;return}
-    m.dashT-=dt;if(m.dashT<=0&&d<340){m.state='wind';m.t=.7;m.face=a}}
+    m.atkT-=dt;if(m.atkT<=0&&d<340){const opts=['dash'];if(d<170)opts.push('claw');if(d<ROAR_R+20)opts.push('roar');
+      const o=opts.length>1?opts.filter(k=>k!==m.lastAtk):opts,k=o[Math.floor(Math.random()*o.length)];m.lastAtk=k;m.face=a;
+      if(k==='claw'){m.state='cwind';m.t=.5}else if(k==='roar'){m.state='rwind';m.t=ROAR_WIND}else{m.state='wind';m.t=.7}}}
+  else if(m.state==='rwind'){m.t-=dt;if(m.t<=0){bossRoar(m,T);m.state='rrec';m.t=.45}}
+  else if(m.state==='rrec'){m.t-=dt;if(m.t<=0){m.state='chase';m.atkT=rnd(1.4,2.4)}}
   else if(m.state==='cwind'){m.t-=dt;m.face=a;if(m.t<=0){m.state='claw';m.cn=0;m.cph='lunge';m.t=CLAW_LUNGE}}
   else if(m.state==='claw'){m.t-=dt;
     if(m.cph==='lunge'){move(m,Math.cos(m.face)*CLAW_SPD*dt,Math.sin(m.face)*CLAW_SPD*dt);
-      if(m.t<=0){clawSwipe(m,T);m.cn++;if(m.cn>=3){m.state='chase';m.clawT=rnd(5,7);m.dashT=Math.max(m.dashT,1.5)}else{m.cph='pause';m.t=CLAW_PAUSE}}}
+      if(m.t<=0){clawSwipe(m,T);m.cn++;if(m.cn>=3){m.state='chase';m.atkT=rnd(1.4,2.4)}else{m.cph='pause';m.t=CLAW_PAUSE}}}
     else{const df=Math.atan2(Math.sin(a-m.face),Math.cos(a-m.face));m.face+=Math.max(-4*dt,Math.min(4*dt,df)); // turns toward you, but not instantly
       if(m.t<=0){m.cph='lunge';m.t=CLAW_LUNGE}}}
   else if(m.state==='wind'){m.t-=dt;m.face=a;if(m.t<=0){m.state='dash';m.t=.42;m.hitDash=false}}
   else if(m.state==='dash'){m.t-=dt;move(m,Math.cos(m.face)*500*dt,Math.sin(m.face)*500*dt);if(!m.hitDash&&d<m.r+T.r+6){hurt(T,18,m);m.hitDash=true}
-    if(m.t<=0){m.state='chase';m.dashT=rnd(2.2,3.6)}}
+    if(m.t<=0){m.state='chase';m.atkT=rnd(1.4,2.4)}}
 }
 
 /* ---------- pets ---------- */
@@ -1048,7 +1057,7 @@ function handleAct(m,from){switch(m.t){
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
   case'summon':{if(boss||flags.boss){refund(from,{獠牙:3,樹脂:5},'狼王已經醒了');break}
-    flags.summoned=true;const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('boss',sp.x,sp.y);evt({t:'bn',h:'灰鬃狼王',s:'牠會衝刺撲擊（發紅光），也會往前連續三連抓（發橘光），看到就翻滾閃開'});break}
+    flags.summoned=true;const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('boss',sp.x,sp.y);evt({t:'bn',h:'灰鬃狼王',s:'紅光：衝刺撲擊・橘光：往前三連抓・綠光：原地怒吼，周圍一大圈都會受傷，快跑出圈外或翻滾'});break}
 }}
 function applyEvt(m){switch(m.t){
   case'rh':{const o=resGrid[m.c];if(!o)break;o.hp=m.hp;o.flash=.15;burst(o.x,o.y-8,RES[o.k].mine?'#9a9d98':'#c9a26a',5);break}
@@ -1058,6 +1067,7 @@ function applyEvt(m){switch(m.t){
   case'sa':if((isWallK(m.k)||!structGrid[ci(m.x,m.y)])&&addStruct(m.k,m.x,m.y,m.o))burst(m.x,m.y,m.k==='swall'||m.k==='furnace'?'#9a9d98':'#c9a26a',10);break;
   case'bn':banner(m.h,m.s);break;
   case'cl':slashes.push({x:m.x,y:m.y,a:m.a,n:m.n,t:.3});shake=Math.max(shake,4);break;
+  case'rr':rings.push({x:m.x,y:m.y,t:.55});shake=Math.max(shake,11);floats.push({x:m.x,y:m.y-56,txt:'吼——！',t:1,col:'#9dff9a'});burst(m.x,m.y,'#9dff9a',24);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
@@ -1156,6 +1166,8 @@ function render(){
     ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(a.x-5,a.y-5);ctx.lineTo(a.x+5,a.y+5);ctx.moveTo(a.x+5,a.y-5);ctx.lineTo(a.x-5,a.y+5);ctx.stroke()}
   else if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,o:g.o,anim:0});ctx.globalAlpha=1;
     ctx.strokeStyle=ok?'#9fe07a':'#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(g.o==='v')ctx.strokeRect(g.x-WALL_T,g.y-20,WALL_T*2,40);else if(g.o)ctx.strokeRect(g.x-20,g.y-WALL_T,40,WALL_T*2);else ctx.strokeRect(g.x-20,g.y-20,40,40);ctx.setLineDash([])}
+  // roar shockwave: a green ring that grows out to ROAR_R
+  for(const r of rings){const k=1-r.t/.55;ctx.strokeStyle=`rgba(150,255,150,${.85*(1-k)})`;ctx.lineWidth=10*(1-k)+2;ctx.beginPath();ctx.ellipse(r.x,r.y,30+(ROAR_R-30)*k,(30+(ROAR_R-30)*k)*.75,0,0,6.28);ctx.stroke()}
   // claw swipes
   for(const c of slashes){const k=c.t/.3,cx=c.x+Math.cos(c.a)*44,cy=c.y-14+Math.sin(c.a)*44;ctx.save();ctx.translate(cx,cy);ctx.rotate(c.a+Math.PI/2+(c.n%2?.45:-.45));
     ctx.lineCap='round';for(let j=-1;j<=1;j++){ctx.strokeStyle=`rgba(220,240,255,${.9*k})`;ctx.lineWidth=4*k+1;ctx.beginPath();ctx.moveTo(-26,j*9-6);ctx.quadraticCurveTo(0,j*9+8,26,j*9-6);ctx.stroke()}
@@ -1244,8 +1256,10 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
     ctx.fillStyle=f?'#fff':'#46602f';ctx.beginPath();ctx.arc(m.x-4,m.y-13-b,4,0,6.28);ctx.arc(m.x+5,m.y-6-b,3,0,6.28);ctx.fill();ctx.fillStyle='#8aa85a';ctx.beginPath();ctx.arc(m.x-2,m.y-18-b,3,0,6.28);ctx.fill();
     ctx.fillStyle='#ffe37a';ctx.fillRect(m.x+c*6-sn*3-1,m.y-10-b+sn*4+c*3-1,2.5,2.5);ctx.fillRect(m.x+c*6+sn*3-1,m.y-10-b+sn*4-c*3-1,2.5,2.5);
     ctx.strokeStyle='#3a4d26';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(m.x-10,m.y-8-b);ctx.lineTo(m.x-15,m.y-2-b);ctx.moveTo(m.x+10,m.y-8-b);ctx.lineTo(m.x+15,m.y-2-b);ctx.stroke()}
-  else{shadow(m.x,m.y+10,34,11);const wind=m.state==='wind',cw=m.state==='cwind';ctx.save();ctx.translate(m.x,m.y-14);ctx.rotate(a);
+  else{const rw=m.state==='rwind';if(rw){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(120,255,140,${.14+p*.12})`;ctx.strokeStyle=`rgba(170,255,175,${.65+p*.35})`;ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.beginPath();ctx.ellipse(m.x,m.y,ROAR_R,ROAR_R*.75,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([])}
+    shadow(m.x,m.y+10,34,11);const wind=m.state==='wind',cw=m.state==='cwind';ctx.save();ctx.translate(m.x,m.y-14);ctx.rotate(a);
     if(wind){ctx.fillStyle=`rgba(255,80,60,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(6,0,46,26,0,0,6.28);ctx.fill()}
+    if(rw){ctx.fillStyle=`rgba(130,255,150,${.55+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(-2,0,50,34,0,0,6.28);ctx.fill()}
     if(cw){ctx.fillStyle=`rgba(255,180,70,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(18,0,42,30,0,0,6.28);ctx.fill();
       ctx.strokeStyle='#ffe3a8';ctx.lineWidth=2;for(const sy of[-1,1])for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(22,sy*(14+j*3));ctx.lineTo(32,sy*(18+j*3));ctx.stroke()}}
     ctx.fillStyle=f?'#fff':'#7d858b';for(const[lx,ly]of[[-18,-15],[-18,15],[14,-15],[14,15]]){ctx.beginPath();ctx.ellipse(lx+Math.sin(m.anim*10+lx)*3,ly,6,4,0,0,6.28);ctx.fill()}
@@ -1254,7 +1268,7 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
     ctx.strokeStyle='#8f969c';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(-32,0);ctx.quadraticCurveTo(-46,Math.sin(m.anim*6)*10,-52,Math.sin(m.anim*6)*14);ctx.stroke();
     ctx.fillStyle=f?'#fff':'#a2a9ae';ctx.beginPath();ctx.ellipse(28,0,13,10,0,0,6.28);ctx.fill();ctx.beginPath();ctx.moveTo(36,-5);ctx.lineTo(48,0);ctx.lineTo(36,5);ctx.fill();
     ctx.fillStyle='#5c636a';ctx.beginPath();ctx.moveTo(22,-8);ctx.lineTo(18,-16);ctx.lineTo(28,-9);ctx.moveTo(22,8);ctx.lineTo(18,16);ctx.lineTo(28,9);ctx.fill();
-    ctx.fillStyle=wind?'#ff5a3a':cw?'#ffb347':'#bfe8ff';ctx.fillRect(32,-5,3,3);ctx.fillRect(32,2,3,3);ctx.restore()}
+    ctx.fillStyle=wind?'#ff5a3a':cw?'#ffb347':rw?'#9dff9a':'#bfe8ff';ctx.fillRect(32,-5,3,3);ctx.fillRect(32,2,3,3);ctx.restore()}
   if(m.hp<m.max&&m.k!=='boss'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
 const CAPES=['#7a3b33','#2f5d7a','#4f6b2a','#8a6a2a','#5f3a7a','#2a6b62'];
 // pets reuse the boar / Wolf King art (pup = shrunken wolf), plus a heart in the owner's cape colour and a green hp bar
