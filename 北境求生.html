@@ -125,8 +125,23 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .fbar{height:8px;border-radius:4px;background:#2c372f;overflow:hidden;margin:4px 0 8px}.fbar i{display:block;height:100%;background:linear-gradient(90deg,#ff8a3a,#ffd27a)}
 .fzh{margin:12px 0 6px;font-size:13px}
 .inv.fz{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
-.droprow{display:flex;gap:4px;flex-basis:100%}
-.dropn{width:56px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;font-size:12px;color:var(--ink)}
+.bag{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px}
+.bs{position:relative;aspect-ratio:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--panel2);display:grid;place-items:center;align-content:center;gap:3px;padding:2px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;color:var(--ink)}
+.bs .sw{width:22px;height:22px;border-radius:5px}
+.bs .hn{font-size:11px;line-height:1.1;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bs small{position:absolute;right:4px;bottom:2px;font-size:10px;color:var(--mute);font-variant-numeric:tabular-nums}
+.bs em{position:absolute;left:4px;top:2px;font-style:normal;font-size:9px;color:var(--accent)}
+.bs.held{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.bs.over{border-color:#9fe07a;background:#9fe07a22}
+.bs.empty{cursor:default;background:#00000033}
+.phot{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:6px}
+.phot .bs kbd{position:absolute;left:4px;top:2px;border:0;padding:0;font-size:9px}
+.photh{margin:14px 0 0;font-size:12px;color:var(--mute)}
+#bagMenu{position:fixed;z-index:30;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 24px #000a;padding:6px;display:grid;gap:4px}
+#bagMenu b{font-size:13px;padding:2px 6px}#bagMenu p{margin:0 6px 4px;font-size:11px;color:var(--mute)}
+#bagMenu button{text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:6px 10px;font-size:13px}
+#bagMenu button.danger{border-color:#6b3a33;background:#2a1714;color:#f0b4a8}
+.dragGhost{position:fixed;z-index:40;pointer-events:none;width:52px;height:52px;margin:-26px 0 0 -26px;opacity:.85}
 .help{display:grid;gap:14px;font-size:13px;line-height:1.6}
 .help h4{margin:0 0 4px;font-family:var(--display);font-size:14px;color:var(--accent);letter-spacing:.05em}
 .help ul{margin:0;padding-left:18px;color:var(--ink)}
@@ -647,7 +662,7 @@ function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemoli
   if(!afford(r.cost))toast(`${Object.keys(r.cost).find(k=>(inv[k]||0)<r.cost[k])}用完了`);writeSave()}
 
 /* ---------- panel ---------- */
-function togglePanel(on,tab){const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
+function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
   if(panelTab==='craft'){const nb=nearBench();
@@ -657,19 +672,9 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       <button class="act ${ok?'go':''}" type="button" data-r="${RECIPES.indexOf(r)}" ${ok?'':'disabled'}>${owned?'已擁有':r.build?'建造':'製作'}</button></div>`}).join('')+`</div>`;
     b.querySelectorAll('[data-r]').forEach(x=>x.addEventListener('click',()=>craft(RECIPES[+x.dataset.r])))}
   else if(panelTab==='inv'){const ks=Object.keys(inv).filter(k=>inv[k]>0);
-    b.innerHTML=(ks.length?`<p class="note">食物最多同時吃 3 種，每種都會提高血量與耐力上限。</p><div class="inv">`+ks.map(k=>{let btn='';
-      if(FOODS[k])btn=`<button type="button" data-eat="${k}">吃</button>`;if(k!=='皮甲'){const hi=hot.indexOf(k);btn+=`<button type="button" data-eq="${k}" class="${held()===k?'on':''}" title="放進目前選的快捷欄第 ${hotSel+1} 格">${held()===k?'手持':hi>=0?`快捷 ${hi+1}`:'放快捷欄'}</button>`}else if(k==='皮甲')btn=`<button type="button" class="on" disabled>穿著</button>`;
-      const sub=FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:WEAPONS[k]?`傷害 ${WEAPONS[k].dmg}`:'';
-      const drop=dropK===k?`<div class="droprow"><input type="number" class="dropn" min="1" max="${inv[k]}" value="1" aria-label="丟出數量"><button type="button" data-dropn="${k}">丟</button><button type="button" data-dropall="${k}">全部</button><button type="button" data-dropx>取消</button></div>`
-        :`<button type="button" data-drop="${k}">丟出</button>`;
-      return`<div class="slot"><span class="sw" style="background:${ITEM[k]||'#888'}"></span><div class="n">${k}<small>×${inv[k]}${sub?'・'+sub:''}</small></div>${btn}${drop}</div>`}).join('')+`</div>`:`<p class="note">背包是空的。去砍棵樹吧。</p>`);
-    b.querySelectorAll('[data-eat]').forEach(x=>x.addEventListener('click',()=>{eat(x.dataset.eat);renderPanel()}));
-    b.querySelectorAll('[data-eq]').forEach(x=>x.addEventListener('click',()=>{hotPut(x.dataset.eq);writeSave();renderPanel()}));
-    b.querySelectorAll('[data-drop]').forEach(x=>x.addEventListener('click',()=>{dropK=x.dataset.drop;renderPanel();const n=b.querySelector('.dropn');if(n){n.focus();n.select()}}));
-    b.querySelectorAll('[data-dropx]').forEach(x=>x.addEventListener('click',()=>{dropK=null;renderPanel()}));
-    b.querySelectorAll('[data-dropall]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropall,inv[x.dataset.dropall])));
-    b.querySelectorAll('[data-dropn]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropn,b.querySelector('.dropn').value)));
-    const dn=b.querySelector('.dropn');if(dn)dn.addEventListener('keydown',e=>{if(e.key==='Enter')dropItem(dropK,dn.value);else if(e.key==='Escape'){e.stopPropagation();dropK=null;renderPanel()}})}
+    b.innerHTML=(ks.length?`<p class="note">${TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出'}。把物品拖出視窗就會丟在地上，拖到下面的快捷欄就會放進那一格。</p><div class="bag">`+ks.map(bagSlot).join('')+'</div>'
+      :'<p class="note">背包是空的。去砍棵樹吧。</p>')+
+      `<p class="photh">快捷欄（拖進來放、拖出去拿掉、拖到別格交換）</p><div class="phot">`+hot.map((k,i)=>`<div class="bs${i===hotSel?' held':''}${k?'':' empty'}" data-hk="${i}"><kbd>${i+1}</kbd>${k?`<span class="sw" style="background:${ITEM[k]||'#888'}"></span><span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</div>`).join('')+'</div>'}
   else if(panelTab==='furnace'){const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}const f=s.fz;fzSig=furnaceSig(f);
     const ks=['煤炭',...Object.keys(SMELT)].filter(k=>has(k)),outN=Object.values(f.out).reduce((a,b)=>a+b,0);
     b.innerHTML=`<p class="note">放入礦石和煤炭就會開始燒。每 ${SMELT_T} 秒燒好一塊金屬錠，一塊煤炭燒 ${COAL_T} 秒，點著了就會一直燒到完。</p>
@@ -704,12 +709,45 @@ function furnaceStat(f){const lit=f.burn>0,busy=Object.keys(f.q).length>0;
 // called from hud(): refresh the progress line every tick, rebuild the panel only when the furnace contents change
 function refreshFurnacePanel(){if($('panel').hidden||panelTab!=='furnace')return;const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}
   if(furnaceSig(s.fz)!==fzSig)renderPanel();else{const e=$('fzStat');if(e)e.innerHTML=furnaceStat(s.fz)}}
+/* ---------- bag ---------- */
+function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:WEAPONS[k]?`傷害 ${WEAPONS[k].dmg}`:k==='皮甲'?'受到的傷害 -30%':''}
+function bagSlot(k){const hi=hot.indexOf(k),sub=itemSub(k);
+  return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${inv[k]}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}<span class="sw" style="background:${ITEM[k]||'#888'}"></span><span class="hn">${k}</span><small>${inv[k]}</small></div>`}
+// right-click (or tap) menu for one bag item
+function closeBagMenu(){const m=$('bagMenu');if(m)m.remove()}
+function openBagMenu(k,x,y){closeBagMenu();if(!has(k))return;const n=inv[k],sub=itemSub(k),m=document.createElement('div');m.id='bagMenu';
+  const acts=[];if(FOODS[k])acts.push(['吃',()=>eat(k)]);
+  if(k!=='皮甲')acts.push([held()===k?'手持中':WEAPONS[k]?'裝備':`放快捷欄第 ${hotSel+1} 格`,()=>{if(held()!==k)hotPut(k)}]);
+  acts.push(['丟出 1',()=>dropItem(k,1)]);if(n>2)acts.push([`丟出一半（${Math.floor(n/2)}）`,()=>dropItem(k,Math.floor(n/2))]);if(n>1)acts.push([`全部丟出（${n}）`,()=>dropItem(k,n),1]);
+  m.innerHTML=`<b>${k} ×${n}</b>${sub?`<p>${sub}</p>`:''}`+acts.map(([t,,d],i)=>`<button type="button" data-mi="${i}"${d?' class="danger"':''}>${t}</button>`).join('');
+  document.body.appendChild(m);m.style.left=Math.max(8,Math.min(x,innerWidth-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(y,innerHeight-m.offsetHeight-8))+'px';
+  m.addEventListener('click',e=>{const bt=e.target.closest('[data-mi]');if(!bt)return;acts[+bt.dataset.mi][1]();closeBagMenu();writeSave();renderPanel()})}
+addEventListener('pointerdown',e=>{const m=$('bagMenu');if(m&&!m.contains(e.target))closeBagMenu()},true);
+// drag: from the bag onto a hotbar slot puts it there, out of the window drops the whole stack;
+// from a hotbar slot onto another swaps them, anywhere else takes it off the hotbar
+let drag=null;
+$('panelBody').addEventListener('contextmenu',e=>{const t=e.target.closest('[data-bk]');if(!t)return;e.preventDefault();openBagMenu(t.dataset.bk,e.clientX,e.clientY)});
+$('panelBody').addEventListener('pointerdown',e=>{if(e.button)return;const t=e.target.closest('[data-bk],[data-hk]');if(!t)return;
+  const k=t.dataset.bk||hot[+t.dataset.hk],fromHot=t.dataset.hk!==undefined?+t.dataset.hk:null;if(fromHot!==null&&!k){hotSelect(fromHot,true);renderPanel();return}
+  e.preventDefault();drag={k,fromHot,x0:e.clientX,y0:e.clientY,moved:false,ghost:null,over:null}});
+addEventListener('pointermove',e=>{if(!drag)return;
+  if(!drag.moved){if(Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)<6)return;drag.moved=true;closeBagMenu();
+    const g=document.createElement('div');g.className='bs dragGhost';g.innerHTML=`<span class="sw" style="background:${ITEM[drag.k]||'#888'}"></span><span class="hn">${drag.k}</span>`;document.body.appendChild(g);drag.ghost=g}
+  drag.ghost.style.left=e.clientX+'px';drag.ghost.style.top=e.clientY+'px';
+  const el=document.elementFromPoint(e.clientX,e.clientY),hs=el&&el.closest('[data-hk]');if(drag.over&&drag.over!==hs)drag.over.classList.remove('over');if(hs)hs.classList.add('over');drag.over=hs});
+function endDrag(e){if(!drag)return;const d=drag;drag=null;if(d.ghost)d.ghost.remove();
+  if(!d.moved){if(d.fromHot!==null){hotSelect(d.fromHot,true);renderPanel()}else openBagMenu(d.k,e.clientX,e.clientY);return}
+  const el=document.elementFromPoint(e.clientX,e.clientY),hs=el&&el.closest('[data-hk]'),inSheet=el&&el.closest('#panel .sheet');
+  if(hs){const i=+hs.dataset.hk;if(d.fromHot!==null){[hot[i],hot[d.fromHot]]=[hot[d.fromHot],hot[i]]}else{const j=hot.indexOf(d.k);if(j>=0)hot[j]=null;hot[i]=d.k}syncHeld()}
+  else if(d.fromHot!==null){hot[d.fromHot]=null;syncHeld()}
+  else if(!inSheet&&has(d.k)){dropItem(d.k,inv[d.k]);return}
+  writeSave();renderPanel()}
+addEventListener('pointerup',endDrag);addEventListener('pointercancel',e=>{if(drag&&drag.ghost)drag.ghost.remove();drag=null});
 // drop items as a sack in front of the player; anyone can pick it up with E
-let dropK=null;
-function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){dropK=null;renderPanel();return}n=Math.min(n,inv[k]);
+function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){renderPanel();return}n=Math.min(n,inv[k]);
   inv[k]-=n;syncHeld();
   act({t:'drop',x:P.x+Math.cos(P.face)*26,y:P.y+Math.sin(P.face)*26,bag:{[k]:n}});
-  toast(`丟出 ${k} ×${n}`);dropK=null;writeSave();renderPanel()}
+  toast(`丟出 ${k} ×${n}`);writeSave();renderPanel()}
 function craft(r){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;take(r.cost);inv[r.id]=(inv[r.id]||0)+1;hotAdd(r.id);
   if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg&&hot.includes(r.id))hotSelect(hot.indexOf(r.id),true);toast(`做好了：${r.name}`);writeSave();renderPanel()}
 
