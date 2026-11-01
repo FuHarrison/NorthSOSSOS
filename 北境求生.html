@@ -108,6 +108,9 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 .slot button{border:1px solid var(--line);background:#2c372f;border-radius:6px;padding:4px 8px;font-size:12px}
 .slot button.on{background:var(--accent);color:#1b1407;border-color:var(--accent)}
 .slot{flex-wrap:wrap}
+.fbar{height:8px;border-radius:4px;background:#2c372f;overflow:hidden;margin:4px 0 8px}.fbar i{display:block;height:100%;background:linear-gradient(90deg,#ff8a3a,#ffd27a)}
+.fzh{margin:12px 0 6px;font-size:13px}
+.inv.fz{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 .droprow{display:flex;gap:4px;flex-basis:100%}
 .dropn{width:56px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;font-size:12px;color:var(--ink)}
 .help{display:grid;gap:14px;font-size:13px;line-height:1.6}
@@ -162,7 +165,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 <div class="modal" id="panel" hidden>
   <div class="sheet" role="dialog" aria-label="背包與製作">
     <header>
-      <h2>行囊</h2>
+      <h2 id="panelTitle">行囊</h2>
       <button class="tab on" data-tab="craft" type="button">製作</button>
       <button class="tab" data-tab="inv" type="button">背包</button>
       <button class="tab" data-tab="pets" type="button">寵物</button>
@@ -188,7 +191,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
   <div class="sheet" role="dialog" aria-label="地圖">
     <header><h2>地圖</h2><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
     <canvas id="bigCv" width="640" height="640"></canvas>
-    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span></div>
+    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span></div>
   </div>
 </div>
 
@@ -230,37 +233,47 @@ function fbm(x,y,o){let s=0,a=.5,f=1,n=0;for(let i=0;i<o;i++){s+=a*vnoise(x*f,y*
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 /* ---------- data ---------- */
-const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4'};
+const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c'};
 const FOODS={莓果:{hp:12,st:25,t:200,col:'#b8324a'},蘑菇:{hp:8,st:38,t:220,col:'#d98a3d'},烤肉:{hp:32,st:14,t:320,col:'#8a4a2b'}};
 const WEAPONS={
   none:{name:'拳頭',dmg:5,range:34,arc:1.0,cd:.38,st:4,len:0},
   木棒:{name:'木棒',dmg:11,range:44,arc:1.1,cd:.5,st:6,len:22},
   燧石斧:{name:'燧石斧',dmg:10,range:44,arc:1.0,cd:.55,st:7,len:22},
   燧石鎬:{name:'燧石鎬',dmg:8,range:44,arc:1.0,cd:.6,st:8,len:22},
+  銅鎬:{name:'銅鎬',dmg:11,range:46,arc:1.0,cd:.55,st:7,len:24},
   燧石矛:{name:'燧石矛',dmg:20,range:66,arc:.55,cd:.55,st:8,len:40},
   狼牙劍:{name:'狼牙劍',dmg:38,range:52,arc:1.25,cd:.45,st:8,len:30}
 };
-const CHOP={none:3,木棒:5,燧石斧:16,燧石鎬:3,燧石矛:3,狼牙劍:8};
-const MINE={燧石鎬:16};
+const CHOP={none:3,木棒:5,燧石斧:16,燧石鎬:3,銅鎬:4,燧石矛:3,狼牙劍:8};
+// 鎬的等級：大石頭、煤、銅、錫要 1 級（燧石鎬），鐵要 2 級（銅鎬）
+const MINE={燧石鎬:16,銅鎬:26},PICK_TIER={燧石鎬:1,銅鎬:2};
 const RES={
   tree:{hp:28,solid:9,drop:[['木頭',3,4]]},
   pine:{hp:40,solid:10,drop:[['木頭',4,6],['樹脂',0,1]]},
-  rock:{hp:60,solid:18,mine:true,drop:[['石頭',5,8],['燧石',0,2]]},
+  rock:{hp:60,solid:18,mine:true,tier:1,name:'大石頭',drop:[['石頭',5,8],['燧石',0,2]]},
   pebble:{hp:1,pick:true,drop:[['石頭',1,2]]},
   flint:{hp:1,pick:true,drop:[['燧石',1,2]]},
   bush:{hp:1,pick:true,keep:true,drop:[['莓果',2,3]]},
-  shroom:{hp:1,pick:true,drop:[['蘑菇',1,1]]}
+  shroom:{hp:1,pick:true,drop:[['蘑菇',1,1]]},
+  coal:{hp:70,solid:16,mine:true,tier:1,name:'煤礦',base:'#55534f',ore:'#1c1b1a',drop:[['煤炭',3,5],['石頭',1,2]]},
+  copper:{hp:80,solid:16,mine:true,tier:1,name:'銅礦',base:'#77736c',ore:'#d0813f',drop:[['銅礦',3,4],['石頭',1,2]]},
+  tin:{hp:80,solid:16,mine:true,tier:1,name:'錫礦',base:'#77736c',ore:'#dfe6ea',drop:[['錫礦',3,4],['石頭',1,2]]},
+  iron:{hp:110,solid:16,mine:true,tier:2,name:'鐵礦',base:'#6a625d',ore:'#a0503a',drop:[['鐵礦',3,4],['石頭',1,2]]}
 };
+// 熔爐：每塊礦石燒 SMELT_T 秒，一塊煤炭燒 COAL_T 秒
+const SMELT={銅礦:'銅錠',錫礦:'錫錠',鐵礦:'鐵錠'},SMELT_T=6,COAL_T=20;
 const isWallK=k=>k==='wall'||k==='swall';
 const RECIPES=[
   {id:'bench',name:'工作台',cost:{木頭:10},build:true,desc:'製作的中心。站在附近才能做工具與武器。'},
   {id:'fire',name:'營火',cost:{石頭:5,木頭:3},build:true,desc:'夜裡的光。可烤肉，靠近一會兒獲得「休息」。'},
   {id:'wall',name:'木牆',cost:{木頭:3},build:true,bench:true,desc:'擋住野豬與苔精。按 R 轉向，可以連續放置。'},
   {id:'swall',name:'石牆',cost:{石頭:4},build:true,bench:true,desc:'石頭砌的牆，跟木牆一樣貼著格子邊。按 R 轉向，可以連續放置。'},
+  {id:'furnace',name:'熔爐',cost:{石頭:12,煤炭:3,木頭:6},build:true,bench:true,desc:'放入礦石和煤炭，把銅、錫、鐵礦燒成金屬錠。煤炭會隨時間燒完。'},
   {id:'bed',name:'床',cost:{木頭:8,皮革:2},build:true,bench:true,desc:'重生點。夜裡睡覺直接到天亮。'},
   {id:'木棒',name:'木棒',cost:{木頭:5},desc:'比拳頭有力的第一把武器。'},
   {id:'燧石斧',name:'燧石斧',cost:{木頭:5,燧石:4},bench:true,desc:'砍樹快五倍。擁有後砍樹自動使用。'},
-  {id:'燧石鎬',name:'燧石鎬',cost:{木頭:6,燧石:6},bench:true,desc:'能敲碎大石頭。擁有後採礦自動使用。'},
+  {id:'燧石鎬',name:'燧石鎬',cost:{木頭:6,燧石:6},bench:true,desc:'能敲碎大石頭，挖煤、銅、錫礦。擁有後採礦自動使用。'},
+  {id:'銅鎬',name:'銅鎬',cost:{銅錠:3,木頭:4},bench:true,desc:'挖得更快，也能挖鐵礦。'},
   {id:'燧石矛',name:'燧石矛',cost:{木頭:8,燧石:6,皮革:2},bench:true,desc:'攻擊距離最長，適合邊退邊打。'},
   {id:'皮甲',name:'皮甲',cost:{皮革:6},bench:true,desc:'受到的傷害減少 30%。'},
   {id:'狼牙劍',name:'狼牙劍',cost:{狼王之牙:1,木頭:6,燧石:4},bench:true,desc:'用狼王的牙磨成的劍。'}
@@ -340,9 +353,17 @@ function genWorld(){
     else if(b===2)k=r<.085?'tree':r<.125?'bush':r<.17?'pebble':r<.19?'rock':r<.2?'flint':null;
     else k=r<.2?'flint':r<.3?'pebble':null;
     if(k)addRes(k,x,y,c);}
+  // ore veins: placed with hash/noise only (no R() calls) so the rest of an existing world stays the same; iron only far from spawn
+  for(let j=1;j<ROWS-1;j++)for(let i=1;i<COLS-1;i++){const c=j*COLS+i;if(biome[c]<2||resGrid[c]||c===altar.cell)continue;
+    const x=(i+.5)*CELL,y=(j+.5)*CELL,d=Math.hypot(x-W/2,y-H/2)/(W/2);if(d<.2||Math.hypot(x-altar.x,y-altar.y)<150)continue;
+    if(vnoise(x/210+33.1,y/210+51.7)<.8||hash(c,11,seed)>.45)continue;
+    const t=hash(Math.floor(x/360),Math.floor(y/360),seed+5),k=t<.3?'coal':t<.52?'copper':t<.74?'tin':d>.4?'iron':'coal'; // one ore type per 9×9-cell region
+    addRes(k,x+(hash(c,12,seed)-.5)*14,y+(hash(c,13,seed)-.5)*14,c)}
   // guaranteed starter kit near spawn
   const kit=[['flint',4],['pebble',5],['tree',8],['bush',3]];
   for(const[k,n]of kit)for(let m=0;m<n;m++)for(let t=0;t<30;t++){const a=R()*6.28,rr=110+R()*260,x=W/2+Math.cos(a)*rr,y=H/2+Math.sin(a)*rr,c=ci(x,y);if(c>=0&&biome[c]&&!resGrid[c]){addRes(k,x,y,c);break}}
+  const oreKit=[['coal',3],['copper',2],['tin',2]];
+  for(const[k,n]of oreKit)for(let m=0;m<n;m++)for(let t=0;t<30;t++){const a=R()*6.28,rr=380+R()*320,x=W/2+Math.cos(a)*rr,y=H/2+Math.sin(a)*rr,c=ci(x,y);if(c>=0&&biome[c]>=2&&!resGrid[c]){addRes(k,x,y,c);break}}
   // terrain image for the maps: one pixel per cell
   const g=mapImg.getContext('2d');for(let c=0;c<COLS*ROWS;c++){g.fillStyle=cellCol[c];g.fillRect(c%COLS,Math.floor(c/COLS),1,1)}
 }
@@ -360,7 +381,7 @@ function populate(){
 
 /* ---------- load / save ---------- */
 // solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
-function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o}))}}
+function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen()}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
@@ -372,7 +393,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
   // 舊存檔的木牆在格子中央、沒有方向：上下有鄰居的在左緣放直牆，左右有鄰居（或沒鄰居）的在下緣放橫牆，轉角兩種都放，圍起來的地方才不會漏
   const old=new Set((s.structs||[]).filter(st=>st.k==='wall'&&!st.o).map(st=>ci(st.x,st.y)));
   for(const st of s.structs||[]){
-    if(st.k!=='wall'||st.o){addStruct(st.k,st.x,st.y,st.o);continue}
+    if(st.k!=='wall'||st.o){addStruct(st.k,st.x,st.y,st.o,st.fz);continue}
     const c=ci(st.x,st.y);if(c<0)continue;const v=old.has(c-COLS)||old.has(c+COLS),h=old.has(c-1)||old.has(c+1);
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(flags.summoned&&!flags.boss)flags.summoned=false}
@@ -385,10 +406,13 @@ function bootSolo(){MODE='solo';save=loadKey(SKEY);seed=save&&save.seed||((Math.
 function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
 function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
-  for(const[k,x,y,o]of m.structs)addStruct(k,x,y,o);
+  for(const[k,x,y,o,fz]of m.structs)addStruct(k,x,y,o||undefined,fz||undefined);
   loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
-function addStruct(k,x,y,o){if(isWallK(k))return addWall(k,x,y,o);const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};structs.push(s);structGrid[c]=s;return s}
+function addStruct(k,x,y,o,fz){if(isWallK(k))return addWall(k,x,y,o);const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};
+  if(k==='furnace')s.fz=normFz(fz);structs.push(s);structGrid[c]=s;return s}
+// furnace contents: q = ore waiting, fuel = coal waiting, out = ingots ready, burn = seconds left on the lit coal, prog = seconds into the current ore
+function normFz(f){f=f||{};return{q:Object.assign({},f.q),fuel:f.fuel||0,out:Object.assign({},f.out),burn:f.burn||0,prog:f.prog||0}}
 // 牆（木牆、石牆）貼在格子的邊上：o='h' 在格子的上緣，o='v' 在格子的左緣，記在 wallH/wallV[該格]
 function wallCell(o,x,y){const i=o==='v'?Math.round(x/CELL):Math.floor(x/CELL),j=o==='v'?Math.floor(y/CELL):Math.round(y/CELL);return(i<0||j<0||i>=COLS||j>=ROWS)?-1:j*COLS+i}
 function snapWall(o,x,y){const c=wallCell(o,x,y),i=c%COLS,j=Math.floor(c/COLS);return o==='v'?{x:i*CELL,y:(j+.5)*CELL,c,o}:{x:(i+.5)*CELL,y:j*CELL,c,o}}
@@ -396,7 +420,7 @@ function addWall(k,x,y,o){if(o!=='v')o='h';const g=snapWall(o,x,y),grid=o==='v'?
   const s={k,x:g.x,y:g.y,o,cell:g.c,anim:0};structs.push(s);grid[g.c]=s;return s}
 
 /* ---------- collision ---------- */
-const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11},WALL_T=6;
+const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17},WALL_T=6;
 function wallHit(w,x,y,r){const T=WALL_T+r,L=CELL/2+r;return w.o==='v'?Math.abs(x-w.x)<T&&Math.abs(y-w.y)<L:Math.abs(y-w.y)<T&&Math.abs(x-w.x)<L}
 function blocked(x,y,r){
   if(isWater(x,y)||isWater(x+r*.7,y)||isWater(x-r*.7,y)||isWater(x,y+r*.7)||isWater(x,y-r*.7))return true;
@@ -496,7 +520,8 @@ function bestTool(table){let b=0,k=null;for(const n in table){if((n==='none'||ha
 // local intent: tool checks use this player's bag, the world change itself goes through act()
 function hitRes(o){const d=RES[o.k];let dmg=0;
   if(d.pick){if(o.k==='bush'&&o.dep>0){toast('莓果還沒長回來');return}}
-  else if(d.mine){const[m]=bestTool(MINE);if(!m){toast('需要燧石鎬才能敲碎大石頭');o.flash=.15;return}dmg=m;shake=Math.max(shake,2)}
+  else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need)m=Math.max(m,MINE[n]);
+    if(!m){toast(need>1?`需要銅鎬才能挖${d.name}`:`需要燧石鎬才能挖${d.name}`);o.flash=.15;return}dmg=m;shake=Math.max(shake,2)}
   else{dmg=bestTool(CHOP)[0];shake=Math.max(shake,2)}
   act({t:'res',c:o.cell,dmg})}
 // world side (solo / host)
@@ -506,7 +531,7 @@ function worldRes(c,dmg,from,toPet){const o=resGrid[c];if(!o)return;const d=RES[
   if(toPet)return;
   evt({t:'rh',c,hp:o.hp-dmg});
   if(o.hp<=0){for(const[k,a,b]of d.drop)giveTo(from,k,ri(a,b),o.x,o.y);removeRes(o)}}
-function removeRes(o){evt({t:'rx',c:o.cell});regrow.push({k:o.k,x:o.x,y:o.y,cell:o.cell,at:time+(o.k==='rock'?400:o.k.length<5?260:200)})}
+function removeRes(o){evt({t:'rx',c:o.cell});regrow.push({k:o.k,x:o.x,y:o.y,cell:o.cell,at:time+(o.k==='rock'?400:RES[o.k].ore?600:o.k.length<5?260:200)})}
 function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
   m.petT=byPet?{o:from,until:time+8}:null; // mobs only turn on a pet that hit them
   if(m.hp<=0)killMob(m,from)}
@@ -532,7 +557,7 @@ function nearestUse(){let best=null,bd=1e9;
   if(has('莓果'))for(const m of mobs)if(m.k==='boar'&&m.aggro<=0){const d=dist(m,P)-m.r;if(d<40&&d<bd){bd=d;best={m}}}
   if(best)return best;forCells(P.x,P.y,1,o=>{if(RES[o.k].pick&&!(o.k==='bush'&&o.dep>0)){const d=dist(o,P);if(d<46&&d<bd){bd=d;best={o}}}});return best}
 function useLabel(u){if(!u)return null;if(u.o||u.l)return'撿起';if(u.m)return'餵莓果';const s=u.s;
-  if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';
+  if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';
   if(s.k==='altar')return flags.boss?'祭壇已沉寂':boss?'狼王已醒':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
   if(u.o){hitRes(u.o);return}
@@ -541,6 +566,7 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
   const s=u.s;
   if(s.k==='fire'){if(has('生肉')){const n=inv['生肉'];inv['生肉']=0;give('烤肉',n,s.x,s.y);burst(s.x,s.y-10,'#ffb347',12)}else toast('靠近營火一會兒就能獲得「休息」')}
   else if(s.k==='bench')togglePanel(true,'craft');
+  else if(s.k==='furnace'){furnaceC=s.cell;togglePanel(true,'furnace')}
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
   else if(s.k==='altar'){if(flags.boss){toast('祭壇的符文已經熄滅');return}if(boss)return;
     if((inv['獠牙']||0)>=3&&(inv['樹脂']||0)>=5){inv['獠牙']-=3;inv['樹脂']-=5;act({t:'summon'});shake=12}
@@ -564,7 +590,7 @@ function tryPlace(){if(!placing)return;const r=placing;if(!afford(r.cost)){toast
 /* ---------- panel ---------- */
 function togglePanel(on,tab){const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
-function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));const b=$('panelBody');
+function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
   if(panelTab==='craft'){const nb=nearBench();
     b.innerHTML=`<p class="note">${nb?'工作台在旁邊，全部配方都能做。':'標有「工作台」的配方要站在工作台附近才能做。'}</p><div class="grid">`+RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')).map((r,i)=>{
       const owned=!r.build&&has(r.id),ok=afford(r.cost)&&(!r.bench||nb)&&!owned;
@@ -585,6 +611,16 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.querySelectorAll('[data-dropall]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropall,inv[x.dataset.dropall])));
     b.querySelectorAll('[data-dropn]').forEach(x=>x.addEventListener('click',()=>dropItem(x.dataset.dropn,b.querySelector('.dropn').value)));
     const dn=b.querySelector('.dropn');if(dn)dn.addEventListener('keydown',e=>{if(e.key==='Enter')dropItem(dropK,dn.value);else if(e.key==='Escape'){e.stopPropagation();dropK=null;renderPanel()}})}
+  else if(panelTab==='furnace'){const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}const f=s.fz;fzSig=furnaceSig(f);
+    const ks=['煤炭',...Object.keys(SMELT)].filter(k=>has(k)),outN=Object.values(f.out).reduce((a,b)=>a+b,0);
+    b.innerHTML=`<p class="note">放入礦石和煤炭就會開始燒。每 ${SMELT_T} 秒燒好一塊金屬錠，一塊煤炭燒 ${COAL_T} 秒，點著了就會一直燒到完。</p>
+      <div id="fzStat">${furnaceStat(f)}</div>
+      <div class="costs">${Object.entries(f.q).map(([k,v])=>`<span class="cost">${k} ×${v}</span>`).join('')||'<span class="cost">爐裡沒有礦石</span>'}<span class="cost">煤炭 ×${f.fuel}</span></div>
+      <h4 class="fzh">成品</h4><div class="costs">${Object.entries(f.out).map(([k,v])=>`<span class="cost ok">${k} ×${v}</span>`).join('')||'<span class="cost">還沒有</span>'}</div>
+      <button class="act ${outN?'go':''}" type="button" id="fzOut" ${outN?'':'disabled'}>取出成品</button>
+      <h4 class="fzh">放進熔爐</h4>${ks.length?`<div class="inv fz">`+ks.map(k=>`<div class="slot"><span class="sw" style="background:${ITEM[k]}"></span><div class="n">${k}<small>×${inv[k]}</small></div><button type="button" data-fin="${k}" data-n="1">放 1</button><button type="button" data-fin="${k}" data-n="all">全部</button></div>`).join('')+'</div>':'<p class="note">背包裡沒有礦石或煤炭。用鎬去挖礦吧。</p>'}`;
+    b.querySelectorAll('[data-fin]').forEach(x=>x.addEventListener('click',()=>{const k=x.dataset.fin,n=x.dataset.n==='all'?inv[k]:1;if(!(n>0)||!has(k))return;inv[k]-=n;act({t:'fput',c:furnaceC,k,n});writeSave();renderPanel()}));
+    $('fzOut').addEventListener('click',()=>{act({t:'fout',c:furnaceC});setTimeout(renderPanel,150)})}
   else if(panelTab==='pets'){
     b.innerHTML=pets.length?`<p class="note">一次只能召喚一隻。野豬會幫忙撿東西，狼崽擅長戰鬥。寵物撿到的東西放在牠身上，倒下時會掉在地上。</p><div class="grid">`+pets.map(p=>{const D=PETS[p.k],out=p.id===petOut,n=Object.values(p.bag).reduce((a,b)=>a+b,0);
       return`<div class="card"><h3>${p.name}<em>${D.name}・${D.role}${out?'・召喚中':''}</em></h3><p>${p.down>0?`倒下了，${Math.ceil(p.down)} 秒後回來`:`血量 ${Math.ceil(p.hp)}/${D.hp}・傷害 ${D.dmg}`}・攜帶 ${n} 件</p>
@@ -597,10 +633,18 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li></ul></div>
+    <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>打倒狼王後每個人都會得到一隻狼崽。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
+let furnaceC=-1,fzSig='';
+function furnaceSig(f){return JSON.stringify([f.q,f.fuel,f.out])}
+function furnaceStat(f){const lit=f.burn>0,busy=Object.keys(f.q).length>0;
+  return`<p class="note">${lit?`🔥 燃燒中，這塊煤炭還剩 ${Math.ceil(f.burn)} 秒`:busy?'熄火了，放煤炭進去就會點著':'熄火'}</p>${busy?`<div class="fbar"><i style="width:${Math.round(f.prog/SMELT_T*100)}%"></i></div>`:''}`}
+// called from hud(): refresh the progress line every tick, rebuild the panel only when the furnace contents change
+function refreshFurnacePanel(){if($('panel').hidden||panelTab!=='furnace')return;const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}
+  if(furnaceSig(s.fz)!==fzSig)renderPanel();else{const e=$('fzStat');if(e)e.innerHTML=furnaceStat(s.fz)}}
 // drop items as a sack in front of the player; anyone can pick it up with E
 let dropK=null;
 function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){dropK=null;renderPanel();return}n=Math.min(n,inv[k]);
@@ -640,7 +684,14 @@ function updateWorld(dt){
     if(!isNight())for(let i=mobs.length-1;i>=0;i--){const m=mobs[i];if(m.k==='moss'&&TG.every(t=>dist(m,t)>750)&&biome[ci(m.x,m.y)]!==3&&Math.random()<.3)mobs.splice(i,1)}}
   regrowT-=dt;if(regrowT<=0){regrowT=2;for(let i=regrow.length-1;i>=0;i--){const g=regrow[i];if(time>=g.at&&!resGrid[g.cell]&&!structGrid[g.cell]&&TG.every(t=>Math.hypot(g.x-t.x,g.y-t.y)>360)){evt({t:'ra',k:g.k,x:g.x,y:g.y,c:g.cell});regrow.splice(i,1)}}}
   for(const s of structs)s.anim+=dt;
+  tickFurnaces(dt);
 }
+// solo / host: a lit coal burns down whether or not there is ore; a new coal is lit only when there is ore waiting
+function tickFurnaces(dt){for(const s of structs){if(s.k!=='furnace')continue;const f=s.fz,busy=Object.values(f.q).some(n=>n>0);let ch=false;
+  if(busy&&f.burn<=0&&f.fuel>0){f.fuel--;f.burn=COAL_T;ch=true}
+  if(f.burn>0){f.burn-=dt;if(busy){f.prog+=dt;if(f.prog>=SMELT_T){f.prog=0;const k=Object.keys(f.q).find(k=>f.q[k]>0);if(!--f.q[k])delete f.q[k];f.out[SMELT[k]]=(f.out[SMELT[k]]||0)+1;ch=true}}
+    if(f.burn<=0){f.burn=0;ch=true}}
+  if(!busy)f.prog=0;if(ch)evt({t:'fz',c:s.cell,f})}}
 function updateLocal(dt){
   // input → movement
   let mx=0,my=0,sprint=false;
@@ -758,6 +809,9 @@ function handleAct(m,from){switch(m.t){
     if(b.love>=TAME_N){mobs.splice(mobs.indexOf(b),1);evt({t:'tm',id:b.id,x:b.x,y:b.y});toPlayer(from,{t:'tame'})}
     else toPlayer(from,{t:'love',n:b.love,x:b.x,y:b.y});break}
   case'drop':evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag:m.bag});break;
+  case'fput':{const s=structGrid[m.c],n=Math.floor(m.n);if(!s||s.k!=='furnace'||!(n>0)||m.k!=='煤炭'&&!SMELT[m.k]){if(n>0)refund(from,{[m.k]:n},'熔爐不見了，材料退回');break}
+    const f=s.fz;if(m.k==='煤炭')f.fuel+=n;else f.q[m.k]=(f.q[m.k]||0)+n;evt({t:'fz',c:m.c,f});break}
+  case'fout':{const s=structGrid[m.c];if(!s||s.k!=='furnace')break;const f=s.fz;for(const k in f.out)giveTo(from,k,f.out[k],s.x,s.y-20);f.out={};evt({t:'fz',c:m.c,f});break}
   case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{if(isWallK(m.k)){const g=snapWall(m.o==='v'?'v':'h',m.x,m.y);if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:g.x,y:g.y,o:g.o});break}
     const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
@@ -771,15 +825,16 @@ function applyEvt(m){switch(m.t){
   case'rx':{const o=resGrid[m.c];if(!o)break;const d=RES[o.k];resGrid[m.c]=null;if(d.pick)burst(o.x,o.y,ITEM[d.drop[0][0]],6);else burst(o.x,o.y-10,d.mine?'#8d918c':'#5d7f3a',16);break}
   case'ra':addRes(m.k,m.x,m.y,m.c);break;
   case'bd':{const o=resGrid[m.c];if(o){o.dep=150;burst(o.x,o.y,ITEM['莓果'],6)}break}
-  case'sa':if((isWallK(m.k)||!structGrid[ci(m.x,m.y)])&&addStruct(m.k,m.x,m.y,m.o))burst(m.x,m.y,m.k==='swall'?'#9a9d98':'#c9a26a',10);break;
+  case'sa':if((isWallK(m.k)||!structGrid[ci(m.x,m.y)])&&addStruct(m.k,m.x,m.y,m.o))burst(m.x,m.y,m.k==='swall'||m.k==='furnace'?'#9a9d98':'#c9a26a',10);break;
   case'bn':banner(m.h,m.s);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
+  case'fz':{const s=structGrid[m.c];if(s&&s.k==='furnace')s.fz=normFz(m.f);break}
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
+  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -798,6 +853,7 @@ function tickOthers(dt){for(const o of others.values()){const dx=o.tx-o.x,dy=o.t
   if(l>300){o.x=o.tx;o.y=o.ty}else{o.x+=dx*k;o.y+=dy*k}if(l>1)o.walk+=dt*9;o.swing-=dt;
   const p=o.pet;if(p){if(Math.hypot(p.tx-p.x,p.ty-p.y)>300){p.x=p.tx;p.y=p.ty}else{p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k}p.anim+=dt;p.flash-=dt;p.glow-=dt}}}
 function tickClient(dt){time+=dt;dayT=Math.min(.9999,dayT+dt/DAY_LEN);
+  for(const s of structs)if(s.fz&&s.fz.burn>0){s.fz.burn=Math.max(0,s.fz.burn-dt);if(Object.keys(s.fz.q).length)s.fz.prog=Math.min(SMELT_T,s.fz.prog+dt)}
   for(const m of mobs){m.anim+=dt;m.flash-=dt;const k=Math.min(1,dt*12);m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k}
   for(const s of structs)s.anim+=dt}
 let netT=0,snapT=0,bushT=0;
@@ -871,7 +927,7 @@ function render(){
   if(dk>0){dctx.setTransform(1,0,0,1,0,0);dctx.globalCompositeOperation='source-over';dctx.clearRect(0,0,dark.width,dark.height);dctx.fillStyle=`rgba(6,10,28,${dk})`;dctx.fillRect(0,0,dark.width,dark.height);
     dctx.globalCompositeOperation='destination-out';const k=SCALE/2;
     const light=(x,y,r,f)=>{const X=(x-cx)*k+dark.width/2,Y=(y-cy)*k+dark.height/2,R=r*k;if(X<-R||Y<-R||X>dark.width+R||Y>dark.height+R)return;const g=dctx.createRadialGradient(X,Y,0,X,Y,R);g.addColorStop(0,`rgba(0,0,0,${f})`);g.addColorStop(1,'rgba(0,0,0,0)');dctx.fillStyle=g;dctx.fillRect(X-R,Y-R,R*2,R*2)};
-    light(P.x,P.y,190,.75);for(const o of others.values())if(!o.dead)light(o.x,o.y,190,.75);for(const s of structs)if(s.k==='fire')light(s.x,s.y,300+Math.sin(time*9+s.anim)*8,1);
+    light(P.x,P.y,190,.75);for(const o of others.values())if(!o.dead)light(o.x,o.y,190,.75);for(const s of structs)if(s.k==='furnace'&&s.fz.burn>0)light(s.x,s.y,140,.6);for(const s of structs)if(s.k==='fire')light(s.x,s.y,300+Math.sin(time*9+s.anim)*8,1);
     if(!flags.boss)light(altar.x,altar.y,120,.6);
     ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(dark,0,0,cv.width,cv.height);
     // warm glow
@@ -903,6 +959,9 @@ function drawRes(o){const s=o.sz,f=o.flash>0;o.flash-=1/60;const wob=f?Math.sin(
     for(let k=0;k<3;k++){ctx.fillStyle=f?'#7da27a':['#1f3b26','#264730','#2e543a'][k];ctx.beginPath();const yy=o.y-6*s-k*13*s,ww=(19-k*4.5)*s;ctx.moveTo(o.x-ww+wob,yy);ctx.lineTo(o.x+ww+wob,yy);ctx.lineTo(o.x+wob,yy-22*s);ctx.closePath();ctx.fill()}break;
   case'rock':shadow(o.x+3,o.y+5,22*s,8*s);ctx.fillStyle=f?'#c9ccc6':'#7d817c';ctx.beginPath();ctx.moveTo(o.x-21*s+wob,o.y+3);ctx.lineTo(o.x-15*s,o.y-14*s);ctx.lineTo(o.x-2*s,o.y-21*s);ctx.lineTo(o.x+14*s,o.y-15*s);ctx.lineTo(o.x+21*s+wob,o.y);ctx.lineTo(o.x+10*s,o.y+6);ctx.lineTo(o.x-10*s,o.y+6);ctx.closePath();ctx.fill();
     ctx.fillStyle='#989c96';ctx.beginPath();ctx.moveTo(o.x-13*s,o.y-12*s);ctx.lineTo(o.x-2*s,o.y-19*s);ctx.lineTo(o.x+6*s,o.y-10*s);ctx.lineTo(o.x-6*s,o.y-7*s);ctx.closePath();ctx.fill();break;
+  case'coal':case'copper':case'tin':case'iron':{const d=RES[o.k];shadow(o.x+3,o.y+5,20*s,8*s);ctx.fillStyle=f?'#c9ccc6':d.base;ctx.beginPath();ctx.moveTo(o.x-19*s+wob,o.y+3);ctx.lineTo(o.x-13*s,o.y-13*s);ctx.lineTo(o.x-1*s,o.y-19*s);ctx.lineTo(o.x+13*s,o.y-12*s);ctx.lineTo(o.x+19*s+wob,o.y);ctx.lineTo(o.x+9*s,o.y+6);ctx.lineTo(o.x-9*s,o.y+6);ctx.closePath();ctx.fill();
+    ctx.fillStyle=d.ore;for(const[dx,dy,r]of[[-9,-6,3.4],[2,-12,2.8],[8,-4,3.2],[-2,-1,2.2],[11,-10,2]]){ctx.beginPath();ctx.arc(o.x+dx*s,o.y+dy*s,r*s,0,6.28);ctx.fill()}
+    ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(o.x-10*s,o.y-14*s,6*s,2*s);break}
   case'pebble':ctx.fillStyle='#8b8f88';ctx.beginPath();ctx.ellipse(o.x,o.y,5,3.5,.3,0,6.28);ctx.fill();ctx.fillStyle='#a6aaa3';ctx.beginPath();ctx.ellipse(o.x-1,o.y-1,2.5,1.5,.3,0,6.28);ctx.fill();break;
   case'flint':ctx.fillStyle='#3d4d5c';ctx.beginPath();ctx.moveTo(o.x-5,o.y+2);ctx.lineTo(o.x-1,o.y-5);ctx.lineTo(o.x+5,o.y-1);ctx.lineTo(o.x+2,o.y+3);ctx.closePath();ctx.fill();ctx.fillStyle='#7d93a8';ctx.fillRect(o.x-1,o.y-3,2,2);break;
   case'bush':shadow(o.x+2,o.y+3,13,5);ctx.fillStyle='#3f6a2c';ctx.beginPath();ctx.arc(o.x-5,o.y-6,8,0,6.28);ctx.arc(o.x+5,o.y-6,8,0,6.28);ctx.arc(o.x,o.y-11,8,0,6.28);ctx.fill();
@@ -920,6 +979,12 @@ function drawStruct(s){const x=s.x,y=s.y;
     ctx.fillStyle='#6d716b';ctx.fillRect(x-20,y-28,40,34);
     for(let r=0;r<4;r++)for(let k=0;k<4;k++){const bx=x-20+k*14-(r%2?7:0),w0=Math.max(x-20,bx),w1=Math.min(x+20,bx+13);if(w1<=w0)continue;ctx.fillStyle=(r+k)%2?'#9a9e98':'#8a8e88';ctx.fillRect(w0,y-27+r*8,w1-w0,7)}
     ctx.fillStyle='#b4b8b1';ctx.fillRect(x-20,y-31,40,4);break;
+  case'furnace':{const lit=s.fz&&s.fz.burn>0;shadow(x+2,y+6,20,6);ctx.fillStyle='#6d716b';ctx.fillRect(x-17,y-22,34,28);ctx.beginPath();ctx.arc(x,y-22,17,Math.PI,0);ctx.fill();
+    ctx.fillStyle='#8a8e88';for(const[dx,dy]of[[-12,-14],[4,-18],[-4,-4],[9,-6],[-10,-26],[6,-30]])ctx.fillRect(x+dx,y+dy,7,4);
+    ctx.fillStyle='#5a5e58';ctx.fillRect(x+6,y-46,8,12);
+    ctx.fillStyle='#1b1512';ctx.beginPath();ctx.moveTo(x-8,y+4);ctx.lineTo(x-8,y-8);ctx.arc(x,y-8,8,Math.PI,0);ctx.lineTo(x+8,y+4);ctx.fill();
+    if(lit){const t=time*9+s.anim;ctx.fillStyle='#ff7a2a';ctx.fillRect(x-7,y-4+Math.sin(t)*1,14,8);ctx.fillStyle='#ffd27a';ctx.fillRect(x-4,y-1+Math.sin(t*1.3),8,5);
+      if(Math.random()<.12)parts.push({x:x+10,y:y-48,vx:rnd(-4,4),vy:-22,t:1.2,col:'rgba(120,120,120,.6)',s:3})}break}
   case'bench':shadow(x+2,y+6,22,6);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-20,y-4,4,10);ctx.fillRect(x+16,y-4,4,10);ctx.fillStyle='#8f6a3e';ctx.fillRect(x-22,y-14,44,12);ctx.fillStyle='#a87d4a';ctx.fillRect(x-22,y-14,44,3);
     ctx.fillStyle='#56697c';ctx.fillRect(x-14,y-20,10,4);ctx.fillStyle='#5a3d22';ctx.fillRect(x+2,y-19,14,2.5);ctx.fillStyle='#c8c2b2';ctx.fillRect(x+10,y-22,5,7);break;
   case'fire':{ctx.fillStyle='#6f6f6a';for(let k=0;k<7;k++){const a=k/7*6.28;ctx.beginPath();ctx.arc(x+Math.cos(a)*11,y+Math.sin(a)*6,3.5,0,6.28);ctx.fill()}ctx.fillStyle='#4a3020';ctx.fillRect(x-7,y-2,14,3);
@@ -1005,7 +1070,7 @@ function hud(){const MH=maxHp(),MS=maxSt();
 
 /* ---------- maps ---------- */
 // minimap = MINI_SPAN world units around you (top-left); big map = whole world (M key or click the minimap)
-const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6'};
+const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a'};
 function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=S/span,u=big?S/260:S/140;
   g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b1a22';g.fillRect(0,0,S,S);
   g.imageSmoothingEnabled=false;g.setTransform(k,0,0,k,S/2-cx*k,S/2-cy*k);g.drawImage(mapImg,0,0,W,H);
@@ -1028,9 +1093,9 @@ let last=performance.now();
 // solo pauses everything; in multiplayer the world keeps going while your panel is open or you're down
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(ready){if(!paused)updateLocal(dt);
-    if(MODE==='solo'){if(!paused){updateWorld(dt);updatePet(dt);updateFx(dt)}}
+    if(MODE==='solo'){if(!paused){updateWorld(dt);updatePet(dt);updateFx(dt)}else if(panelTab==='furnace'&&!$('panel').hidden)tickFurnaces(dt)}
     else{if(MODE==='host')updateWorld(dt);else tickClient(dt);if(started)updatePet(dt);tickOthers(dt);updateFx(dt);netTick(dt)}
-    render();hudT-=dt;if(hudT<=0){hudT=.1;hud()}}
+    render();hudT-=dt;if(hudT<=0){hudT=.1;hud();refreshFurnacePanel()}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 
