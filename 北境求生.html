@@ -755,7 +755,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
     const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
     const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
-    const why=r.bench&&!nb?'要站在工作台附近才能做':max<q?'材料不夠':'';
+    const why=r.bench&&!nb?'要站在工作台附近才能做':'';
     b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><div class="craftwrap">
       <div class="clist">${L.map(x=>`<button type="button" class="ci${x===r?' on':''}" data-pick="${x.id}">${icon(x.id)}<span>${x.name}</span><i class="${canMake(x)?'ok':''}"></i></button>`).join('')}</div>
       <div class="cinfo"><div class="cbody">
