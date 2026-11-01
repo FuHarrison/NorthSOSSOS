@@ -511,9 +511,12 @@ function attack(){
   for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(w.dmg*(P.rest>0?1.1:1));
     floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});burst(m.x,m.y,m.k==='moss'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
     act({t:'hit',id:m.id,dmg,x:P.x,y:P.y});hit=true}}
-  if(hit)return;
-  let best=null,bd=1e9;forCells(P.x,P.y,2,o=>{const d=dist(o,P)-(RES[o.k].solid||6)*o.sz;if(d<w.range-4&&angDiff(Math.atan2(o.y-P.y,o.x-P.x),P.face)<w.arc+.3&&d<bd){bd=d;best=o}});
-  if(best)hitRes(best);
+  // 範圍攻擊：揮擊範圍內的樹、石頭、礦全部一起打；什麼都沒打到才撿最近的小東西
+  const inArc=o=>{const d=dist(o,P)-(RES[o.k].solid||6)*o.sz;return d<w.range-4&&angDiff(Math.atan2(o.y-P.y,o.x-P.x),P.face)<w.arc+.3?d:-1};
+  const big=[];let best=null,bd=1e9;
+  forCells(P.x,P.y,2,o=>{const d=inArc(o);if(d<0)return;if(!RES[o.k].pick)big.push(o);else if(d<bd){bd=d;best=o}});
+  if(big.length){for(const o of big)hitRes(o);return}
+  if(!hit&&best)hitRes(best);
 }
 function forCells(x,y,sp,fn){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);for(let j=j0-sp;j<=j0+sp;j++)for(let i=i0-sp;i<=i0+sp;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const o=resGrid[j*COLS+i];if(o)fn(o)}}
 function bestTool(table){let b=0,k=null;for(const n in table){if((n==='none'||has(n))&&table[n]>b){b=table[n];k=n}}return[b,k]}
@@ -632,7 +635,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       for(const k in p.bag)inv[k]=(inv[k]||0)+p.bag[k];toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Q 換武器，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>打倒狼王後每個人都會得到一隻狼崽。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
@@ -1045,7 +1048,8 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
     else if(pl.weapon!=='木棒'){ctx.save();ctx.translate(tx,ty);ctx.rotate(wa);ctx.fillRect(-3,pl.weapon==='燧石鎬'?-8:-2,6,pl.weapon==='燧石鎬'?16:9);ctx.restore()}
     else{ctx.lineWidth=5;ctx.strokeStyle='#7b5634';ctx.beginPath();ctx.moveTo(hx+Math.cos(wa)*12,hy+Math.sin(wa)*12);ctx.lineTo(tx,ty);ctx.stroke()}}
   else{ctx.fillStyle='#e0b48e';ctx.beginPath();ctx.arc(hx+Math.cos(wa)*4,hy+Math.sin(wa)*4,3.5,0,6.28);ctx.fill()}
-  if(pl.swing>0){ctx.strokeStyle='rgba(255,240,200,.35)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-10,w.range-4,a-w.arc,a+w.arc);ctx.stroke()}
+  if(pl.swing>0){const al=Math.min(1,pl.swing/.24);ctx.fillStyle=`rgba(255,240,200,${.14*al})`;ctx.beginPath();ctx.moveTo(x,y-10);ctx.arc(x,y-10,w.range,a-w.arc,a+w.arc);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=`rgba(255,240,200,${.45*al})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-10,w.range-4,a-w.arc,a+w.arc);ctx.stroke()}
   // head
   ctx.fillStyle='#e0b48e';ctx.beginPath();ctx.arc(x+c*2,y-14+bob+s*2,6.5,0,6.28);ctx.fill();
   ctx.fillStyle='#c98b3a';ctx.beginPath();ctx.arc(x-c*1.5,y-15+bob-s*1.5,6.5,a+1.9,a-1.9);ctx.fill();
