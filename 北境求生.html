@@ -157,7 +157,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
   </div>
 </div>
 
-<div id="placeBar" hidden><span id="placeName"></span><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
+<div id="placeBar" hidden><span id="placeName"></span><button id="placeRot" type="button" hidden>轉向</button><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
 
 <div class="modal" id="panel" hidden>
   <div class="sheet" role="dialog" aria-label="背包與製作">
@@ -188,7 +188,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
   <div class="sheet" role="dialog" aria-label="地圖">
     <header><h2>地圖</h2><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
     <canvas id="bigCv" width="640" height="640"></canvas>
-    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span></div>
+    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span></div>
   </div>
 </div>
 
@@ -251,10 +251,12 @@ const RES={
   bush:{hp:1,pick:true,keep:true,drop:[['莓果',2,3]]},
   shroom:{hp:1,pick:true,drop:[['蘑菇',1,1]]}
 };
+const isWallK=k=>k==='wall'||k==='swall';
 const RECIPES=[
   {id:'bench',name:'工作台',cost:{木頭:10},build:true,desc:'製作的中心。站在附近才能做工具與武器。'},
   {id:'fire',name:'營火',cost:{石頭:5,木頭:3},build:true,desc:'夜裡的光。可烤肉，靠近一會兒獲得「休息」。'},
-  {id:'wall',name:'木牆',cost:{木頭:3},build:true,bench:true,desc:'擋住野豬與苔精。可以連續放置。'},
+  {id:'wall',name:'木牆',cost:{木頭:3},build:true,bench:true,desc:'擋住野豬與苔精。按 R 轉向，可以連續放置。'},
+  {id:'swall',name:'石牆',cost:{石頭:4},build:true,bench:true,desc:'石頭砌的牆，跟木牆一樣貼著格子邊。按 R 轉向，可以連續放置。'},
   {id:'bed',name:'床',cost:{木頭:8,皮革:2},build:true,bench:true,desc:'重生點。夜裡睡覺直接到天亮。'},
   {id:'木棒',name:'木棒',cost:{木頭:5},desc:'比拳頭有力的第一把武器。'},
   {id:'燧石斧',name:'燧石斧',cost:{木頭:5,燧石:4},bench:true,desc:'砍樹快五倍。擁有後砍樹自動使用。'},
@@ -273,7 +275,7 @@ const TAME_N=5,PET_DOWN=60,PET_LEASH=300;
 
 /* ---------- state ---------- */
 const biome=new Uint8Array(COLS*ROWS),cellCol=new Array(COLS*ROWS),cellH=new Float32Array(COLS*ROWS);
-const resGrid=new Array(COLS*ROWS).fill(null),structGrid=new Array(COLS*ROWS).fill(null);
+const resGrid=new Array(COLS*ROWS).fill(null),structGrid=new Array(COLS*ROWS).fill(null),wallH=new Array(COLS*ROWS).fill(null),wallV=new Array(COLS*ROWS).fill(null);
 const mapImg=document.createElement('canvas');mapImg.width=COLS;mapImg.height=ROWS;
 // fog of war: per player, one flag per cell; fogImg is the matching dark mask (cleared where seen)
 const seen=new Uint8Array(COLS*ROWS),fogImg=document.createElement('canvas');fogImg.width=COLS;fogImg.height=ROWS;
@@ -292,7 +294,7 @@ let inv={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
-let shake=0,time=0,paused=true,placing=null,panelTab='craft';
+let shake=0,time=0,paused=true,placing=null,placeRot='h',panelTab='craft';
 /* multiplayer: solo when opened as a file; over http the first localhost tab is host (simulates the world), others are clients that send intents */
 let MODE=location.protocol.startsWith('http')?'pending':'solo',ws=null,myId=0,netInfo=null,ready=false,started=false,mobSeq=0;
 let myName;try{myName=localStorage.getItem('northland-name')}catch(e){}myName=myName||'旅人'+(10+Math.floor(Math.random()*90));
@@ -358,7 +360,7 @@ function populate(){
 
 /* ---------- load / save ---------- */
 // solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
-function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y}))}}
+function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o}))}}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen()}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
@@ -367,7 +369,12 @@ function writeSave(){if(!ready)return;try{
   else{if(MODE==='host')localStorage.setItem(WKEY,JSON.stringify(worldData()));if(started)localStorage.setItem(pkey(),JSON.stringify(personal()))}}catch(e){}}
 function resetSave(){try{localStorage.removeItem(MODE==='host'?WKEY:SKEY)}catch(e){}location.reload()}
 function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=!!s.flags.summoned;flags.boss=!!s.flags.boss}
-  for(const st of s.structs||[])addStruct(st.k,st.x,st.y);
+  // 舊存檔的木牆在格子中央、沒有方向：上下有鄰居的在左緣放直牆，左右有鄰居（或沒鄰居）的在下緣放橫牆，轉角兩種都放，圍起來的地方才不會漏
+  const old=new Set((s.structs||[]).filter(st=>st.k==='wall'&&!st.o).map(st=>ci(st.x,st.y)));
+  for(const st of s.structs||[]){
+    if(st.k!=='wall'||st.o){addStruct(st.k,st.x,st.y,st.o);continue}
+    const c=ci(st.x,st.y);if(c<0)continue;const v=old.has(c-COLS)||old.has(c+COLS),h=old.has(c-1)||old.has(c+1);
+    if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
   if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}
@@ -378,19 +385,26 @@ function bootSolo(){MODE='solo';save=loadKey(SKEY);seed=save&&save.seed||((Math.
 function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
 function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
-  for(const[k,x,y]of m.structs)addStruct(k,x,y);
+  for(const[k,x,y,o]of m.structs)addStruct(k,x,y,o);
   loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
-function addStruct(k,x,y){const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};structs.push(s);structGrid[c]=s;return s}
+function addStruct(k,x,y,o){if(isWallK(k))return addWall(k,x,y,o);const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};structs.push(s);structGrid[c]=s;return s}
+// 牆（木牆、石牆）貼在格子的邊上：o='h' 在格子的上緣，o='v' 在格子的左緣，記在 wallH/wallV[該格]
+function wallCell(o,x,y){const i=o==='v'?Math.round(x/CELL):Math.floor(x/CELL),j=o==='v'?Math.floor(y/CELL):Math.round(y/CELL);return(i<0||j<0||i>=COLS||j>=ROWS)?-1:j*COLS+i}
+function snapWall(o,x,y){const c=wallCell(o,x,y),i=c%COLS,j=Math.floor(c/COLS);return o==='v'?{x:i*CELL,y:(j+.5)*CELL,c,o}:{x:(i+.5)*CELL,y:j*CELL,c,o}}
+function addWall(k,x,y,o){if(o!=='v')o='h';const g=snapWall(o,x,y),grid=o==='v'?wallV:wallH;if(g.c<0||grid[g.c])return;
+  const s={k,x:g.x,y:g.y,o,cell:g.c,anim:0};structs.push(s);grid[g.c]=s;return s}
 
 /* ---------- collision ---------- */
-const SOLID_S={wall:21,bench:17,bed:16,fire:11};
+const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11},WALL_T=6;
+function wallHit(w,x,y,r){const T=WALL_T+r,L=CELL/2+r;return w.o==='v'?Math.abs(x-w.x)<T&&Math.abs(y-w.y)<L:Math.abs(y-w.y)<T&&Math.abs(x-w.x)<L}
 function blocked(x,y,r){
   if(isWater(x,y)||isWater(x+r*.7,y)||isWater(x-r*.7,y)||isWater(x,y+r*.7)||isWater(x,y-r*.7))return true;
   const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL),sp=r>20?2:1;
   for(let j=j0-sp;j<=j0+sp;j++)for(let i=i0-sp;i<=i0+sp;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const c=j*COLS+i;
     const o=resGrid[c];if(o){const s=RES[o.k].solid;if(s&&Math.hypot(o.x-x,o.y-y)<s*o.sz+r)return true}
-    const st=structGrid[c];if(st){const s=SOLID_S[st.k];if(st.k==='wall'){if(Math.abs(st.x-x)<20+r&&Math.abs(st.y-y)<20+r)return true}else if(s&&Math.hypot(st.x-x,st.y-y)<s+r)return true}}
+    const st=structGrid[c];if(st){const s=SOLID_S[st.k];if(s&&Math.hypot(st.x-x,st.y-y)<s+r)return true}
+    if(wallH[c]&&wallHit(wallH[c],x,y,r)||wallV[c]&&wallHit(wallV[c],x,y,r))return true}
   if(Math.hypot(altar.x-x,altar.y-y)<26+r)return true;
   return false}
 function move(e,dx,dy){if(dx&&!blocked(e.x+dx,e.y,e.r))e.x+=dx;if(dy&&!blocked(e.x,e.y+dy,e.r))e.y+=dy}
@@ -422,6 +436,7 @@ addEventListener('keydown',e=>{
   if(e.key==='Escape'){if(!$('bigmap').hidden)toggleMap(false);else if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();return}
   if(e.code==='KeyM'){toggleMap();return}
   if(paused)return;
+  if(e.code==='KeyR'&&placing){rotPlace();return}
   keys[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doRoll()}
   if(e.code==='KeyE')doUse();
@@ -448,7 +463,7 @@ function tbtn(id,down,up){const b=$(id);b.addEventListener('pointerdown',e=>{e.p
 tbtn('bAtk',()=>{if(placing)tryPlace();else atkHeld=true},()=>{atkHeld=false});
 tbtn('bRoll',doRoll);tbtn('bUse',doUse);tbtn('bSwap',swapWeapon);
 $('btnPanel').addEventListener('click',()=>togglePanel());
-$('placeOk').addEventListener('click',tryPlace);$('placeCancel').addEventListener('click',stopPlace);
+$('placeOk').addEventListener('click',tryPlace);$('placeRot').addEventListener('click',rotPlace);$('placeCancel').addEventListener('click',stopPlace);
 $('panelX').addEventListener('click',()=>togglePanel(false));
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{panelTab=t.dataset.tab;renderPanel()}));
 $('panel').addEventListener('pointerdown',e=>{if(e.target.id==='panel')togglePanel(false)});
@@ -511,7 +526,7 @@ function eat(k){if(!FOODS[k]||!has(k))return;if(foods.some(f=>f.k===k)){toast('�
   inv[k]--;foods.push({k,t:FOODS[k].t});P.hp=Math.min(maxHp(),P.hp+8);if(k==='烤肉')ate=true;toast(`吃了${k}：血量上限 +${FOODS[k].hp}，耐力上限 +${FOODS[k].st}`)}
 
 function nearestUse(){let best=null,bd=1e9;
-  for(const s of [...structs,altar]){const d=dist(s,P),lim=s.k==='altar'?84:62;if(d<lim&&d<bd&&s.k!=='wall'){best={s};bd=d}}
+  for(const s of [...structs,altar]){const d=dist(s,P),lim=s.k==='altar'?84:62;if(d<lim&&d<bd&&!isWallK(s.k)){best={s};bd=d}}
   if(best)return best;
   for(const l of loots){const d=dist(l,P);if(d<46&&d<bd){bd=d;best={l}}}
   if(has('莓果'))for(const m of mobs)if(m.k==='boar'&&m.aggro<=0){const d=dist(m,P)-m.r;if(d<40&&d<bd){bd=d;best={m}}}
@@ -532,16 +547,19 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
     else toast(`祭壇需要：獠牙 ${inv['獠牙']||0}/3、樹脂 ${inv['樹脂']||0}/5`)}}
 
 /* ---------- placement ---------- */
-function startPlace(r){placing=r;$('placeBar').hidden=false;$('placeName').textContent=`建造：${r.name}`;togglePanel(false)}
+function startPlace(r){placing=r;$('placeBar').hidden=false;$('placeRot').hidden=!isWallK(r.id);$('placeName').textContent=`建造：${r.name}`+(isWallK(r.id)&&!TOUCH?'（R 轉向）':'');togglePanel(false)}
 function stopPlace(){placing=null;$('placeBar').hidden=true}
+function rotPlace(){if(placing&&isWallK(placing.id))placeRot=placeRot==='h'?'v':'h'}
 function ghostPos(){let x,y;if(!TOUCH&&mouse.on){const w=worldMouse();x=w.x;y=w.y;const d=Math.hypot(x-P.x,y-P.y);if(d>200){x=P.x+(x-P.x)/d*200;y=P.y+(y-P.y)/d*200}}else{x=P.x+Math.cos(P.face)*58;y=P.y+Math.sin(P.face)*58}
+  if(placing&&isWallK(placing.id))return snapWall(placeRot,x,y);
   const c=ci(x,y);return{x:(c%COLS+.5)*CELL,y:(Math.floor(c/COLS)+.5)*CELL,c}}
-function ghostOk(g){if(g.c<0||biome[g.c]===0||structGrid[g.c]||g.c===altar.cell)return false;const o=resGrid[g.c];if(o&&RES[o.k].solid)return false;
+function ghostOk(g){if(g.o){if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c]||wallHit(g,P.x,P.y,P.r))return false;for(const m of mobs)if(wallHit(g,m.x,m.y,m.r))return false;return true}
+  if(g.c<0||biome[g.c]===0||structGrid[g.c]||g.c===altar.cell)return false;const o=resGrid[g.c];if(o&&RES[o.k].solid)return false;
   if(Math.abs(g.x-P.x)<22+P.r&&Math.abs(g.y-P.y)<22+P.r)return false;for(const m of mobs)if(Math.hypot(m.x-g.x,m.y-g.y)<20+m.r)return false;return true}
 function tryPlace(){if(!placing)return;const r=placing;if(!afford(r.cost)){toast('材料不夠了');stopPlace();return}if(r.bench&&!nearBench()){toast('要在工作台附近才能建造');return}
-  const g=ghostPos();if(!ghostOk(g)){toast('這裡不能放');return}take(r.cost);act({t:'build',k:r.id,x:g.x,y:g.y,cost:r.cost});
+  const g=ghostPos();if(!ghostOk(g)){toast('這裡不能放');return}take(r.cost);act({t:'build',k:r.id,x:g.x,y:g.y,o:g.o,cost:r.cost});
   if(r.id==='bed')spawnPt={x:g.x,y:g.y+34};
-  if(r.id!=='wall')stopPlace();else if(!afford(r.cost)){toast('木頭用完了');stopPlace()}writeSave()}
+  if(!isWallK(r.id))stopPlace();else if(!afford(r.cost)){toast(`${Object.keys(r.cost)[0]}用完了`);stopPlace()}writeSave()}
 
 /* ---------- panel ---------- */
 function togglePanel(on,tab){const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
@@ -741,7 +759,8 @@ function handleAct(m,from){switch(m.t){
     else toPlayer(from,{t:'love',n:b.love,x:b.x,y:b.y});break}
   case'drop':evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag:m.bag});break;
   case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
-  case'build':{const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
+  case'build':{if(isWallK(m.k)){const g=snapWall(m.o==='v'?'v':'h',m.x,m.y);if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:g.x,y:g.y,o:g.o});break}
+    const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
   case'summon':{if(boss||flags.boss){refund(from,{獠牙:3,樹脂:5},'狼王已經醒了');break}
@@ -752,7 +771,7 @@ function applyEvt(m){switch(m.t){
   case'rx':{const o=resGrid[m.c];if(!o)break;const d=RES[o.k];resGrid[m.c]=null;if(d.pick)burst(o.x,o.y,ITEM[d.drop[0][0]],6);else burst(o.x,o.y-10,d.mine?'#8d918c':'#5d7f3a',16);break}
   case'ra':addRes(m.k,m.x,m.y,m.c);break;
   case'bd':{const o=resGrid[m.c];if(o){o.dep=150;burst(o.x,o.y,ITEM['莓果'],6)}break}
-  case'sa':if(!structGrid[ci(m.x,m.y)]){addStruct(m.k,m.x,m.y);burst(m.x,m.y,'#c9a26a',10)}break;
+  case'sa':if((isWallK(m.k)||!structGrid[ci(m.x,m.y)])&&addStruct(m.k,m.x,m.y,m.o))burst(m.x,m.y,m.k==='swall'?'#9a9d98':'#c9a26a',10);break;
   case'bn':banner(m.h,m.s);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
@@ -760,7 +779,7 @@ function applyEvt(m){switch(m.t){
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
+  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -833,7 +852,7 @@ function render(){
     else if(b===1&&h>.7){ctx.fillStyle='rgba(120,100,70,.35)';ctx.fillRect(x+h*30,y+(h*71%1)*30,2,2)}}
   // drawables
   const list=[];
-  for(let j=j0;j<=j1+1&&j<ROWS;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i,o=resGrid[c];if(o)list.push([o.y,0,o]);const s=structGrid[c];if(s)list.push([s.y,1,s])}
+  for(let j=j0;j<=j1+1&&j<ROWS;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i,o=resGrid[c];if(o)list.push([o.y,0,o]);const s=structGrid[c];if(s)list.push([s.y,1,s]);if(wallH[c])list.push([wallH[c].y,1,wallH[c]]);if(wallV[c])list.push([wallV[c].y,1,wallV[c]])}
   if(Math.abs(altar.x-cx)<hw+80&&Math.abs(altar.y-cy)<hh+80)list.push([altar.y,1,altar]);
   for(const m of mobs)if(Math.abs(m.x-cx)<hw+60&&Math.abs(m.y-cy)<hh+60)list.push([m.y,2,m]);
   if(MODE==='solo'||started)list.push([P.y,3,P]);
@@ -843,8 +862,8 @@ function render(){
   list.sort((a,b)=>a[0]-b[0]);
   for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else if(t===3)drawPlayer(o);else if(t===4)drawPet(o);else drawLoot(o)}
   // ghost
-  if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,anim:0});ctx.globalAlpha=1;
-    ctx.strokeStyle=ok?'#9fe07a':'#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.strokeRect(g.x-20,g.y-20,40,40);ctx.setLineDash([])}
+  if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,o:g.o,anim:0});ctx.globalAlpha=1;
+    ctx.strokeStyle=ok?'#9fe07a':'#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(g.o==='v')ctx.strokeRect(g.x-WALL_T,g.y-20,WALL_T*2,40);else if(g.o)ctx.strokeRect(g.x-20,g.y-WALL_T,40,WALL_T*2);else ctx.strokeRect(g.x-20,g.y-20,40,40);ctx.setLineDash([])}
   // particles
   for(const p of parts){ctx.globalAlpha=Math.min(1,p.t*2);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)}ctx.globalAlpha=1;
   // darkness
@@ -892,7 +911,15 @@ function drawRes(o){const s=o.sz,f=o.flash>0;o.flash-=1/60;const wob=f?Math.sin(
   }}
 function drawStruct(s){const x=s.x,y=s.y;
   switch(s.k){
-  case'wall':ctx.fillStyle='#5a3d22';ctx.fillRect(x-20,y-30,40,36);for(let k=0;k<4;k++){ctx.fillStyle=k%2?'#8a6236':'#7a5530';ctx.fillRect(x-19+k*10,y-34,9,38);ctx.fillStyle='#3d2a17';ctx.beginPath();ctx.moveTo(x-19+k*10,y-34);ctx.lineTo(x-14.5+k*10,y-39);ctx.lineTo(x-10+k*10,y-34);ctx.fill()}ctx.fillStyle='#3d2a17';ctx.fillRect(x-20,y-24,40,3);break;
+  case'wall':
+    if(s.o==='v'){ // 南北向：木樁由北往南疊，看起來是一道薄薄的柵欄
+      for(let k=0;k<9;k++){const py=y-20+k*5;ctx.fillStyle=k%2?'#8a6236':'#7a5530';ctx.fillRect(x-4,py-34,8,38);ctx.fillStyle='#5a3d22';ctx.fillRect(x+2,py-34,2,38);ctx.fillStyle='#3d2a17';ctx.beginPath();ctx.moveTo(x-4,py-34);ctx.lineTo(x,py-39);ctx.lineTo(x+4,py-34);ctx.fill()}break}
+    ctx.fillStyle='#5a3d22';ctx.fillRect(x-20,y-30,40,36);for(let k=0;k<4;k++){ctx.fillStyle=k%2?'#8a6236':'#7a5530';ctx.fillRect(x-19+k*10,y-34,9,38);ctx.fillStyle='#3d2a17';ctx.beginPath();ctx.moveTo(x-19+k*10,y-34);ctx.lineTo(x-14.5+k*10,y-39);ctx.lineTo(x-10+k*10,y-34);ctx.fill()}ctx.fillStyle='#3d2a17';ctx.fillRect(x-20,y-24,40,3);break;
+  case'swall':
+    if(s.o==='v'){for(let k=0;k<9;k++){const py=y-20+k*5;ctx.fillStyle=k%2?'#9a9e98':'#8a8e88';ctx.fillRect(x-5,py-28,10,32);ctx.fillStyle='#6d716b';ctx.fillRect(x+3,py-28,2,32);ctx.fillStyle='#b4b8b1';ctx.fillRect(x-5,py-30,10,3)}break}
+    ctx.fillStyle='#6d716b';ctx.fillRect(x-20,y-28,40,34);
+    for(let r=0;r<4;r++)for(let k=0;k<4;k++){const bx=x-20+k*14-(r%2?7:0),w0=Math.max(x-20,bx),w1=Math.min(x+20,bx+13);if(w1<=w0)continue;ctx.fillStyle=(r+k)%2?'#9a9e98':'#8a8e88';ctx.fillRect(w0,y-27+r*8,w1-w0,7)}
+    ctx.fillStyle='#b4b8b1';ctx.fillRect(x-20,y-31,40,4);break;
   case'bench':shadow(x+2,y+6,22,6);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-20,y-4,4,10);ctx.fillRect(x+16,y-4,4,10);ctx.fillStyle='#8f6a3e';ctx.fillRect(x-22,y-14,44,12);ctx.fillStyle='#a87d4a';ctx.fillRect(x-22,y-14,44,3);
     ctx.fillStyle='#56697c';ctx.fillRect(x-14,y-20,10,4);ctx.fillStyle='#5a3d22';ctx.fillRect(x+2,y-19,14,2.5);ctx.fillStyle='#c8c2b2';ctx.fillRect(x+10,y-22,5,7);break;
   case'fire':{ctx.fillStyle='#6f6f6a';for(let k=0;k<7;k++){const a=k/7*6.28;ctx.beginPath();ctx.arc(x+Math.cos(a)*11,y+Math.sin(a)*6,3.5,0,6.28);ctx.fill()}ctx.fillStyle='#4a3020';ctx.fillRect(x-7,y-2,14,3);
@@ -978,13 +1005,14 @@ function hud(){const MH=maxHp(),MS=maxSt();
 
 /* ---------- maps ---------- */
 // minimap = MINI_SPAN world units around you (top-left); big map = whole world (M key or click the minimap)
-const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17'};
+const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6'};
 function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=S/span,u=big?S/260:S/140;
   g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b1a22';g.fillRect(0,0,S,S);
   g.imageSmoothingEnabled=false;g.setTransform(k,0,0,k,S/2-cx*k,S/2-cy*k);g.drawImage(mapImg,0,0,W,H);
   g.imageSmoothingEnabled=true;g.drawImage(fogImg,0,0,W,H);g.setTransform(1,0,0,1,0,0); // smoothing softens the fog edge
   const at=(x,y)=>[S/2+(x-cx)*k,S/2+(y-cy)*k];
-  for(const s of structs){if(!seen[s.cell])continue;const[x,y]=at(s.x,s.y),r=(s.k==='wall'?1.6:2.6)*u;g.fillStyle=MAPCOL[s.k];g.fillRect(x-r,y-r,r*2,r*2)}
+  for(const s of structs){if(!seen[s.cell])continue;const[x,y]=at(s.x,s.y);g.fillStyle=MAPCOL[s.k];
+    if(s.o){const L=CELL/2*k,t=.8*u;if(s.o==='v')g.fillRect(x-t,y-L,t*2,L*2);else g.fillRect(x-L,y-t,L*2,t*2)}else{const r=2.6*u;g.fillRect(x-r,y-r,r*2,r*2)}}
   if(seen[altar.cell]){const[x,y]=at(altar.x,altar.y);g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle=flags.boss?'#6d7873':'#e0a646';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(-3.5*u,-3.5*u,7*u,7*u);g.strokeRect(-3.5*u,-3.5*u,7*u,7*u);g.restore()}
   for(const o of others.values())if(!o.dead){const[x,y]=at(o.x,o.y);g.fillStyle=CAPES[o.id%CAPES.length];g.strokeStyle='#fff';g.lineWidth=u;g.beginPath();g.arc(x,y,3.2*u,0,6.28);g.fill();g.stroke()}
   {const[x,y]=at(P.x,P.y);g.save();g.translate(x,y);g.rotate(P.face);g.fillStyle='#ffe08a';g.strokeStyle='#000';g.lineWidth=u;g.beginPath();g.moveTo(6*u,0);g.lineTo(-4*u,-4*u);g.lineTo(-2*u,0);g.lineTo(-4*u,4*u);g.closePath();g.fill();g.stroke();g.restore()}}
