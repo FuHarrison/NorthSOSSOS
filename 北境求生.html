@@ -103,6 +103,10 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .x{margin-left:auto;background:none;border:none;font-size:22px;color:var(--mute);padding:4px 10px 10px}
 .body{overflow-y:auto;padding:14px 16px 18px;min-height:0}
 .note{font-size:12px;color:var(--mute);margin:0 0 10px}
+.subtabs{display:flex;gap:6px;margin:0 0 10px}
+.subtab{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--mute);display:flex;gap:6px;align-items:center}
+.subtab small{font-size:11px;font-variant-numeric:tabular-nums;opacity:.8}
+.subtab.on{background:var(--accent);border-color:var(--accent);color:#1b1407;font-weight:700}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .card h3{margin:0;font-size:14px;display:flex;justify-content:space-between;gap:6px}
@@ -713,12 +717,15 @@ function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemoli
 function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
-  if(panelTab==='craft'){const nb=nearBench();
-    b.innerHTML=`<p class="note">${nb?'工作台在旁邊，全部配方都能做。':'標有「工作台」的配方要站在工作台附近才能做。'}</p><div class="grid">`+RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')).map((r,i)=>{
-      const owned=!r.build&&has(r.id),ok=afford(r.cost)&&(!r.bench||nb)&&!owned;
-      return`<div class="card"><h3><span class="cn">${icon(r.id)}${r.name}</span><em>${r.build?'建築':'物品'}${r.bench?'・工作台':''}</em></h3><p>${r.desc}</p>${statsHtml(r.id)}<div class="costs">${costHtml(r.cost)}</div>
+  // recipes are split into two groups: equipment (weapons, tools, armour) and buildings
+  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')),canMake=r=>afford(r.cost)&&(!r.bench||nb)&&!(!r.build&&has(r.id));
+    const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
+    b.innerHTML=`<div class="subtabs">${cats}</div><p class="note">${nb?'工作台在旁邊，全部配方都能做。':'標有「工作台」的配方要站在工作台附近才能做。'}</p><div class="grid">`+shown.filter(r=>craftCat(r)===craftTab).map((r,i)=>{
+      const owned=!r.build&&has(r.id),ok=canMake(r);
+      return`<div class="card"><h3><span class="cn">${icon(r.id)}${r.name}</span><em>${r.build?'建築':'裝備'}${r.bench?'・工作台':''}</em></h3><p>${r.desc}</p>${statsHtml(r.id)}<div class="costs">${costHtml(r.cost)}</div>
       <button class="act ${ok?'go':''}" type="button" data-r="${RECIPES.indexOf(r)}" ${ok?'':'disabled'}>${owned?'已擁有':r.build?'建造':'製作'}</button></div>`}).join('')+`</div>`;
-    b.querySelectorAll('[data-r]').forEach(x=>x.addEventListener('click',()=>craft(RECIPES[+x.dataset.r])))}
+    b.querySelectorAll('[data-r]').forEach(x=>x.addEventListener('click',()=>craft(RECIPES[+x.dataset.r])));
+    b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;renderPanel()}))}
   else if(panelTab==='inv'){const ks=Object.keys(inv).filter(k=>inv[k]>0);
     b.innerHTML=(ks.length?`<p class="note">${TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出'}。把物品拖出視窗就會丟在地上，拖到下面的快捷欄就會放進那一格。</p><div class="bag">`+ks.map(bagSlot).join('')+'</div>'
       :'<p class="note">背包是空的。去砍棵樹吧。</p>')+
@@ -750,6 +757,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
+const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear';
 let furnaceC=-1,fzSig='';
 function furnaceSig(f){return JSON.stringify([f.q,f.fuel,f.out])}
 function furnaceStat(f){const lit=f.burn>0,busy=Object.keys(f.q).length>0;
