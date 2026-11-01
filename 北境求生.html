@@ -109,6 +109,31 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .subtab{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--mute);display:flex;gap:6px;align-items:center}
 .subtab small{font-size:11px;font-variant-numeric:tabular-nums;opacity:.8}
 .subtab.on{background:var(--accent);border-color:var(--accent);color:#1b1407;font-weight:700}
+.craftpage{height:100%;display:flex;flex-direction:column;min-height:0}
+.craftwrap{flex:1;min-height:0;display:grid;grid-template-columns:minmax(150px,200px) 1fr;gap:10px}
+.clist,.cinfo{border:1px solid var(--line);border-radius:10px;background:#0000001f;min-height:0}
+.clist{overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:4px}
+.ci{display:flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:7px;background:none;padding:6px 8px;text-align:left;font-size:13px;color:var(--ink)}
+.ci span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ci i{width:7px;height:7px;border-radius:50%;background:#ffffff22;flex:none}.ci i.ok{background:var(--good)}
+.ci:hover{background:#ffffff0d}.ci.on{border-color:var(--accent);background:#e0a64622}
+.cinfo{display:flex;flex-direction:column}
+.cbody{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cbody p{margin:0;font-size:12px;color:var(--mute);line-height:1.5}
+.cbody h4{margin:6px 0 0;font-size:12px;color:var(--mute);font-weight:600}
+.chead{display:flex;gap:10px;align-items:center}.chead .ico{width:44px;height:44px}
+.chead h3{margin:0;font-size:17px}.chead em{font-style:normal;font-size:11px;color:var(--mute)}
+.mats{display:grid;gap:4px}
+.mat{display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 8px;border-radius:6px;background:#00000033}
+.mat .ico{width:20px;height:20px}.mat span{flex:1}.mat b{font-variant-numeric:tabular-nums}
+.mat.ok b{color:var(--good)}.mat.no b{color:var(--bad)}
+.cfoot{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cfoot .act{margin:0;flex:1;min-width:110px;padding:8px}
+.qty{display:flex;gap:4px;align-items:center}
+.qty button{border:1px solid var(--line);background:var(--panel2);border-radius:6px;min-width:32px;padding:6px 8px;font-size:13px;white-space:nowrap}
+.qty input{width:52px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit;font-size:13px;color:var(--ink);text-align:center}
+.cmax{font-size:12px;color:var(--mute)}.cwhy{flex-basis:100%;font-size:11px;color:var(--bad)}
+@media (max-width:520px){.craftwrap{grid-template-columns:118px 1fr;gap:6px}.ci{padding:5px;gap:5px;font-size:12px}.ci .ico{width:20px;height:20px}.qty input{width:40px}}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .card h3{margin:0;font-size:14px;display:flex;justify-content:space-between;gap:6px}
@@ -725,15 +750,27 @@ function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemoli
 function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
-  // recipes are split into two groups: equipment (weapons, tools, armour) and buildings
-  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')),canMake=r=>afford(r.cost)&&(!r.bench||nb)&&!(!r.build&&has(r.id));
+  // recipes are split into equipment and buildings; pick one on the left, the right side shows it and crafts it
+  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')),canMake=r=>afford(r.cost)&&(!r.bench||nb);
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
-    b.innerHTML=`<div class="subtabs">${cats}</div><p class="note">${nb?'工作台在旁邊，全部配方都能做。':'標有「工作台」的配方要站在工作台附近才能做。'}</p><div class="grid">`+shown.filter(r=>craftCat(r)===craftTab).map((r,i)=>{
-      const owned=!r.build&&has(r.id),ok=canMake(r);
-      return`<div class="card"><h3><span class="cn">${icon(r.id)}${r.name}</span><em>${r.build?'建築':'裝備'}${r.bench?'・工作台':''}</em></h3><p>${r.desc}</p>${statsHtml(r.id)}<div class="costs">${costHtml(r.cost)}</div>
-      <button class="act ${ok?'go':''}" type="button" data-r="${RECIPES.indexOf(r)}" ${ok?'':'disabled'}>${owned?'已擁有':r.build?'建造':'製作'}</button></div>`}).join('')+`</div>`;
-    b.querySelectorAll('[data-r]').forEach(x=>x.addEventListener('click',()=>craft(RECIPES[+x.dataset.r])));
-    b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;renderPanel()}))}
+    const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
+    const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
+    const why=r.bench&&!nb?'要站在工作台附近才能做':'';
+    b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><div class="craftwrap">
+      <div class="clist">${L.map(x=>`<button type="button" class="ci${x===r?' on':''}" data-pick="${x.id}">${icon(x.id)}<span>${x.name}</span><i class="${canMake(x)?'ok':''}"></i></button>`).join('')}</div>
+      <div class="cinfo"><div class="cbody">
+        <div class="chead">${icon(r.id)}<div><h3>${r.name}</h3><em>${r.build?'建築':'裝備'}${r.bench?'・需要工作台':''}${!r.build&&has(r.id)?`・背包裡有 ${inv[r.id]} 個`:''}</em></div></div>
+        <p>${r.desc}</p>${statsHtml(r.id)}
+        <h4>需要材料${q>1?`（×${q}）`:''}</h4><div class="mats">${mats.map(([k,n])=>{const need=n*q,have=inv[k]||0;return`<div class="mat ${have>=need?'ok':'no'}">${icon(k)}<span>${k}</span><b>${have} / ${need}</b></div>`}).join('')}</div>
+      </div><div class="cfoot">${r.build
+        ?`<span class="cmax">材料夠蓋 ${max} 個</span><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>建造</button>`
+        :`<div class="qty"><button type="button" data-q="-1" aria-label="少一個">−</button><input type="number" id="craftQ" min="1" max="${Math.max(1,max)}" value="${q}" aria-label="製作數量"><button type="button" data-q="1" aria-label="多一個">＋</button><button type="button" data-q="max">最大</button></div><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>製作 ×${q}</button>`}
+        ${why?`<small class="cwhy">${why}</small>`:''}</div></div></div></div>`;
+    b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));
+    b.querySelectorAll('[data-pick]').forEach(x=>x.addEventListener('click',()=>{craftSel[craftTab]=x.dataset.pick;craftQty=1;renderPanel()}));
+    b.querySelectorAll('[data-q]').forEach(x=>x.addEventListener('click',()=>{const v=x.dataset.q;craftQty=v==='max'?Math.max(1,max):Math.max(1,Math.min(Math.max(1,max),q+(+v)));renderPanel()}));
+    const qi=$('craftQ');if(qi)qi.addEventListener('change',()=>{craftQty=Math.max(1,Math.floor(+qi.value)||1);renderPanel()});
+    b.querySelector('[data-make]').addEventListener('click',()=>craft(r,q))}
   else if(panelTab==='inv'){const ks=Object.keys(inv).filter(k=>inv[k]>0);
     // bag on top (padded with empty slots to fill its box), hotbar pinned at the bottom, each in its own frame
     b.innerHTML=`<div class="bagwrap"><section class="bagsec"><p class="photh">背包<span>${ks.length?(TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出')+'；拖出視窗就丟在地上':'背包是空的，去砍棵樹吧'}</span></p><div class="bag">`+ks.map(bagSlot).join('')+'</div></section>'+
@@ -766,7 +803,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
-const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear';
+const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear',craftQty=1;const craftSel={};
 let furnaceC=-1,fzSig='';
 function furnaceSig(f){return JSON.stringify([f.q,f.fuel,f.out])}
 function furnaceStat(f){const lit=f.burn>0,busy=Object.keys(f.q).length>0;
@@ -826,8 +863,9 @@ function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){renderPanel();return
   inv[k]-=n;syncHeld();
   act({t:'drop',x:P.x+Math.cos(P.face)*26,y:P.y+Math.sin(P.face)*26,bag:{[k]:n}});
   toast(`丟出 ${k} ×${n}`);writeSave();renderPanel()}
-function craft(r){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;take(r.cost);inv[r.id]=(inv[r.id]||0)+1;hotAdd(r.id);
-  if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg&&hot.includes(r.id))hotSelect(hot.indexOf(r.id),true);toast(`做好了：${r.name}`);writeSave();renderPanel()}
+function craft(r,n=1){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;let made=0;
+  while(made<n&&afford(r.cost)){take(r.cost);inv[r.id]=(inv[r.id]||0)+1;made++}hotAdd(r.id);
+  if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg&&hot.includes(r.id))hotSelect(hot.indexOf(r.id),true);toast(`做好了：${r.name}${made>1?' ×'+made:''}`);writeSave();renderPanel()}
 
 /* ---------- goals ---------- */
 const GOALS=[
