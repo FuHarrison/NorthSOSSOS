@@ -77,6 +77,10 @@ kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--lin
 #placeBar{position:fixed;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 76px);display:flex;gap:8px;align-items:center;background:#0d130fe6;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
 #placeBar button{border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:7px 14px}
 #placeOk{background:var(--accent)!important;color:#1b1407;border-color:var(--accent)!important;font-weight:700}
+#placeOk.demo{background:#c95b5b!important;border-color:#c95b5b!important;color:#fff}
+#placeBar{flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px)}#placeName,#placeBar button{white-space:nowrap}
+#placeHint{color:var(--mute);font-size:11px;flex-basis:100%;order:9;text-align:center}body.touch #placeHint{display:none}
+#hotbar.build{border-color:var(--accent)}.hs.no{opacity:.45}
 body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 /* hotbar: one row at the bottom on desktop, a 4×2 grid above the weapon tag on touch (the right side is taken by the buttons) */
 #hotbar{position:fixed;z-index:5;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;gap:4px;padding:4px;background:#0d130fb3;border:1px solid #ffffff1f;border-radius:10px}
@@ -154,7 +158,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
   <canvas id="mini" width="280" height="280" aria-label="小地圖（點一下或按 M 開大地圖）"></canvas>
 </div>
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
-<div class="hud" id="topr"><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
+<div class="hud" id="topr"><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
 <div class="hud" id="weaponTag"></div>
 <div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
@@ -171,7 +175,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
   </div>
 </div>
 
-<div id="placeBar" hidden><span id="placeName"></span><button id="placeRot" type="button" hidden>轉向</button><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
+<div id="placeBar" hidden><span id="placeName"></span><small id="placeHint"></small><button id="placeRot" type="button" hidden>轉向</button><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
 
 <div class="modal" id="panel" hidden>
   <div class="sheet" role="dialog" aria-label="背包與製作">
@@ -475,11 +479,12 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyM'){toggleMap();return}
   if(paused)return;
   if(e.code==='KeyR'&&placing){rotPlace();return}
+  if(e.code==='KeyB'){toggleBuild();return}
   keys[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doRoll()}
   if(e.code==='KeyE')doUse();
-  if(e.code==='KeyQ')hotNext();
-  if(/^Digit[1-8]$/.test(e.code))hotSelect(+e.code[5]-1);
+  if(e.code==='KeyQ'){if(placing)selectBuild(buildSel+1);else hotNext()}
+  if(/^Digit[1-8]$/.test(e.code)){if(placing)selectBuild(+e.code[5]-1);else hotSelect(+e.code[5]-1)}
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;atkHeld=false});
@@ -487,7 +492,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{
   if(paused)return;
   if(e.pointerType==='mouse'){mouse.on=true;mouse.x=e.clientX;mouse.y=e.clientY;
-    if(e.button===2){doRoll();return}
+    if(e.button===2){if(placing)doDemolish();else doRoll();return}
     if(placing){tryPlace();return}
     if(useHeld())return;atkHeld=true;return}
   if(joy.id===null&&e.clientX<VW*.55){joy.id=e.pointerId;joy.ox=e.clientX;joy.oy=e.clientY;joy.dx=joy.dy=0;const s=$('stick');s.style.display='block';s.style.left=joy.ox+'px';s.style.top=joy.oy+'px';s.firstElementChild.style.transform='';cv.setPointerCapture(e.pointerId)}
@@ -501,8 +506,9 @@ cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endP
 function tbtn(id,down,up){const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();b.classList.add('down');if(!paused)down()});const u=e=>{b.classList.remove('down');up&&up()};b.addEventListener('pointerup',u);b.addEventListener('pointercancel',u);b.addEventListener('pointerleave',u)}
 tbtn('bAtk',()=>{if(placing)tryPlace();else if(!useHeld())atkHeld=true},()=>{atkHeld=false});
 tbtn('bRoll',doRoll);tbtn('bUse',doUse);tbtn('bSwap',hotNext);
-cv.addEventListener('wheel',e=>{if(paused)return;e.preventDefault();hotSelect(hotSel+(e.deltaY>0?1:-1))},{passive:false});
-$('hotbar').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-hs]');if(!b)return;e.preventDefault();e.stopPropagation();if(!paused)hotSelect(+b.dataset.hs)});
+cv.addEventListener('wheel',e=>{if(paused)return;e.preventDefault();const d=e.deltaY>0?1:-1;if(placing)selectBuild(buildSel+d);else hotSelect(hotSel+d)},{passive:false});
+$('hotbar').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-hs]');if(!b)return;e.preventDefault();e.stopPropagation();if(paused)return;if(placing)selectBuild(+b.dataset.hs);else hotSelect(+b.dataset.hs)});
+$('btnBuild').addEventListener('click',()=>{if(!paused)toggleBuild()});
 $('btnPanel').addEventListener('click',()=>togglePanel());
 $('placeOk').addEventListener('click',tryPlace);$('placeRot').addEventListener('click',rotPlace);$('placeCancel').addEventListener('click',stopPlace);
 $('panelX').addEventListener('click',()=>togglePanel(false));
@@ -525,7 +531,10 @@ function hotSelect(i,quiet){hotSel=(i+HOT_N)%HOT_N;syncHeld();if(!quiet)toast(`$
 function hotNext(){for(let d=1;d<=HOT_N;d++){const i=(hotSel+d)%HOT_N;if(hot[i]){hotSelect(i);return}}toast('快捷欄是空的')}
 function useHeld(){const k=held();if(!FOODS[k])return false;eat(k);syncHeld();return true}
 function hotDefault(){hot=new Array(HOT_N).fill(null);for(const k of [...Object.keys(WEAPONS),...Object.keys(FOODS)])if(k!=='none'&&has(k))hotAdd(k)}
-function renderHot(){const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k])]);if(sig===hotSig)return;hotSig=sig;
+function renderHot(){const hb=$('hotbar');
+  if(placing){const L=buildList(),ok=L.map(r=>r.id==='demolish'||afford(r.cost)),sig=JSON.stringify(['b',buildSel,ok]);if(sig===hotSig)return;hotSig=sig;hb.classList.add('build');
+    hb.innerHTML=L.map((r,i)=>`<button type="button" class="hs${r===placing?' on':''}${ok[i]?'':' no'}" data-hs="${i}" title="${r.name}"><kbd>${i+1}</kbd><span class="sw" style="background:${r.id==='demolish'?'#c95b5b':MAPCOL[r.id]}"></span><span class="hn">${r.name}</span></button>`).join('');return}
+  hb.classList.remove('build');const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k])]);if(sig===hotSig)return;hotSig=sig;
   $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k||'空'}"><kbd>${i+1}</kbd>${k?`<span class="sw" style="background:${ITEM[k]||'#888'}"></span><span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</button>`).join('')}
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;return Math.abs(d)}
 function attack(){
@@ -604,19 +613,35 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
     else toast(`祭壇需要：獠牙 ${inv['獠牙']||0}/3、樹脂 ${inv['樹脂']||0}/5`)}}
 
 /* ---------- placement ---------- */
-function startPlace(r){placing=r;$('placeBar').hidden=false;$('placeRot').hidden=!isWallK(r.id);$('placeName').textContent=`建造：${r.name}`+(isWallK(r.id)&&!TOUCH?'（R 轉向）':'');togglePanel(false)}
-function stopPlace(){placing=null;$('placeBar').hidden=true}
+// build mode (B): the hotbar lists every building plus a demolish tool; picking one sets `placing`
+const DEMOLISH={id:'demolish',name:'拆除',cost:{}};let buildSel=0;
+const buildList=()=>[...RECIPES.filter(r=>r.build),DEMOLISH];
+function startPlace(r){const L=buildList();buildSel=Math.max(0,L.indexOf(r));placing=r;hotSig='';$('placeBar').hidden=false;
+  const demo=r===DEMOLISH;$('placeRot').hidden=!isWallK(r.id);$('placeOk').textContent=demo?'拆除':'放置';$('placeOk').classList.toggle('demo',demo);
+  $('placeName').textContent=demo?'拆除：對準建築':`建造：${r.name}`;
+  $('placeHint').textContent=`1～${L.length}／滾輪／Q 選建築・${isWallK(r.id)?'R 轉向・':''}右鍵拆除・B 離開`;if(!$('panel').hidden)togglePanel(false)}
+function stopPlace(){placing=null;hotSig='';$('placeBar').hidden=true}
+function selectBuild(i){const L=buildList();startPlace(L[(i%L.length+L.length)%L.length])}
+function toggleBuild(){if(placing)stopPlace();else startPlace(buildList()[buildSel]||buildList()[0])}
+// what the aim point is on: the closest wall edge or building in the 3×3 cells around it
+function demoTarget(){const a=aimPt(),i0=Math.floor(a.x/CELL),j0=Math.floor(a.y/CELL);let best=null,bd=1e9;
+  for(let j=j0-1;j<=j0+1;j++)for(let i=i0-1;i<=i0+1;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const c=j*COLS+i,st=structGrid[c];
+    if(st){const d=Math.hypot(st.x-a.x,st.y-a.y);if(d<26&&d<bd){best=st;bd=d}}
+    for(const w of[wallH[c],wallV[c]])if(w){const v=w.o==='v',d=Math.hypot(Math.abs(v?a.x-w.x:a.y-w.y),Math.max(0,Math.abs(v?a.y-w.y:a.x-w.x)-CELL/2));if(d<=CELL/2&&d<bd){best=w;bd=d}}}
+  return best}
+function doDemolish(){const t=demoTarget();if(!t){toast('這裡沒有可以拆的建築');return}act({t:'demo',k:t.k,x:t.x,y:t.y,o:t.o})}
 function rotPlace(){if(placing&&isWallK(placing.id))placeRot=placeRot==='h'?'v':'h'}
-function ghostPos(){let x,y;if(!TOUCH&&mouse.on){const w=worldMouse();x=w.x;y=w.y;const d=Math.hypot(x-P.x,y-P.y);if(d>200){x=P.x+(x-P.x)/d*200;y=P.y+(y-P.y)/d*200}}else{x=P.x+Math.cos(P.face)*58;y=P.y+Math.sin(P.face)*58}
+function aimPt(){let x,y;if(!TOUCH&&mouse.on){const w=worldMouse();x=w.x;y=w.y;const d=Math.hypot(x-P.x,y-P.y);if(d>200){x=P.x+(x-P.x)/d*200;y=P.y+(y-P.y)/d*200}}else{x=P.x+Math.cos(P.face)*58;y=P.y+Math.sin(P.face)*58}return{x,y}}
+function ghostPos(){const{x,y}=aimPt();
   if(placing&&isWallK(placing.id))return snapWall(placeRot,x,y);
   const c=ci(x,y);return{x:(c%COLS+.5)*CELL,y:(Math.floor(c/COLS)+.5)*CELL,c}}
 function ghostOk(g){if(g.o){if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c]||wallHit(g,P.x,P.y,P.r))return false;for(const m of mobs)if(wallHit(g,m.x,m.y,m.r))return false;return true}
   if(g.c<0||biome[g.c]===0||structGrid[g.c]||g.c===altar.cell)return false;const o=resGrid[g.c];if(o&&RES[o.k].solid)return false;
   if(Math.abs(g.x-P.x)<22+P.r&&Math.abs(g.y-P.y)<22+P.r)return false;for(const m of mobs)if(Math.hypot(m.x-g.x,m.y-g.y)<20+m.r)return false;return true}
-function tryPlace(){if(!placing)return;const r=placing;if(!afford(r.cost)){toast('材料不夠了');stopPlace();return}if(r.bench&&!nearBench()){toast('要在工作台附近才能建造');return}
+function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemolish();return}if(!afford(r.cost)){toast('材料不夠了');return}if(r.bench&&!nearBench()){toast('要在工作台附近才能建造');return}
   const g=ghostPos();if(!ghostOk(g)){toast('這裡不能放');return}take(r.cost);act({t:'build',k:r.id,x:g.x,y:g.y,o:g.o,cost:r.cost});
   if(r.id==='bed')spawnPt={x:g.x,y:g.y+34};
-  if(!isWallK(r.id))stopPlace();else if(!afford(r.cost)){toast(`${Object.keys(r.cost)[0]}用完了`);stopPlace()}writeSave()}
+  if(!afford(r.cost))toast(`${Object.keys(r.cost).find(k=>(inv[k]||0)<r.cost[k])}用完了`);writeSave()}
 
 /* ---------- panel ---------- */
 function togglePanel(on,tab){const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
@@ -662,7 +687,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.querySelectorAll('[data-take]').forEach(x=>x.addEventListener('click',()=>{const p=pets.find(q=>q.id===+x.dataset.take);if(!p)return;
       for(const k in p.bag){inv[k]=(inv[k]||0)+p.bag[k];hotAdd(k)}toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
-    <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
+    <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>打倒狼王後每個人都會得到一隻狼崽。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
@@ -846,6 +871,10 @@ function handleAct(m,from){switch(m.t){
   case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{if(isWallK(m.k)){const g=snapWall(m.o==='v'?'v':'h',m.x,m.y);if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:g.x,y:g.y,o:g.o});break}
     const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
+  case'demo':{const s=isWallK(m.k)?(m.o==='v'?wallV:wallH)[snapWall(m.o==='v'?'v':'h',m.x,m.y).c]:structGrid[ci(m.x,m.y)];if(!s||s.k!==m.k)break;
+    evt({t:'sr',k:s.k,x:s.x,y:s.y,o:s.o});const back={},add=(k,n)=>{if(n>0)back[k]=(back[k]||0)+n},r=RECIPES.find(r=>r.id===s.k);
+    if(r)for(const k in r.cost)add(k,r.cost[k]);if(s.fz){for(const k in s.fz.q)add(k,s.fz.q[k]);add('煤炭',s.fz.fuel);for(const k in s.fz.out)add(k,s.fz.out[k])}
+    let dy=0;for(const k in back){giveTo(from,k,back[k],s.x,s.y-dy);dy+=14}break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
   case'summon':{if(boss||flags.boss){refund(from,{獠牙:3,樹脂:5},'狼王已經醒了');break}
@@ -861,6 +890,8 @@ function applyEvt(m){switch(m.t){
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
+  case'sr':{const grid=isWallK(m.k)?(m.o==='v'?wallV:wallH):structGrid,c=isWallK(m.k)?snapWall(m.o==='v'?'v':'h',m.x,m.y).c:ci(m.x,m.y),s=grid[c];if(!s||s.k!==m.k)break;
+    grid[c]=null;structs.splice(structs.indexOf(s),1);burst(s.x,s.y-10,m.k==='wall'||m.k==='bench'||m.k==='bed'?'#a0703f':'#9a9d98',14);break}
   case'fz':{const s=structGrid[m.c];if(s&&s.k==='furnace')s.fz=normFz(m.f);break}
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
@@ -949,7 +980,10 @@ function render(){
   list.sort((a,b)=>a[0]-b[0]);
   for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else if(t===3)drawPlayer(o);else if(t===4)drawPet(o);else drawLoot(o)}
   // ghost
-  if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,o:g.o,anim:0});ctx.globalAlpha=1;
+  if(placing===DEMOLISH){const t=demoTarget(),a=aimPt();ctx.strokeStyle='#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+    if(t){if(t.o==='v')ctx.strokeRect(t.x-WALL_T-2,t.y-22,WALL_T*2+4,44);else if(t.o)ctx.strokeRect(t.x-22,t.y-WALL_T-2,44,WALL_T*2+4);else ctx.strokeRect(t.x-22,t.y-22,44,44)}
+    ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(a.x-5,a.y-5);ctx.lineTo(a.x+5,a.y+5);ctx.moveTo(a.x+5,a.y-5);ctx.lineTo(a.x-5,a.y+5);ctx.stroke()}
+  else if(placing){const g=ghostPos(),ok=ghostOk(g)&&afford(placing.cost)&&(!placing.bench||nearBench());ctx.globalAlpha=.55;drawStruct({k:placing.id,x:g.x,y:g.y,o:g.o,anim:0});ctx.globalAlpha=1;
     ctx.strokeStyle=ok?'#9fe07a':'#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(g.o==='v')ctx.strokeRect(g.x-WALL_T,g.y-20,WALL_T*2,40);else if(g.o)ctx.strokeRect(g.x-20,g.y-WALL_T,40,WALL_T*2);else ctx.strokeRect(g.x-20,g.y-20,40,40);ctx.setLineDash([])}
   // particles
   for(const p of parts){ctx.globalAlpha=Math.min(1,p.t*2);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)}ctx.globalAlpha=1;
