@@ -175,7 +175,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
   </div>
 </div>
 
-<div id="placeBar" hidden><span id="placeName"></span><small id="placeHint"></small><button id="placeRot" type="button" hidden>轉向</button><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
+<div id="placeBar" hidden><span id="placeName"></span><span id="placeCost" class="costs"></span><small id="placeHint"></small><button id="placeRot" type="button" hidden>轉向</button><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
 
 <div class="modal" id="panel" hidden>
   <div class="sheet" role="dialog" aria-label="背包與製作">
@@ -532,8 +532,9 @@ function hotNext(){for(let d=1;d<=HOT_N;d++){const i=(hotSel+d)%HOT_N;if(hot[i])
 function useHeld(){const k=held();if(!FOODS[k])return false;eat(k);syncHeld();return true}
 function hotDefault(){hot=new Array(HOT_N).fill(null);for(const k of [...Object.keys(WEAPONS),...Object.keys(FOODS)])if(k!=='none'&&has(k))hotAdd(k)}
 function renderHot(){const hb=$('hotbar');
-  if(placing){const L=buildList(),ok=L.map(r=>r.id==='demolish'||afford(r.cost)),sig=JSON.stringify(['b',buildSel,ok]);if(sig===hotSig)return;hotSig=sig;hb.classList.add('build');
-    hb.innerHTML=L.map((r,i)=>`<button type="button" class="hs${r===placing?' on':''}${ok[i]?'':' no'}" data-hs="${i}" title="${r.name}"><kbd>${i+1}</kbd><span class="sw" style="background:${r.id==='demolish'?'#c95b5b':MAPCOL[r.id]}"></span><span class="hn">${r.name}</span></button>`).join('');return}
+  // build mode: each slot shows how many more you can build; the place bar shows what the selected one needs and what you have left
+  if(placing){const L=buildList(),ns=L.map(r=>r===DEMOLISH?-1:buildN(r)),pc=placing===DEMOLISH?'':placeCostHtml(placing),sig=JSON.stringify(['b',buildSel,ns,pc]);if(sig===hotSig)return;hotSig=sig;hb.classList.add('build');$('placeCost').innerHTML=pc;
+    hb.innerHTML=L.map((r,i)=>`<button type="button" class="hs${r===placing?' on':''}${ns[i]===0?' no':''}" data-hs="${i}" title="${r.name}"><kbd>${i+1}</kbd>${ns[i]>=0?`<small>${ns[i]}</small>`:''}<span class="sw" style="background:${r.id==='demolish'?'#c95b5b':MAPCOL[r.id]}"></span><span class="hn">${r.name}</span></button>`).join('');return}
   hb.classList.remove('build');const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k])]);if(sig===hotSig)return;hotSig=sig;
   $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k||'空'}"><kbd>${i+1}</kbd>${k?`<span class="sw" style="background:${ITEM[k]||'#888'}"></span><span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</button>`).join('')}
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;return Math.abs(d)}
@@ -621,6 +622,8 @@ function startPlace(r){const L=buildList();buildSel=Math.max(0,L.indexOf(r));pla
   $('placeName').textContent=demo?'拆除：對準建築':`建造：${r.name}`;
   $('placeHint').textContent=`1～${L.length}／滾輪／Q 選建築・${isWallK(r.id)?'R 轉向・':''}右鍵拆除・B 離開`;if(!$('panel').hidden)togglePanel(false)}
 function stopPlace(){placing=null;hotSig='';$('placeBar').hidden=true}
+const buildN=r=>Math.min(...Object.entries(r.cost).map(([k,n])=>Math.floor((inv[k]||0)/n)));
+function placeCostHtml(r){return Object.entries(r.cost).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} 需 ${n}・剩 ${inv[k]||0}</span>`).join('')+`<span class="cost">還能蓋 ${buildN(r)} 個</span>`}
 function selectBuild(i){const L=buildList();startPlace(L[(i%L.length+L.length)%L.length])}
 function toggleBuild(){if(placing)stopPlace();else startPlace(buildList()[buildSel]||buildList()[0])}
 // what the aim point is on: the closest wall edge or building in the 3×3 cells around it
