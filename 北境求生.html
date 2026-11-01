@@ -118,7 +118,11 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .slot{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px;min-width:0}
 .sw{width:22px;height:22px;border-radius:5px;flex:none;box-shadow:inset 0 -3px 0 #0004}
 .ico{width:24px;height:24px;flex:none;display:block;filter:drop-shadow(0 1px 1px #0008)}
-.card h3 .ico{display:inline-block;vertical-align:-6px;margin-right:6px}
+.card h3 .cn{display:flex;align-items:center;gap:6px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:4px}
+.stats span{font-size:11px;padding:2px 6px;border-radius:4px;background:#00000040;color:var(--mute);font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink);font-weight:600;margin-left:4px}
+#bagMenu .stats{margin:0 4px 4px;max-width:220px}
 .slot .n{flex:1;min-width:0;font-size:13px}
 .slot .n small{display:block;color:var(--mute);font-size:11px;font-variant-numeric:tabular-nums}
 .slot button{border:1px solid var(--line);background:#2c372f;border-radius:6px;padding:4px 8px;font-size:12px}
@@ -595,7 +599,7 @@ function renderHot(){const hb=$('hotbar');
   if(placing){const L=buildList(),ns=L.map(r=>r===DEMOLISH?-1:buildN(r)),pc=placing===DEMOLISH?'':placeCostHtml(placing),sig=JSON.stringify(['b',buildSel,ns,pc]);if(sig===hotSig)return;hotSig=sig;hb.classList.add('build');$('placeCost').innerHTML=pc;
     hb.innerHTML=L.map((r,i)=>`<button type="button" class="hs${r===placing?' on':''}${ns[i]===0?' no':''}" data-hs="${i}" title="${r.name}"><kbd>${i+1}</kbd>${ns[i]>=0?`<small>${ns[i]}</small>`:''}${icon(r.id)}<span class="hn">${r.name}</span></button>`).join('');return}
   hb.classList.remove('build');const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k])]);if(sig===hotSig)return;hotSig=sig;
-  $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k||'空'}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</button>`).join('')}
+  $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k?k+(statsText(k)?'：'+statsText(k):''):'空'}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</button>`).join('')}
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;return Math.abs(d)}
 function attack(){
   const w=WEAPONS[P.weapon];if(P.cd>0||P.roll>0)return;if(P.st<w.st){P.stDelay=Math.max(P.stDelay,.4);return}
@@ -712,7 +716,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
   if(panelTab==='craft'){const nb=nearBench();
     b.innerHTML=`<p class="note">${nb?'工作台在旁邊，全部配方都能做。':'標有「工作台」的配方要站在工作台附近才能做。'}</p><div class="grid">`+RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')).map((r,i)=>{
       const owned=!r.build&&has(r.id),ok=afford(r.cost)&&(!r.bench||nb)&&!owned;
-      return`<div class="card"><h3>${icon(r.id)}${r.name}<em>${r.build?'建築':'物品'}${r.bench?'・工作台':''}</em></h3><p>${r.desc}</p><div class="costs">${costHtml(r.cost)}</div>
+      return`<div class="card"><h3><span class="cn">${icon(r.id)}${r.name}</span><em>${r.build?'建築':'物品'}${r.bench?'・工作台':''}</em></h3><p>${r.desc}</p>${statsHtml(r.id)}<div class="costs">${costHtml(r.cost)}</div>
       <button class="act ${ok?'go':''}" type="button" data-r="${RECIPES.indexOf(r)}" ${ok?'':'disabled'}>${owned?'已擁有':r.build?'建造':'製作'}</button></div>`}).join('')+`</div>`;
     b.querySelectorAll('[data-r]').forEach(x=>x.addEventListener('click',()=>craft(RECIPES[+x.dataset.r])))}
   else if(panelTab==='inv'){const ks=Object.keys(inv).filter(k=>inv[k]>0);
@@ -754,7 +758,15 @@ function furnaceStat(f){const lit=f.burn>0,busy=Object.keys(f.q).length>0;
 function refreshFurnacePanel(){if($('panel').hidden||panelTab!=='furnace')return;const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}
   if(furnaceSig(s.fz)!==fzSig)renderPanel();else{const e=$('fzStat');if(e)e.innerHTML=furnaceStat(s.fz)}}
 /* ---------- bag ---------- */
-function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:WEAPONS[k]?`傷害 ${WEAPONS[k].dmg}`:k==='皮甲'?'受到的傷害 -30%':''}
+// numbers for weapons, tools and armour: [label, value]
+function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&k!=='皮甲')return o;
+  if(w)o.push(['傷害',w.dmg],['距離',w.range],['範圍',Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
+  if(CHOP[k]>3)o.push(['砍樹',CHOP[k]]);
+  if(MINE[k])o.push(['挖礦',MINE[k]],['可挖',PICK_TIER[k]>1?'所有礦石':'石頭、煤、銅、錫']);
+  if(k==='皮甲')o.push(['減傷','30%']);return o}
+const statsText=k=>equipStats(k).map(([a,b])=>`${a} ${b}`).join('・');
+function statsHtml(k){const o=equipStats(k);return o.length?`<div class="stats">${o.map(([a,b])=>`<span>${a}<b>${b}</b></span>`).join('')}</div>`:''}
+function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:statsText(k)}
 function bagSlot(k){const hi=hot.indexOf(k),sub=itemSub(k);
   return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${inv[k]}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}${icon(k)}<span class="hn">${k}</span><small>${inv[k]}</small></div>`}
 // right-click (or tap) menu for one bag item
@@ -763,7 +775,7 @@ function openBagMenu(k,x,y){closeBagMenu();if(!has(k))return;const n=inv[k],sub=
   const acts=[];if(FOODS[k])acts.push(['吃',()=>eat(k)]);
   if(k!=='皮甲')acts.push([held()===k?'手持中':WEAPONS[k]?'裝備':`放快捷欄第 ${hotSel+1} 格`,()=>{if(held()!==k)hotPut(k)}]);
   acts.push(['丟出 1',()=>dropItem(k,1)]);if(n>2)acts.push([`丟出一半（${Math.floor(n/2)}）`,()=>dropItem(k,Math.floor(n/2))]);if(n>1)acts.push([`全部丟出（${n}）`,()=>dropItem(k,n),1]);
-  m.innerHTML=`<b>${k} ×${n}</b>${sub?`<p>${sub}</p>`:''}`+acts.map(([t,,d],i)=>`<button type="button" data-mi="${i}"${d?' class="danger"':''}>${t}</button>`).join('');
+  m.innerHTML=`<b>${k} ×${n}</b>${equipStats(k).length?statsHtml(k):sub?`<p>${sub}</p>`:''}`+acts.map(([t,,d],i)=>`<button type="button" data-mi="${i}"${d?' class="danger"':''}>${t}</button>`).join('');
   document.body.appendChild(m);m.style.left=Math.max(8,Math.min(x,innerWidth-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(y,innerHeight-m.offsetHeight-8))+'px';
   m.addEventListener('click',e=>{const bt=e.target.closest('[data-mi]');if(!bt)return;acts[+bt.dataset.mi][1]();closeBagMenu();writeSave();renderPanel()})}
 addEventListener('pointerdown',e=>{const m=$('bagMenu');if(m&&!m.contains(e.target))closeBagMenu()},true);
@@ -1215,7 +1227,7 @@ function hud(){const MH=maxHp(),MS=maxSt();
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   syncHeld();renderHot();const hk=held();
-  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
+  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
   $('bossBar').hidden=!boss;if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
