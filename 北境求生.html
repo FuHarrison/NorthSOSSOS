@@ -1250,28 +1250,107 @@ function drawStruct(s){const x=s.x,y=s.y;
     const glow=flags.boss?'#3c4542':`rgba(224,166,70,${.6+Math.sin(time*2)*.3})`;ctx.strokeStyle=glow;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-50);ctx.lineTo(x,y-18);ctx.moveTo(x,y-44);ctx.lineTo(x+6,y-36);ctx.moveTo(x,y-34);ctx.lineTo(x-6,y-26);ctx.stroke();
     ctx.fillStyle='#d8d2c4';for(const dx of[-22,22]){ctx.beginPath();ctx.ellipse(x+dx,y-2,4,2.5,0,0,6.28);ctx.fill()}break}
   }}
+// boar art, facing +x. Paths are built once so 20-odd boars stay cheap to draw
+const BOAR_LEGS=[[-10,-9,1],[-10,9,-1],[7,-10,-1],[7,10,1]];
+const BOAR_MANE=(()=>{const p=new Path2D();p.moveTo(10,0);for(let i=0;i<=8;i++)p.lineTo(8-i*2.8,-(i%2?4.6:2.6)*(1-i*.06));p.lineTo(-16,0);for(let i=8;i>=0;i--)p.lineTo(8-i*2.8,(i%2?4.6:2.6)*(1-i*.06));p.closePath();return p})();
+const BOAR_FUR_D=(()=>{const p=new Path2D();for(const[x,y]of[[-13,5.5],[-8,6.5],[-3,6.8],[2,7.5],[7,7.5]])for(const s of[-1,1]){p.moveTo(x+3,s*y);p.lineTo(x-1,s*(y+1.8))}return p})();
+const BOAR_FUR_L=(()=>{const p=new Path2D();for(const[x,y]of[[-10.5,4.6],[-5.5,5],[-.5,5.2],[4.5,5.6]])for(const s of[-1,1]){p.moveTo(x+2.5,s*y);p.lineTo(x-.5,s*(y+1.4))}return p})();
+function drawBoar(m,f){const angry=m.aggro>0,walk=Math.abs(m.x-(m.lx??m.x))+Math.abs(m.y-(m.ly??m.y))>.02;m.lx=m.x;m.ly=m.y;
+  const c=k=>f?'#fff':k,el=(x,y,rx,ry,k)=>{ctx.fillStyle=c(k);ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,6.28);ctx.fill()};
+  const w=Math.sin(m.anim*12),stride=w*(angry?3.5:walk?2.4:0);
+  shadow(m.x,m.y+6,17,7);ctx.save();ctx.translate(m.x,m.y-6+w*(angry?1.5:.6));ctx.rotate(m.face);ctx.lineCap='round';ctx.lineJoin='round';
+  // legs and hooves step in diagonal pairs
+  for(const[lx,ly,s]of BOAR_LEGS){const x=lx+stride*s;el(x,ly,4.2,2.7,'#3a271d');el(x+2.3,ly,1.7,2,'#1c1310')}
+  // curly tail
+  const tw=Math.sin(m.anim*(angry?16:7))*2;ctx.strokeStyle=c('#2f1f17');ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(-15,0);ctx.bezierCurveTo(-19,-3+tw,-23,1+tw,-19,3+tw);ctx.stroke();
+  // body: dark rim first, then rump and heavier shoulders
+  el(-6,0,11,10,'#33221a');el(0,0,11,10.6,'#33221a');el(5,0,10,11,'#33221a');el(-6,0,10,9,'#5e4232');el(0,0,10,9.6,'#614534');el(5,0,9,10,'#664a38');
+  ctx.lineWidth=1.1;ctx.strokeStyle=c('#3e2a1f');ctx.stroke(BOAR_FUR_D);ctx.strokeStyle=c('#735644');ctx.stroke(BOAR_FUR_L);
+  // spine bristles stand up when angry
+  ctx.save();if(angry)ctx.scale(1,1.35);ctx.fillStyle=c('#2a1a13');ctx.fill(BOAR_MANE);ctx.strokeStyle=c('#4a3225');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-13,0);ctx.stroke();ctx.restore();
+  // ears (pinned back when angry), head, snout
+  const et=angry?[3.5,8.5]:[5.5,11];
+  for(const s of[-1,1]){ctx.fillStyle=c('#3e2a1f');ctx.beginPath();ctx.moveTo(10,s*4.5);ctx.lineTo(13,s*6.5);ctx.lineTo(et[0],s*et[1]);ctx.closePath();ctx.fill();
+    ctx.fillStyle=c('#a07762');ctx.beginPath();ctx.moveTo(9.8,s*5.6);ctx.lineTo(11.3,s*6.4);ctx.lineTo(et[0]+2,s*(et[1]-1.7));ctx.closePath();ctx.fill()}
+  el(13,0,7.5,7,'#6e5040');el(11,0,4.8,3.4,'#4f3728');el(19,0,3.9,4.3,'#8b6a56');
+  // tusks curve up and out of the snout
+  ctx.strokeStyle=c('#efe7d0');ctx.lineWidth=1.7;ctx.beginPath();for(const s of[-1,1]){ctx.moveTo(18.5,s*3.4);ctx.quadraticCurveTo(21.5,s*4,21.8,s*6.2)}ctx.stroke();
+  // nose disc, nostrils, eyes (red when angry)
+  el(21.6,0,1.8,3.1,'#2b1c16');el(22.1,-1.2,.6,.7,'#0d0806');el(22.1,1.2,.6,.7,'#0d0806');
+  for(const s of[-1,1]){el(15,s*4.1,1.5,1.5,angry?'#d13c2a':'#1a1210');ctx.fillStyle='#fff';ctx.fillRect(15.2,s*4.1-.7,.7,.7)}
+  ctx.restore()}
 function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
-  if(m.k==='boar'){shadow(m.x,m.y+6,15,6);const b=Math.sin(m.anim*12)*(m.aggro>0?1.5:.6);ctx.save();ctx.translate(m.x,m.y-6+b);ctx.rotate(a);
-    ctx.fillStyle=f?'#fff':'#5e4232';ctx.beginPath();ctx.ellipse(0,0,15,10,0,0,6.28);ctx.fill();ctx.fillStyle=f?'#fff':'#3e2a1f';ctx.beginPath();ctx.ellipse(-2,0,10,4,0,0,6.28);ctx.fill();
-    ctx.fillStyle=f?'#fff':'#6e5040';ctx.beginPath();ctx.ellipse(13,0,7,6,0,0,6.28);ctx.fill();ctx.fillStyle='#e8e0c8';ctx.fillRect(17,-5,4,2);ctx.fillRect(17,3,4,2);ctx.fillStyle='#1a1210';ctx.fillRect(14,-3,2,2);ctx.fillRect(14,1,2,2);ctx.restore()}
-  else if(m.k==='moss'){shadow(m.x,m.y+5,11,4);const b=Math.abs(Math.sin(m.anim*9))*3;ctx.fillStyle=f?'#fff':'#5e7a43';ctx.beginPath();ctx.arc(m.x,m.y-9-b,11,0,6.28);ctx.fill();
-    ctx.fillStyle=f?'#fff':'#46602f';ctx.beginPath();ctx.arc(m.x-4,m.y-13-b,4,0,6.28);ctx.arc(m.x+5,m.y-6-b,3,0,6.28);ctx.fill();ctx.fillStyle='#8aa85a';ctx.beginPath();ctx.arc(m.x-2,m.y-18-b,3,0,6.28);ctx.fill();
-    ctx.fillStyle='#ffe37a';ctx.fillRect(m.x+c*6-sn*3-1,m.y-10-b+sn*4+c*3-1,2.5,2.5);ctx.fillRect(m.x+c*6+sn*3-1,m.y-10-b+sn*4-c*3-1,2.5,2.5);
-    ctx.strokeStyle='#3a4d26';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(m.x-10,m.y-8-b);ctx.lineTo(m.x-15,m.y-2-b);ctx.moveTo(m.x+10,m.y-8-b);ctx.lineTo(m.x+15,m.y-2-b);ctx.stroke()}
+  if(m.k==='boar')drawBoar(m,f);
+  else if(m.k==='moss')drawMoss(m,f,c,sn);
   else{const rw=m.state==='rwind';if(rw){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(120,255,140,${.14+p*.12})`;ctx.strokeStyle=`rgba(170,255,175,${.65+p*.35})`;ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.beginPath();ctx.ellipse(m.x,m.y,ROAR_R,ROAR_R*.75,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([])}
     shadow(m.x,m.y+10,34,11);const wind=m.state==='wind',cw=m.state==='cwind';ctx.save();ctx.translate(m.x,m.y-14);ctx.rotate(a);
     if(wind){ctx.fillStyle=`rgba(255,80,60,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(6,0,46,26,0,0,6.28);ctx.fill()}
     if(rw){ctx.fillStyle=`rgba(130,255,150,${.55+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(-2,0,50,34,0,0,6.28);ctx.fill()}
     if(cw){ctx.fillStyle=`rgba(255,180,70,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(18,0,42,30,0,0,6.28);ctx.fill();
       ctx.strokeStyle='#ffe3a8';ctx.lineWidth=2;for(const sy of[-1,1])for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(22,sy*(14+j*3));ctx.lineTo(32,sy*(18+j*3));ctx.stroke()}}
-    ctx.fillStyle=f?'#fff':'#7d858b';for(const[lx,ly]of[[-18,-15],[-18,15],[14,-15],[14,15]]){ctx.beginPath();ctx.ellipse(lx+Math.sin(m.anim*10+lx)*3,ly,6,4,0,0,6.28);ctx.fill()}
-    ctx.fillStyle=f?'#fff':'#8f969c';ctx.beginPath();ctx.ellipse(-4,0,30,17,0,0,6.28);ctx.fill();
-    ctx.fillStyle=f?'#fff':'#5c636a';ctx.beginPath();ctx.ellipse(8,0,16,19,0,0,6.28);ctx.fill();
-    ctx.strokeStyle='#8f969c';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(-32,0);ctx.quadraticCurveTo(-46,Math.sin(m.anim*6)*10,-52,Math.sin(m.anim*6)*14);ctx.stroke();
-    ctx.fillStyle=f?'#fff':'#a2a9ae';ctx.beginPath();ctx.ellipse(28,0,13,10,0,0,6.28);ctx.fill();ctx.beginPath();ctx.moveTo(36,-5);ctx.lineTo(48,0);ctx.lineTo(36,5);ctx.fill();
-    ctx.fillStyle='#5c636a';ctx.beginPath();ctx.moveTo(22,-8);ctx.lineTo(18,-16);ctx.lineTo(28,-9);ctx.moveTo(22,8);ctx.lineTo(18,16);ctx.lineTo(28,9);ctx.fill();
-    ctx.fillStyle=wind?'#ff5a3a':cw?'#ffb347':rw?'#9dff9a':'#bfe8ff';ctx.fillRect(32,-5,3,3);ctx.fillRect(32,2,3,3);ctx.restore()}
+    drawWolf(m,f,wind,cw,rw);ctx.restore()}
   if(m.hp<m.max&&m.k!=='boss'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
+// moss sprite: lumpy body, sprouting leaf and toadstool, drawn around its own centre
+const MOSS_DARK=(()=>{const p=new Path2D();for(const[x,y,r]of[[-5,-5,3.6],[5,2,3.2],[-6,5,2.6],[6,-6,2.2],[0,7,2]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
+const MOSS_LIGHT=(()=>{const p=new Path2D();for(const[x,y,r]of[[-2,-9,2.8],[3,-8.5,2],[-8,-3,1.8],[8,-2,1.6],[-3,0,1.2],[2,4,1.1]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
+function drawMoss(m,f,c,sn){const k=q=>f?'#fff':q,b=Math.abs(Math.sin(m.anim*9))*3,sw=Math.sin(m.anim*9),el=(x,y,rx,ry,q)=>{ctx.fillStyle=k(q);ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,6.28);ctx.fill()};
+  shadow(m.x,m.y+5,12,4);ctx.save();ctx.translate(m.x,m.y-9-b);ctx.lineCap='round';
+  // root arms with little forks, roots trailing under the body
+  ctx.strokeStyle=k('#3a4d26');ctx.lineWidth=2;ctx.beginPath();for(const s of[-1,1]){const h=7+sw*s*1.5;ctx.moveTo(s*10,1);ctx.quadraticCurveTo(s*14,2,s*15.5,h);ctx.moveTo(s*14,4);ctx.lineTo(s*18,h-1)}
+  ctx.moveTo(-5,10);ctx.lineTo(-7,13+b*.6);ctx.moveTo(0,11);ctx.lineTo(0,14+b*.6);ctx.moveTo(5,10);ctx.lineTo(7,13+b*.6);ctx.stroke();
+  // body: rim, base, shaded underside, clumps of moss
+  el(0,0,11.8,11.8,'#2f4220');el(0,0,11,11,'#5e7a43');el(0,3.5,9.5,7,'#4f6a38');ctx.fillStyle=k('#3f5a2b');ctx.fill(MOSS_DARK);ctx.fillStyle=k('#8aa85a');ctx.fill(MOSS_LIGHT);
+  // leaf sprout and toadstool on top
+  ctx.strokeStyle=k('#3a4d26');ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(1,-11);ctx.quadraticCurveTo(1+sw,-15,3+sw*2,-17);ctx.stroke();
+  ctx.save();ctx.translate(3+sw*2,-17);ctx.rotate(-.5+sw*.2);el(3,0,4,1.8,'#9dbf62');ctx.restore();
+  el(-5,-10,1.2,2.4,'#e9e2c8');el(-5,-12,3.6,2.3,'#b5452f');ctx.fillStyle=k('#f2e7cf');ctx.fillRect(-6.8,-13,1.1,1.1);ctx.fillRect(-4.2,-13.3,1.1,1.1);
+  // eyes keep their old spot so the night glow lines up; dark sockets and a mouth make the face
+  const ex=c*6,ey=sn*4-1,px=-sn*3,py=c*3;el(ex+px,ey+py,2.6,2.6,'#1f2c14');el(ex-px,ey-py,2.6,2.6,'#1f2c14');ctx.fillStyle='#ffe37a';ctx.fillRect(ex+px-1.25,ey+py-1.25,2.5,2.5);ctx.fillRect(ex-px-1.25,ey-py-1.25,2.5,2.5);
+  el(c*8,sn*5+3,2.2,1.1,'#1f2c14');ctx.restore()}
+// Wolf King art, facing +x (the pup is the same art scaled down). Fur is layered pointed locks, built once as paths
+const wolfLock=(p,x,y,len,wid,ang)=>{const c=Math.cos(ang),s=Math.sin(ang);p.moveTo(x-s*wid/2,y+c*wid/2);p.lineTo(x+c*len,y+s*len);p.lineTo(x+s*wid/2,y-c*wid/2);p.closePath()};
+const wolfJag=(cx,rx,ry,n,inner,back)=>{const p=new Path2D();for(let i=0;i<n;i++){const t=i/n*6.283,tip=i%2,o=tip?1:inner,x=cx+Math.cos(t)*rx*o-(tip?back:0),y=Math.sin(t)*ry*o;i?p.lineTo(x,y):p.moveTo(x,y)}p.closePath();return p};
+const wolfMirror=pts=>{const p=new Path2D();pts.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));for(let i=pts.length-1;i>=0;i--)if(pts[i][1])p.lineTo(pts[i][0],-pts[i][1]);p.closePath();return p};
+const WOLF_BODY=wolfJag(-4,31,18,48,.95,3),WOLF_BASE=wolfJag(-4,29,16.4,48,.96,2);
+const WOLF_DARK=new Path2D(),WOLF_MID=new Path2D(),WOLF_LIGHT=new Path2D(),WOLF_SPINE=new Path2D();
+for(const s of[-1,1])for(let i=0;i<30;i++){const j=((i*37+(s>0?5:0))%11)/11,x=-1-i*1.05-j*2,y=[5,12.5,8,14.5,6.5,10.5][i%6]+j*1.4,len=5.5+j*3.5;wolfLock(i%3===0?WOLF_DARK:i%3===1?WOLF_MID:WOLF_LIGHT,x,s*y,len,i%3===2?1:2,Math.PI-s*(.04+y*.016))}
+for(let x=-1;x>-32;x-=5.2)wolfLock(WOLF_SPINE,x,0,6.5,2.6,Math.PI);
+const WOLF_RUFF_O=wolfJag(8,17,20,30,.88,4),WOLF_RUFF_I=wolfJag(7,15,17.8,30,.9,3);
+const WOLF_RUFF_D=new Path2D(),WOLF_RUFF_L=new Path2D();
+for(const y of[-14,-9.5,-5,0,5,9.5,14]){wolfLock(WOLF_RUFF_D,14-Math.abs(y)*.3,y,10,2.2,Math.PI-y*.018)}
+for(const y of[-11.5,-7,-2.5,2.5,7,11.5]){wolfLock(WOLF_RUFF_L,12-Math.abs(y)*.27,y,8,1.1,Math.PI-y*.018)}
+const WOLF_HEAD=wolfMirror([[15,0],[16,-6],[19,-11],[22,-9.8],[25,-12.5],[30,-11.5],[34,-9],[37,-4.6],[46,-3.6],[49,-1.9],[50,0]]);
+const WOLF_BLAZE=wolfMirror([[18,0],[20,-2.8],[28,-2],[35,-.8],[37,0]]);
+const WOLF_MUZZLE=wolfMirror([[37.5,0],[38,-3.2],[45.5,-2.7],[48.3,-1.2],[49,0]]);
+const WOLF_NOSE=wolfMirror([[46.6,0],[47,-1.9],[49.8,-1.5],[51,0]]);
+const WOLF_CHEEK=new Path2D();for(const s of[-1,1]){wolfLock(WOLF_CHEEK,27,s*8.4,8,1.5,Math.PI-s*.32);wolfLock(WOLF_CHEEK,31,s*7,8,1.4,Math.PI-s*.24)}
+const WOLF_EAR=new Path2D(),WOLF_EAR_IN=new Path2D();for(const s of[-1,1]){WOLF_EAR.moveTo(20,s*7);WOLF_EAR.lineTo(17,s*19);WOLF_EAR.lineTo(29,s*10);WOLF_EAR.closePath();WOLF_EAR_IN.moveTo(21.5,s*9);WOLF_EAR_IN.lineTo(19,s*16);WOLF_EAR_IN.lineTo(26.5,s*10.2);WOLF_EAR_IN.closePath()}
+function drawWolf(m,f,wind,cw,rw){const k=q=>f?'#fff':q,LINE='#1e2226',el=(x,y,rx,ry,q)=>{ctx.fillStyle=k(q);ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,6.28);ctx.fill()};ctx.lineCap='butt';ctx.lineJoin='miter';ctx.miterLimit=6;
+  const inked=(p,q,w=1.4)=>{ctx.fillStyle=k(q);ctx.fill(p);ctx.strokeStyle=k(LINE);ctx.lineWidth=w;ctx.stroke(p)};
+  // paws: outlined pad, toe slits, sharp pale claws
+  for(const[lx,ly]of[[-20,-18],[-20,18],[6,-20],[6,20]]){const px=lx+Math.sin(m.anim*10+lx)*3;
+    for(const[w,q]of[[9.4,LINE],[7,'#7b8389']]){ctx.strokeStyle=k(q);ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(lx,ly*.55);ctx.lineTo(px-1,ly);ctx.stroke()}
+    ctx.fillStyle=k('#f4f0e2');ctx.strokeStyle=k(LINE);ctx.lineWidth=.8;ctx.beginPath();for(const j of[-1,0,1]){const cy=ly+j*2.2;ctx.moveTo(px+4.5,cy-1);ctx.lineTo(px+10-Math.abs(j),cy+j*.7);ctx.lineTo(px+4.5,cy+1);ctx.closePath()}ctx.fill();ctx.stroke();
+    el(px,ly,6.8,5,LINE);el(px,ly,5.7,3.9,'#9aa1a6');
+    ctx.strokeStyle=k(LINE);ctx.lineWidth=1;ctx.beginPath();for(const j of[-1,1]){ctx.moveTo(px+2,ly+j*1.2);ctx.lineTo(px+5.6,ly+j*1.3)}ctx.stroke()}
+  // tail: tapered, ragged locks, pale tip
+  const t=Math.sin(m.anim*6),tail=(x0,w,q)=>{ctx.fillStyle=k(q);ctx.beginPath();ctx.moveTo(x0,t*(x0+30)*-.5-w);ctx.quadraticCurveTo(-44,t*9-w*1.7,-57,t*15);ctx.quadraticCurveTo(-44,t*9+w*1.7,x0,t*(x0+30)*-.5+w);ctx.closePath();ctx.fill()};tail(-28,5.8,LINE);tail(-29,4.6,'#8f969c');
+  ctx.fillStyle=k('#3d444a');ctx.beginPath();for(const x of[-34,-39,-44]){const y=t*(x+30)*-.5;wolfLock(ctx,x,y,6,1.8,Math.PI)}ctx.fill();
+  ctx.fillStyle=k('#d9dde0');ctx.beginPath();ctx.moveTo(-47,t*10.5-3.2);ctx.quadraticCurveTo(-52,t*12.5-2.6,-57,t*15);ctx.quadraticCurveTo(-52,t*12.5+2.6,-47,t*10.5+3.2);ctx.closePath();ctx.fill();
+  // body: jagged ink silhouette, then dark, mid and light locks, then the spine
+  ctx.fillStyle=k(LINE);ctx.fill(WOLF_BODY);ctx.fillStyle=k('#7b8389');ctx.fill(WOLF_BASE);
+  ctx.save();ctx.clip(WOLF_BASE);ctx.fillStyle=k('#565e64');ctx.fill(WOLF_DARK);ctx.fillStyle=k('#9aa1a6');ctx.fill(WOLF_MID);ctx.fillStyle=k('#c9ced1');ctx.fill(WOLF_LIGHT);ctx.fillStyle=k('#3a4046');ctx.fill(WOLF_SPINE);ctx.restore();
+  // neck ruff, swept back
+  ctx.fillStyle=k(LINE);ctx.fill(WOLF_RUFF_O);ctx.fillStyle=k('#6a7278');ctx.fill(WOLF_RUFF_I);ctx.fillStyle=k('#454c52');ctx.fill(WOLF_RUFF_D);ctx.fillStyle=k('#a9b0b5');ctx.fill(WOLF_RUFF_L);
+  // ears, then a wedge-shaped head with an ink outline
+  inked(WOLF_EAR,'#4b5258',1.3);ctx.fillStyle=k('#b08f8c');ctx.fill(WOLF_EAR_IN);
+  // fangs show while it winds up an attack
+  if(wind||cw||rw){ctx.fillStyle=k('#f7f3e6');ctx.strokeStyle=k(LINE);ctx.lineWidth=.8;ctx.beginPath();for(const s of[-1,1]){ctx.moveTo(39,s*4.6);ctx.lineTo(43,s*3.6);ctx.lineTo(41.8,s*9);ctx.closePath()}ctx.fill();ctx.stroke()}
+  inked(WOLF_HEAD,'#a9b0b5',1.9);ctx.fillStyle=k('#737b81');ctx.fill(WOLF_BLAZE);ctx.fillStyle=k('#e0e3e5');ctx.fill(WOLF_CHEEK);ctx.fillStyle=k('#d6dadc');ctx.fill(WOLF_MUZZLE);ctx.fillStyle=k(LINE);ctx.fill(WOLF_NOSE);
+  // mouth line, brow ridges and slanted eyes in the warning colours: red = dash, orange = claw, green = roar
+  ctx.strokeStyle=k(LINE);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(38,0);ctx.lineTo(46.6,0);ctx.stroke();
+  const eye=wind?'#ff5a3a':cw?'#ffb347':rw?'#9dff9a':'#bfe8ff';ctx.lineWidth=1.3;
+  for(const s of[-1,1]){ctx.fillStyle=k(LINE);ctx.beginPath();ctx.moveTo(29.8,s*6.4);ctx.lineTo(36.8,s*2.2);ctx.lineTo(33,s*2);ctx.lineTo(29.8,s*3.2);ctx.closePath();ctx.fill();ctx.fillStyle=eye;ctx.beginPath();ctx.moveTo(31,s*5);ctx.lineTo(35.2,s*2.7);ctx.lineTo(32.4,s*2.7);ctx.lineTo(31,s*3.4);ctx.closePath();ctx.fill()}}
 const CAPES=['#7a3b33','#2f5d7a','#4f6b2a','#8a6a2a','#5f3a7a','#2a6b62'];
 // pets reuse the boar / Wolf King art (pup = shrunken wolf), plus a heart in the owner's cape colour and a green hp bar
 function drawPet(p){const D=PETS[p.k],wolf=p.k==='wolf';
@@ -1283,16 +1362,44 @@ function drawPet(p){const D=PETS[p.k],wolf=p.k==='wolf';
   ctx.textAlign='center';ctx.font='700 11px system-ui,sans-serif';ctx.fillStyle='#000a';ctx.fillText('♥',p.x+1,top-3);ctx.fillStyle=CAPES[(p.owner===ME?myId:p.owner)%CAPES.length];ctx.fillText('♥',p.x,top-4)}
 function drawLoot(l){shadow(l.x+1,l.y+3,9,4);ctx.fillStyle='#8a6236';ctx.beginPath();ctx.ellipse(l.x,l.y-4,8,7,0,0,6.28);ctx.fill();
   ctx.fillStyle='#5a3d22';ctx.fillRect(l.x-4,l.y-12,8,3);ctx.fillStyle='#e0a646';ctx.fillRect(l.x-1,l.y-6,2,2)}
+// player art: shared outline colour and small helpers; hair, beard and cape are built once as paths
+const PL_INK='#1f1712';
+const plEl=(x,y,rx,ry,r,q)=>{ctx.fillStyle=q;ctx.beginPath();ctx.ellipse(x,y,rx,ry,r,0,6.28);ctx.fill()};
+const plHand=(x,y,r)=>{plEl(x,y,r+.9,r+.9,0,PL_INK);plEl(x,y,r,r,0,'#e0b48e')};
+const plPoly=pts=>{const p=new Path2D();pts.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));p.closePath();return p};
+const PL_HAIR=plPoly([[3,-6.6],[0,-7.4],[-3.5,-6.6],[-4.6,-5.4],[-6.6,-4.6],[-5.6,-2.9],[-7.4,-1.4],[-5.9,0],[-7.4,1.4],[-5.6,2.9],[-6.6,4.6],[-4.6,5.4],[-3.5,6.6],[0,7.4],[3,6.6],[1.2,4.4],[2.6,2.8],[.8,1.4],[2,0],[.8,-1.4],[2.6,-2.8],[1.2,-4.4]]);
+const PL_BEARD=plPoly([[6.2,-3.2],[8.2,-2.6],[9.2,-1.6],[11,0],[9.2,1.6],[8.2,2.6],[6.2,3.2],[8,0]]);
+const PL_BEARD_D=new Path2D(),PL_HAIR_D=new Path2D(),PL_HAIR_L=new Path2D();
+wolfLock(PL_BEARD_D,8.4,-1.5,2,.8,.5);wolfLock(PL_BEARD_D,8.4,1.5,2,.8,-.5);
+for(const[x,y,n]of[[-.4,-4.8,4],[-.2,-1.6,4.6],[-.2,1.6,4.6],[-.4,4.8,4],[-3,-3.2,3],[-3,3.2,3]])wolfLock(PL_HAIR_D,x,y,n,1.2,Math.PI-y*.05);
+for(const[x,y,n]of[[.4,-3.2,4],[.4,0,4.6],[.4,3.2,4]])wolfLock(PL_HAIR_L,x,y,n,.8,Math.PI-y*.05);
+const PL_CAPE=plPoly([[5,-9],[1,-10.4],[-5,-10],[-9,-8],[-11.4,-6],[-10,-4.4],[-12.4,-2.2],[-10.6,-.6],[-12.6,1.4],[-10.6,3],[-12,5.4],[-9.6,6.4],[-8.5,8.6],[-4,10],[1,10.4],[5,9]]);
+const PL_CAPE_S=plPoly([[-3,-10],[-5,-10],[-9,-8],[-11.4,-6],[-10,-4.4],[-12.4,-2.2],[-10.6,-.6],[-12.6,1.4],[-10.6,3],[-12,5.4],[-9.6,6.4],[-8.5,8.6],[-4,10],[-3,10],[-7,5],[-8,0],[-7,-5]]);
 function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a);
   if(pl.inv>0&&pl.roll<=0&&Math.floor(time*20)%2)ctx.globalAlpha=.55;
   shadow(x,y+5,12,5);
   const bob=pl.roll>0?0:Math.sin(pl.walk)*1.5;
-  if(pl.roll>0){ctx.fillStyle='#365a7a';ctx.beginPath();ctx.ellipse(x,y-6,13,9,a,0,6.28);ctx.fill();ctx.globalAlpha=1;return}
-  // cape (colour per player id; solo keeps the original red)
-  ctx.fillStyle=CAPES[(pl===P?myId:pl.id)%CAPES.length];ctx.beginPath();ctx.ellipse(x-c*5,y-8-s*5+bob,11,9,a,0,6.28);ctx.fill();
-  // body
-  ctx.fillStyle=pl.hurt>0?'#fff':(pl===P?has('皮甲'):pl.armor)?'#7a5236':'#3f6688';ctx.beginPath();ctx.arc(x,y-10+bob,10,0,6.28);ctx.fill();
-  ctx.fillStyle='#3a2a1c';ctx.fillRect(x-10,y-9+bob,20,2.5);
+  const capeCol=CAPES[(pl===P?myId:pl.id)%CAPES.length];
+  // rolling: a tucked ball of tunic, cape and hair spinning round
+  if(pl.roll>0){const sp=time*22;plEl(x,y-6,14.2,10.2,a,PL_INK);plEl(x,y-6,13,9,a,'#365a7a');
+    ctx.fillStyle=capeCol;ctx.beginPath();ctx.moveTo(x,y-6);ctx.arc(x,y-6,8,sp,sp+2.6);ctx.closePath();ctx.fill();ctx.strokeStyle=PL_INK;ctx.lineWidth=1;ctx.stroke();plEl(x+Math.cos(sp+3.6)*5,y-6+Math.sin(sp+3.6)*4,4.2,4.2,0,PL_INK);plEl(x+Math.cos(sp+3.6)*5,y-6+Math.sin(sp+3.6)*4,3.4,3.4,0,'#c98b3a');ctx.globalAlpha=1;return}
+  // boots step in turn under the body: ink outline, leather, a lighter toe cap
+  const stp=Math.sin(pl.walk)*4;for(const q of[-1,1]){const bx=x+c*stp*q-s*q*5,by=y-1+s*stp*q+c*q*2;plEl(bx,by,5,3.8,a,PL_INK);plEl(bx,by,4,2.9,a,'#3a291b');plEl(bx+c*1.8,by+s*1.8,1.9,1.7,a,'#6a4e36')}
+  // cape (colour per player id; solo keeps the original red): tattered hem, shaded rear, sharp folds
+  const fold=Math.sin(pl.walk*.5);ctx.save();ctx.translate(x-c*5,y-8-s*5+bob);ctx.rotate(a);ctx.lineJoin='miter';ctx.miterLimit=5;ctx.scale(1+fold*.04,1);ctx.fillStyle=capeCol;ctx.fill(PL_CAPE);ctx.fillStyle='rgba(0,0,0,.26)';ctx.fill(PL_CAPE_S);ctx.strokeStyle=PL_INK;ctx.lineWidth=1.1;ctx.stroke(PL_CAPE);
+  ctx.strokeStyle='rgba(0,0,0,.34)';ctx.lineWidth=1;ctx.beginPath();for(const q of[-1,1]){ctx.moveTo(0,q*5);ctx.lineTo(-10,q*(3.4+fold*.6));ctx.moveTo(1,q*1.6);ctx.lineTo(-10.4,q*(.6-fold*.4))}ctx.stroke();ctx.restore();
+  // body: outlined tunic, shading and seams; leather armour adds a stitched chest plate and rivets
+  const armored=pl===P?has('皮甲'):pl.armor,hit=pl.hurt>0,cx0=x,cy0=y-10+bob;
+  plEl(cx0,cy0,11,11,0,PL_INK);plEl(cx0,cy0,10,10,0,hit?'#fff':armored?'#7a5236':'#3f6688');
+  if(!hit){plEl(cx0,cy0+4,8.6,5,0,armored?'#6a452c':'#35587a');plEl(cx0-1,cy0-5,6.5,3,0,armored?'#8d6444':'#4f7a9e');
+    ctx.strokeStyle=armored?'#3f2818':'#274660';ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(cx0,cy0,8.2,.45,2.69);ctx.moveTo(cx0,cy0+3.4);ctx.lineTo(cx0,cy0+9);ctx.stroke();
+    if(armored){ctx.strokeStyle='#d9b777';ctx.lineWidth=.8;ctx.setLineDash([1.6,1.6]);ctx.beginPath();ctx.moveTo(cx0-6.5,cy0-3);ctx.quadraticCurveTo(cx0,cy0-.8,cx0+6.5,cy0-3);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e2c88e';for(const q of[-1,1])ctx.fillRect(cx0+q*5-.7,cy0+5,1.4,1.4)}}
+  // shoulder pads and off hand
+  for(const q of[-1,1]){const sx=cx0-s*q*9,sy=cy0+c*q*7;plEl(sx,sy,5,4.2,a,PL_INK);plEl(sx,sy,4.1,3.3,a,hit?'#fff':armored?'#5e3e29':'#2f5270');if(armored&&!hit){ctx.fillStyle='#e2c88e';ctx.fillRect(sx-.7,sy-.7,1.4,1.4)}}
+  plHand(cx0+Math.cos(a+1.25)*11,cy0+Math.sin(a+1.25)*9,2.3);
+  // belt, buckle and a pouch
+  ctx.fillStyle=PL_INK;ctx.fillRect(x-10,y-9.8+bob,20,3.8);ctx.fillStyle='#4a3522';ctx.fillRect(x-10,y-9.2+bob,20,2.6);ctx.fillStyle=PL_INK;ctx.fillRect(x-2.5,y-10.2+bob,5,4.6);ctx.fillStyle='#d9b45f';ctx.fillRect(x-1.8,y-9.5+bob,3.6,3.2);ctx.fillStyle='#4a3522';ctx.fillRect(x-.7,y-8.6+bob,1.4,1.4);
+  ctx.fillStyle=PL_INK;ctx.fillRect(x+4.2,y-8+bob,5,4.8);ctx.fillStyle='#7b5634';ctx.fillRect(x+4.9,y-7.3+bob,3.6,3.4);
   // weapon
   const w=WEAPONS[pl.weapon],sw=pl.swing>0?(pl.swing/.24-.5)*w.arc*2.2:-.9;const wa=a+sw;
   const hx=x+Math.cos(wa)*9,hy=y-10+bob+Math.sin(wa)*9;
@@ -1302,13 +1409,19 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
     else if(pl.weapon==='狼牙劍'){ctx.strokeStyle='#d7e9f3';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(hx+Math.cos(wa)*6,hy+Math.sin(wa)*6);ctx.lineTo(tx+Math.cos(wa)*6,ty+Math.sin(wa)*6);ctx.stroke()}
     else if(pl.weapon!=='木棒'){ctx.save();ctx.translate(tx,ty);ctx.rotate(wa);ctx.fillRect(-3,pl.weapon==='燧石鎬'?-8:-2,6,pl.weapon==='燧石鎬'?16:9);ctx.restore()}
     else{ctx.lineWidth=5;ctx.strokeStyle='#7b5634';ctx.beginPath();ctx.moveTo(hx+Math.cos(wa)*12,hy+Math.sin(wa)*12);ctx.lineTo(tx,ty);ctx.stroke()}}
-  else{ctx.fillStyle='#e0b48e';ctx.beginPath();ctx.arc(hx+Math.cos(wa)*4,hy+Math.sin(wa)*4,3.5,0,6.28);ctx.fill()}
+  // the weapon hand: a fist on the grip, or held out when unarmed
+  if(w.len)plHand(hx+Math.cos(wa)*3,hy+Math.sin(wa)*3,2.5);else plHand(hx+Math.cos(wa)*4,hy+Math.sin(wa)*4,2.9);
   if(pl.swing>0){const al=Math.min(1,pl.swing/.24);ctx.fillStyle=`rgba(255,240,200,${.14*al})`;ctx.beginPath();ctx.moveTo(x,y-10);ctx.arc(x,y-10,w.range,a-w.arc,a+w.arc);ctx.closePath();ctx.fill();
     ctx.strokeStyle=`rgba(255,240,200,${.45*al})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-10,w.range-4,a-w.arc,a+w.arc);ctx.stroke()}
-  // head
-  ctx.fillStyle='#e0b48e';ctx.beginPath();ctx.arc(x+c*2,y-14+bob+s*2,6.5,0,6.28);ctx.fill();
-  ctx.fillStyle='#c98b3a';ctx.beginPath();ctx.arc(x-c*1.5,y-15+bob-s*1.5,6.5,a+1.9,a-1.9);ctx.fill();
-  ctx.fillStyle='#b77a30';ctx.beginPath();ctx.arc(x+c*6,y-12+bob+s*6,3,0,6.28);ctx.fill();
+  // head, in its own frame facing +x: ears, skin, beard, spiky hair with locks, then the face
+  ctx.save();ctx.translate(x,y-14+bob);ctx.rotate(a);ctx.lineJoin='miter';ctx.miterLimit=5;
+  for(const q of[-1,1]){plEl(2.6,q*6.7,1.9,1.9,0,PL_INK);plEl(2.6,q*6.7,1.2,1.2,0,'#d9a67e')}
+  const away=s<=-.35;plEl(2,0,7.2,7.2,0,PL_INK);if(away)plEl(2,0,6.2,6.2,0,'#b77a30');else{plEl(2,0,6.2,6.2,0,'#e0b48e');plEl(4.4,0,2.8,4.8,0,'#ecc4a0');
+  ctx.fillStyle='#b77a30';ctx.fill(PL_BEARD);ctx.strokeStyle=PL_INK;ctx.lineWidth=1;ctx.stroke(PL_BEARD);ctx.fillStyle='#8f5d20';ctx.fill(PL_BEARD_D)}ctx.strokeStyle=PL_INK;
+  ctx.fillStyle='#c98b3a';ctx.fill(PL_HAIR);ctx.lineWidth=1.1;ctx.stroke(PL_HAIR);ctx.fillStyle='#96601f';ctx.fill(PL_HAIR_D);ctx.fillStyle='#ecbd72';ctx.fill(PL_HAIR_L);
+  // eyes and brows, hidden when walking away from the camera
+  if(!away){ctx.strokeStyle='#6d4518';ctx.lineWidth=1;ctx.beginPath();for(const q of[-1,1]){ctx.moveTo(4,q*4.3);ctx.lineTo(6,q*1.8)}ctx.stroke();ctx.fillStyle=PL_INK;for(const q of[-1,1])ctx.fillRect(5.3,q*2.9-1,1.9,2);ctx.fillStyle='#fff';for(const q of[-1,1])ctx.fillRect(6.2,q*2.9-.8,.7,.7);ctx.fillStyle='#c48f68';ctx.fillRect(7.1,-.7,1.2,1.4)}
+  ctx.restore();
   ctx.globalAlpha=1}
 
 /* ---------- HUD ---------- */
