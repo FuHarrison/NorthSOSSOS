@@ -76,6 +76,7 @@ In multiplayer the world keeps running while the panel is open or the player is 
 
 - Solo saves everything under `northland-save-v1`. Keep this format backward compatible. The old `flags.ate` field is still read into `ate`.
 - The host saves the world under `northland-mp-world-v1`.
+- World saves carry `mapW`. Saves without it are the old 3200 map, and `genWorld` must keep generating those exactly as before. New worlds use `NEW_MAP`. All map arrays are sized once at load, so a tab that learns it has the wrong size stores the right one in sessionStorage and reloads (`wrongMapSize`).
 - Each player saves their own bag under `northland-mp-p-${seed}-${name}`. This happens only after the player has started (`started`).
 
 ### Behaviour that differs from solo

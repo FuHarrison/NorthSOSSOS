@@ -220,7 +220,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 <div class="hud" id="weaponTag"></div>
 <div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="bossBar" hidden><span>灰鬃狼王</span><div class="bar"><i id="bossFill"></i></div></div>
+<div class="hud" id="bossBar" hidden><span id="bossName">灰鬃狼王</span><div class="bar"><i id="bossFill"></i></div></div>
 <div class="hud" id="banner"></div>
 
 <div id="touch" hidden>
@@ -293,10 +293,15 @@ let DPR=1,VW=0,VH=0,SCALE=1;
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=innerWidth;VH=innerHeight;cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR);dark.width=Math.ceil(VW/2);dark.height=Math.ceil(VH/2);SCALE=Math.max(.72,Math.min(1.25,Math.sqrt(VW*VH)/700));}
 addEventListener('resize',resize);resize();
 
-const W=3200,H=3200,CELL=40,COLS=W/CELL,ROWS=H/CELL;
 const DAY_LEN=360;
 const SKEY='northland-save-v1',WKEY='northland-mp-world-v1';
 function loadKey(k){try{const s=localStorage.getItem(k);return s?JSON.parse(s):null}catch(e){return null}}
+// each world keeps the size it was made with: saves from before the bigger map have no mapW and stay OLD_MAP, new worlds get NEW_MAP.
+// Everything is sized once at load, so a tab that finds out it has the wrong size (a client joining, a host starting over) remembers the right one and reloads
+const OLD_MAP=3200,NEW_MAP=7200,MAPW_KEY='northland-mapw';
+const mapWOf=s=>s?(s.mapW||OLD_MAP):NEW_MAP;
+const W=(()=>{const http=location.protocol.startsWith('http');let ov=null;try{ov=http&&sessionStorage.getItem(MAPW_KEY)}catch(e){}return +ov||mapWOf(loadKey(http?WKEY:SKEY))})(),H=W,CELL=40,COLS=W/CELL,ROWS=H/CELL;
+function wrongMapSize(want){if(want===W)return false;try{sessionStorage.setItem(MAPW_KEY,want)}catch(e){return false}location.reload();return true}
 let save=null,seed=0;
 
 /* ---------- noise ---------- */
@@ -306,7 +311,7 @@ function fbm(x,y,o){let s=0,a=.5,f=1,n=0;for(let i=0;i<o;i++){s+=a*vnoise(x*f,y*
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 /* ---------- data ---------- */
-const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c'};
+const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a'};
 /* ---------- icons ---------- */
 // 24×24 SVG icons for items (by name) and buildings (by recipe id); anything without one falls back to a colour swatch
 const meat=(c,l)=>`<rect x="4.5" y="13" width="9" height="3" rx="1.5" transform="rotate(-45 9 14.5)" fill="#eee4d0"/><circle cx="4.6" cy="17.6" r="2" fill="#eee4d0"/><circle cx="6.4" cy="19.4" r="2" fill="#eee4d0"/><ellipse cx="15" cy="9" rx="6.5" ry="5" transform="rotate(-45 15 9)" fill="${c}"/><ellipse cx="13.6" cy="7.6" rx="2.2" ry="1.2" transform="rotate(-45 13.6 7.6)" fill="${l}"/>`;
@@ -333,6 +338,13 @@ const ICON={
   燧石矛:'<path d="M3.5 20.5L15 9" stroke="#7b5634" stroke-width="2.2" stroke-linecap="round"/><path d="M13.5 10.5L15.5 4.5 21 3 19.5 8.5z" fill="#6b7f92"/><path d="M12.5 9.5l2 2" stroke="#3d2a17" stroke-width="1.5"/>',
   狼牙劍:'<path d="M7 15L18 4h2v2L9 17z" fill="#b9d4e4"/><path d="M9.5 13.5L19 4" stroke="#fff" stroke-width=".8" opacity=".7"/><path d="M4.5 13.5l6 6" stroke="#8a6236" stroke-width="2.5" stroke-linecap="round"/><path d="M3 21l3.5-3.5" stroke="#5a3d22" stroke-width="2.6" stroke-linecap="round"/>',
   皮甲:'<path d="M8 3l4 3 4-3 4.5 3.5-2.5 5V21H6V11.5L3.5 6.5z" fill="#8a5b3a"/><path d="M12 6v15" stroke="#5e3c24" stroke-width="1"/><circle cx="12" cy="11" r=".9" fill="#d9b07a"/><circle cx="12" cy="15" r=".9" fill="#d9b07a"/>',
+  古樹種子:'<path d="M12 21c-4.5 0-7-3-7-6.5C5 10 9 6 12 3c3 3 7 7 7 11.5 0 3.5-2.5 6.5-7 6.5z" fill="#6b4e34"/><path d="M12 5v15" stroke="#3f2c1b" stroke-width="1"/><path d="M12 8c2.5-2.5 5-3 7-2.5-.8 2.5-3.5 4-7 4z" fill="#8fb257"/><circle cx="9" cy="15" r="1.2" fill="#9dffb0"/>',
+  樹精核心:'<path d="M12 2l7 6-2 10-5 4-5-4-2-10z" fill="#3d7a4a"/><path d="M12 2l7 6-7 3-7-3z" fill="#9dffb0"/><path d="M12 11v11" stroke="#d8ffe0" stroke-width="1" opacity=".7"/><circle cx="12" cy="11" r="2.4" fill="#eafff0"/>',
+  堅硬樹皮:'<path d="M5 3h13l2 5-2 6 1 7H6l-2-7 2-5z" fill="#6b4e34"/><path d="M8 5l-1 6 1 8M12 4l1 7-1 8M16 5l-1 7 1 7" stroke="#3a2818" stroke-width="1.4" fill="none"/><circle cx="17" cy="16" r="2" fill="#6f9a4a"/>',
+  古老樹枝:'<path d="M4 21C8 15 11 12 19 4" stroke="#6b4e34" stroke-width="3.2" stroke-linecap="round" fill="none"/><path d="M10 14L5 9M14 10l6 2" stroke="#6b4e34" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="4.5" cy="8" rx="2.6" ry="1.6" fill="#7ea64a"/><ellipse cx="21" cy="12.5" rx="2.4" ry="1.5" fill="#7ea64a"/>',
+  自然精華:'<path d="M12 2c4 6 7 9 7 13.5a7 7 0 0 1-14 0C5 11 8 8 12 2z" fill="#7fd98a"/><path d="M12 8c2 3 3.5 5 3.5 7.5a3.5 3.5 0 0 1-7 0c0-2.5 1.500-4.500 3.500-7.500z" fill="#d8ffe0"/>',
+  樹精法杖:'<path d="M4 21L17 8" stroke="#6b4e34" stroke-width="3" stroke-linecap="round"/><path d="M15 10c-3-1-4-3-4-6M15 10c1 3 3 4 6 4" stroke="#6b4e34" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="18" cy="6" r="3.8" fill="#7fd98a"/><circle cx="17" cy="5" r="1.4" fill="#eafff0"/>',
+  樹精裝備:'<path d="M8 3l4 3 4-3 4.500 3.500-2.500 5V21H6V11.500L3.500 6.500z" fill="#5a6e3a"/><path d="M12 6v15M7 12l5 2 5-2M7 17l5 2 5-2" stroke="#3a2818" stroke-width="1.100" fill="none"/><circle cx="6" cy="6.500" r="1.800" fill="#9dbf62"/><circle cx="18" cy="6.500" r="1.800" fill="#9dbf62"/>',
   煤炭:'<path d="M3.5 17.5l3-6.5 5.5-2.5 4.5 3 4 6-6.5 3z" fill="#2e2c2b" stroke="#7a7772" stroke-width=".8"/><path d="M6.5 11l5.5-2.5 4.5 3-4.5 1.5z" fill="#6b6966"/><path d="M14 6l3-1 2 3-3 1z" fill="#3b3936" stroke="#7a7772" stroke-width=".8"/><path d="M9 16l3-1" stroke="#8a8781" stroke-width=".8"/>',
   銅礦:ore('#77736c','#d0813f'),
   錫礦:ore('#77736c','#dfe6ea'),
@@ -357,8 +369,12 @@ const WEAPONS={
   燧石鎬:{name:'燧石鎬',dmg:8,range:44,arc:1.0,cd:.6,st:8,len:22},
   銅鎬:{name:'銅鎬',dmg:11,range:46,arc:1.0,cd:.55,st:7,len:24},
   燧石矛:{name:'燧石矛',dmg:20,range:66,arc:.55,cd:.55,st:8,len:40},
-  狼牙劍:{name:'狼牙劍',dmg:38,range:52,arc:1.25,cd:.45,st:8,len:30}
+  狼牙劍:{name:'狼牙劍',dmg:38,range:52,arc:1.25,cd:.45,st:8,len:30},
+  樹精法杖:{name:'樹精法杖',dmg:24,range:340,arc:.12,cd:.6,st:9,len:30,proj:true}
 };
+// armour is worn just by owning it; the best one counts
+const ARMORS={皮甲:{mul:.7,regen:0},樹精裝備:{mul:.55,regen:.6}};
+const armorKey=()=>has('樹精裝備')?'樹精裝備':has('皮甲')?'皮甲':null;
 const CHOP={none:3,木棒:5,燧石斧:16,燧石鎬:3,銅鎬:4,燧石矛:3,狼牙劍:8};
 // 鎬的等級：大石頭、煤、銅、錫要 1 級（燧石鎬），鐵要 2 級（銅鎬）
 const MINE={燧石鎬:16,銅鎬:26},PICK_TIER={燧石鎬:1,銅鎬:2};
@@ -391,7 +407,10 @@ const RECIPES=[
   {id:'銅鎬',name:'銅鎬',cost:{銅錠:3,木頭:4},bench:true,desc:'挖得更快，也能挖鐵礦。'},
   {id:'燧石矛',name:'燧石矛',cost:{木頭:8,燧石:6,皮革:2},bench:true,desc:'攻擊距離最長，適合邊退邊打。'},
   {id:'皮甲',name:'皮甲',cost:{皮革:6},bench:true,desc:'受到的傷害減少 30%。'},
-  {id:'狼牙劍',name:'狼牙劍',cost:{狼王之牙:1,木頭:6,燧石:4},bench:true,desc:'用狼王的牙磨成的劍。'}
+  {id:'狼牙劍',name:'狼牙劍',cost:{狼王之牙:1,木頭:6,燧石:4},bench:true,desc:'用狼王的牙磨成的劍。'},
+  {id:'古樹種子',name:'古樹種子',cost:{狼王之牙:1,木頭:20,樹脂:8,蘑菇:5},bench:true,desc:'帶到石祭壇種下，就會喚醒樹精。'},
+  {id:'樹精法杖',name:'樹精法杖',cost:{樹精核心:1,古老樹枝:3,自然精華:2},bench:true,lock:true,desc:'朝游標方向射出一發自然能量。打倒樹精後解鎖。'},
+  {id:'樹精裝備',name:'樹精裝備',cost:{堅硬樹皮:8,古老樹枝:2,自然精華:2},bench:true,lock:true,desc:'受到的傷害減少 45%，血量恢復變快。打倒樹精後解鎖。'}
 ];
 
 // pets: boar = tamed by feeding berries, gathers; wolf = pup from the Wolf King, fights
@@ -417,7 +436,7 @@ function packSeen(){let s='';for(let b=0;b<seen.length;b+=8){let v=0;for(let k=0
 function unpackSeen(str){resetFog();let s;try{s=atob(str)}catch(e){return}
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
-let altar=null,boss=null;
+let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
 let inv={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
@@ -435,6 +454,14 @@ const ri=(a,b)=>Math.floor(rnd(a,b+1));
 function isWater(x,y){const c=ci(x,y);return c<0||biome[c]===0}
 
 /* ---------- world gen ---------- */
+// bigger maps break into islands: walk outward from the spawn island and lay a narrow bridge to every island of any size, so all of it can be reached on foot
+function connectLand(){const N=COLS*ROWS,lab=new Int32Array(N).fill(-1),comps=[],nb=c=>{const o=[],i=c%COLS;if(i>0)o.push(c-1);if(i<COLS-1)o.push(c+1);if(c>=COLS)o.push(c-COLS);if(c<N-COLS)o.push(c+COLS);return o};
+  for(let c=0;c<N;c++){if(!biome[c]||lab[c]>=0)continue;const id=comps.length,cells=[c];lab[c]=id;for(let h=0;h<cells.length;h++)for(const n of nb(cells[h]))if(biome[n]&&lab[n]<0){lab[n]=id;cells.push(n)}comps.push(cells)}
+  const main=lab[ci(W/2,H/2)],prev=new Int32Array(N).fill(-2),q=new Int32Array(N);let head=0,tail=0;for(const c of comps[main]){prev[c]=-1;q[tail++]=c}
+  while(head<tail){const c=q[head++];for(const n of nb(c)){if(prev[n]!==-2)continue;
+    if(biome[n]&&comps[lab[n]].length>=25){for(let p=c;p>=0;p=prev[p])if(!biome[p]){for(const b of[p,p+1,p+COLS])if(b<N&&!biome[b]){biome[b]=2;cellH[b]=.42}}
+      for(const m of comps[lab[n]]){prev[m]=-1;q[tail++]=m}}
+    else{prev[n]=c;q[tail++]=n}}}}
 function genWorld(){
   const R=mulberry(seed);
   for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){
@@ -445,6 +472,7 @@ function genWorld(){
     const c=j*COLS+i;cellH[c]=e;
     biome[c]=e<.37?0:(f>.53&&d>.16)?3:2;
   }
+  if(W>OLD_MAP)connectLand();
   const sand=[];
   for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){const c=j*COLS+i;if(biome[c]===0)continue;
     let w=false;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const ii=i+a,jj=j+b;if(ii<0||jj<0||ii>=COLS||jj>=ROWS||biome[jj*COLS+ii]===0)w=true}
@@ -464,6 +492,12 @@ function genWorld(){
     const x=(i+.5)*CELL+(R()-.5)*16,y=(j+.5)*CELL+(R()-.5)*16;
     if(Math.hypot(x-W/2,y-H/2)<70||Math.hypot(x-altar.x,y-altar.y)<150)continue;
     const r=R();let k=null;
+    if(W>OLD_MAP){const g=fbm(x/230+11.3,y/230+47.9,2),tree=b===1?0:g>.58?Math.min(.3,.1+(g-.58)*1.4):.008,s=R();
+      if(r<tree)k=(b===3?s<.8:s<.15)?'pine':'tree';
+      else if(b===3)k=s<.05?'rock':s<.11?'shroom':s<.14?'pebble':null;
+      else if(b===2)k=s<.04?'bush':s<.085?'pebble':s<.105?'rock':s<.115?'flint':null;
+      else k=s<.2?'flint':s<.3?'pebble':null;
+      if(k)addRes(k,x,y,c);continue}
     if(b===3)k=r<.42?'pine':r<.5?'tree':r<.55?'rock':r<.61?'shroom':r<.64?'pebble':null;
     else if(b===2)k=r<.085?'tree':r<.125?'bush':r<.17?'pebble':r<.19?'rock':r<.2?'flint':null;
     else k=r<.2?'flint':r<.3?'pebble':null;
@@ -486,24 +520,25 @@ function addRes(k,x,y,c){const o={k,x,y,cell:c,hp:RES[k].hp,flash:0,dep:0,sz:.85
 
 /* ---------- mobs ---------- */
 function findSpot(cx,cy,minD,maxD,want){for(let t=0;t<40;t++){const a=Math.random()*6.28,r=rnd(minD,maxD),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r,c=ci(x,y);if(c<0)continue;const b=biome[c];if(b===0||resGrid[c]&&RES[resGrid[c].k].solid||structGrid[c])continue;if(want&&!want.includes(b))continue;return{x,y}}return null}
-function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100}}[k];
+function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100},treant:{hp:1400,r:39,spd:42}}[k];
   return{id:++mobSeq,k,x,y,tx:x,ty:y,hp:base.hp,max:base.hp,r:base.r,spd:base.spd,face:Math.random()*6.28,wt:0,wx:0,wy:0,aggro:0,acd:0,kx:0,ky:0,flash:0,state:'chase',t:0,atkT:2.5,lastAtk:'',howlT:9,cn:0,cph:'',hitDash:false,anim:Math.random()*9}}
 function spawnMob(k,x,y){const m=makeMob(k,x,y);mobs.push(m);return m}
 function populate(){
-  for(let n=0;n<24;n++){const s=findSpot(W/2,H/2,350,1500,[2]);if(s)spawnMob('boar',s.x,s.y)}
-  for(let n=0;n<14;n++){const s=findSpot(W/2,H/2,600,1500,[3]);if(s)spawnMob('moss',s.x,s.y)}
+  const big=W>OLD_MAP,far=big?W*.47:1500,pop=big?3.5:1;
+  for(let n=0;n<24*pop;n++){const s=findSpot(W/2,H/2,350,far,[2]);if(s)spawnMob('boar',s.x,s.y)}
+  for(let n=0;n<14*pop;n++){const s=findSpot(W/2,H/2,600,far,[3]);if(s)spawnMob('moss',s.x,s.y)}
 }
 
 /* ---------- load / save ---------- */
 // solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
-function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
+function worldData(){return{mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},hot,hotSel,
-  pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen()}}
+  pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 function writeSave(){if(!ready)return;try{
   if(MODE==='solo'){const w=worldData();w.flags.ate=ate;localStorage.setItem(SKEY,JSON.stringify(Object.assign(personal(),w)))}
   else{if(MODE==='host')localStorage.setItem(WKEY,JSON.stringify(worldData()));if(started)localStorage.setItem(pkey(),JSON.stringify(personal()))}}catch(e){}}
-function resetSave(){try{localStorage.removeItem(MODE==='host'?WKEY:SKEY)}catch(e){}location.reload()}
+function resetSave(){try{localStorage.removeItem(MODE==='host'?WKEY:SKEY);sessionStorage.removeItem(MAPW_KEY)}catch(e){}location.reload()}
 function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=!!s.flags.summoned;flags.boss=!!s.flags.boss}
   // 舊存檔的木牆在格子中央、沒有方向：上下有鄰居的在左緣放直牆，左右有鄰居（或沒鄰居）的在下緣放橫牆，轉角兩種都放，圍起來的地方才不會漏
   const old=new Set((s.structs||[]).filter(st=>st.k==='wall'&&!st.o).map(st=>ci(st.x,st.y)));
@@ -519,10 +554,10 @@ function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]
   else{hotDefault();hotSel=Math.max(0,hot.indexOf(P.weapon))}syncHeld();
   pets=(s.pets||[]).filter(p=>PETS[p.k]).map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp>0?p.hp:PETS[p.k].hp,bag:p.bag||{},down:p.down||0}));
   petOut=pets.some(p=>p.id===s.petOut)?s.petOut:null;const cp=curPet();if(cp)placePet(cp,false);
-  if(s.seen)unpackSeen(s.seen)}
-function bootSolo(){MODE='solo';save=loadKey(SKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
-function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
-function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
+  treantDown=!!s.treant;if(s.seen)unpackSeen(s.seen)}
+function bootSolo(){MODE='solo';save=loadKey(SKEY);if(wrongMapSize(mapWOf(save)))return;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
+function bootHost(){save=loadKey(WKEY);if(wrongMapSize(mapWOf(save)))return;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
+function bootClient(m){if(wrongMapSize(m.mapW||OLD_MAP))return;seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
   for(const[k,x,y,o,fz]of m.structs)addStruct(k,x,y,o||undefined,fz||undefined);
   loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
@@ -617,7 +652,7 @@ $('panel').addEventListener('pointerdown',e=>{if(e.target.id==='panel')togglePan
 
 /* ---------- actions ---------- */
 function worldMouse(){return{x:(mouse.x-VW/2)/SCALE+cam.x,y:(mouse.y-VH/2)/SCALE+cam.y}}
-function doRoll(){if(P.roll>0||P.st<14||placing)return;P.st-=14;P.stDelay=.9;P.roll=.32;
+function doRoll(){if(P.roll>0||P.st<14||placing||P.rooted>0)return;P.st-=14;P.stDelay=.9;P.roll=.32;
   let dx=0,dy=0;if(TOUCH){dx=joy.dx;dy=joy.dy}else{dx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);dy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0)}
   if(!dx&&!dy){dx=Math.cos(P.face);dy=Math.sin(P.face)}const l=Math.hypot(dx,dy);P.rdx=dx/l;P.rdy=dy/l}
 /* ---------- hotbar ---------- */
@@ -645,9 +680,10 @@ function attack(){
     if(!best){forCells(P.x,P.y,2,o=>{const d=dist(o,P);if(d<bd&&!(o.k==='bush'&&o.dep>0)){bd=d;best=o}})}
     if(best)P.face=Math.atan2(best.y-P.y,best.x-P.x)}
   P.cd=w.cd;P.swing=.24;P.st-=w.st;P.stDelay=.9;
+  if(w.proj){act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(w.dmg*(P.rest>0?1.1:1))});return} // ranged: the shot does its own hit test
   let hit=false;
   for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(w.dmg*(P.rest>0?1.1:1));
-    floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});burst(m.x,m.y,m.k==='moss'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
+    floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});burst(m.x,m.y,m.k==='moss'||m.k==='treant'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
     act({t:'hit',id:m.id,dmg,x:P.x,y:P.y});hit=true}}
   // 範圍攻擊：揮擊範圍內的樹、石頭、礦全部一起打；什麼都沒打到才撿最近的小東西
   const inArc=o=>{const d=dist(o,P)-(RES[o.k].solid||6)*o.sz;return d<w.range-4&&angDiff(Math.atan2(o.y-P.y,o.x-P.x),P.face)<w.arc+.3?d:-1};
@@ -673,20 +709,21 @@ function worldRes(c,dmg,from,toPet){const o=resGrid[c];if(!o)return;const d=RES[
   evt({t:'rh',c,hp:o.hp-dmg});
   if(o.hp<=0){for(const[k,a,b]of d.drop)giveTo(from,k,ri(a,b),o.x,o.y);removeRes(o)}}
 function removeRes(o){evt({t:'rx',c:o.cell});regrow.push({k:o.k,x:o.x,y:o.y,cell:o.cell,at:time+(o.k==='rock'?400:RES[o.k].ore?600:o.k.length<5?260:200)})}
-function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
+function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:m.k==='treant'?20:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
   m.petT=byPet?{o:from,until:time+8}:null; // mobs only turn on a pet that hit them
   if(m.hp<=0)killMob(m,from)}
 function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y});
   if(m.k==='boar'){giveTo(from,'生肉',ri(1,2),m.x,m.y);if(Math.random()<.8)giveTo(from,'皮革',ri(1,2),m.x,m.y-14);if(Math.random()<.4)giveTo(from,'獠牙',1,m.x,m.y-28)}
   if(m.k==='moss'){giveTo(from,'樹脂',ri(1,2),m.x,m.y);if(Math.random()<.25)giveTo(from,'燧石',1,m.x,m.y-14)}
+  if(m.k==='treant'){boss=null;giveAll('堅硬樹皮',ri(3,5),m.x,m.y);giveAll('古老樹枝',ri(2,3),m.x,m.y-14);giveAll('自然精華',ri(2,3),m.x,m.y-28);toAll({t:'tdown',x:m.x,y:m.y});evt({t:'bn',h:'樹精倒下了',s:'第一次打倒樹精會解鎖樹精法杖與樹精裝備，到工作台製作'});writeSave()}
   if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'第一次打倒狼王的人會得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
-function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;if(has('皮甲'))dmg*=.7;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
+function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;const ak=armorKey();if(ak)dmg*=ARMORS[ak].mul;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
 function die(){P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
-$('respawn').addEventListener('click',()=>{foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
+$('respawn').addEventListener('click',()=>{P.rooted=0;foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
   for(let k=0;k<20&&blocked(P.x,P.y,P.r);k++){P.x+=rnd(-30,30);P.y+=rnd(-30,30)}
-  for(const m of mobs)if(m.k!=='boss'&&dist(m,P)<400)m.x+=600;
+  for(const m of mobs)if(m.k!=='boss'&&m.k!=='treant'&&dist(m,P)<400)m.x+=600;
   $('dead').hidden=true;paused=false;writeSave()});
 function eat(k){if(!FOODS[k]||!has(k))return;if(foods.some(f=>f.k===k)){toast('同一種食物還在消化中');return}if(foods.length>=3){toast('肚子已經裝不下了');return}
   inv[k]--;foods.push({k,t:FOODS[k].t});P.hp=Math.min(maxHp(),P.hp+8);if(k==='烤肉')ate=true;toast(`吃了${k}：血量上限 +${FOODS[k].hp}，耐力上限 +${FOODS[k].st}`)}
@@ -699,7 +736,7 @@ function nearestUse(){let best=null,bd=1e9;
   if(best)return best;forCells(P.x,P.y,1,o=>{if(RES[o.k].pick&&!(o.k==='bush'&&o.dep>0)){const d=dist(o,P);if(d<46&&d<bd){bd=d;best={o}}}});return best}
 function useLabel(u){if(!u)return null;if(u.o||u.l)return'撿起';if(u.m)return'餵莓果';const s=u.s;
   if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';
-  if(s.k==='altar')return boss?'狼王已醒':'獻上祭品';return null}
+  if(s.k==='altar')return boss?(boss.k==='treant'?'樹精已醒':'狼王已醒'):has('古樹種子')?'種下古樹種子':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
   if(u.o){hitRes(u.o);return}
   if(u.l){act({t:'pick',id:u.l.id});return}
@@ -710,6 +747,7 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
   else if(s.k==='furnace'){furnaceC=s.cell;togglePanel(true,'furnace')}
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
   else if(s.k==='altar'){if(boss)return;
+    if(has('古樹種子')){inv['古樹種子']--;act({t:'summont'});shake=12;return}
     if((inv['獠牙']||0)>=3&&(inv['樹脂']||0)>=5){inv['獠牙']-=3;inv['樹脂']-=5;act({t:'summon'});shake=12}
     else toast(`祭壇需要：獠牙 ${inv['獠牙']||0}/3、樹脂 ${inv['樹脂']||0}/5`)}}
 
@@ -751,7 +789,7 @@ function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
   // recipes are split into equipment and buildings; pick one on the left, the right side shows it and crafts it
-  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id!=='狼牙劍'||has('狼王之牙')||has('狼牙劍')),canMake=r=>afford(r.cost)&&(!r.bench||nb);
+  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id==='狼牙劍'?has('狼王之牙')||has('狼牙劍'):r.id==='古樹種子'?has('狼王之牙')||has('古樹種子')||treantDown:!r.lock||treantDown),canMake=r=>afford(r.cost)&&(!r.bench||nb);
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
     const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
     const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
@@ -800,7 +838,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
-    <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
+    <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
 const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear',craftQty=1;const craftSel={};
@@ -818,11 +856,11 @@ function padBag(){const g=document.querySelector('.bag');if(!g)return;const sec=
   const room=sec.clientHeight-(g.offsetTop-sec.offsetTop)-8,rows=Math.max(Math.ceil(n/cols),Math.floor((room+6)/cell),1);
   g.insertAdjacentHTML('beforeend','<div class="bs empty"></div>'.repeat(rows*cols-n))}
 // numbers for weapons, tools and armour: [label, value]
-function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&k!=='皮甲')return o;
-  if(w)o.push(['傷害',w.dmg],['距離',w.range],['範圍',Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
+function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&!ARMORS[k])return o;
+  if(w)o.push(['傷害',w.dmg],['距離',w.range],['範圍',w.proj?'遠程單體':Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
   if(CHOP[k]>3)o.push(['砍樹',CHOP[k]]);
   if(MINE[k])o.push(['挖礦',MINE[k]],['可挖',PICK_TIER[k]>1?'所有礦石':'石頭、煤、銅、錫']);
-  if(k==='皮甲')o.push(['減傷','30%']);return o}
+  if(ARMORS[k])o.push(['減傷',Math.round((1-ARMORS[k].mul)*100)+'%']);if(ARMORS[k]&&ARMORS[k].regen)o.push(['回血','+'+ARMORS[k].regen+'/秒']);return o}
 const statsText=k=>equipStats(k).map(([a,b])=>`${a} ${b}`).join('・');
 function statsHtml(k){const o=equipStats(k);return o.length?`<div class="stats">${o.map(([a,b])=>`<span>${a}<b>${b}</b></span>`).join('')}</div>`:''}
 function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:statsText(k)}
@@ -832,7 +870,7 @@ function bagSlot(k){const hi=hot.indexOf(k),sub=itemSub(k);
 function closeBagMenu(){const m=$('bagMenu');if(m)m.remove()}
 function openBagMenu(k,x,y){closeBagMenu();if(!has(k))return;const n=inv[k],sub=itemSub(k),m=document.createElement('div');m.id='bagMenu';
   const acts=[];if(FOODS[k])acts.push(['吃',()=>eat(k)]);
-  if(k!=='皮甲')acts.push([held()===k?'手持中':WEAPONS[k]?'裝備':`放快捷欄第 ${hotSel+1} 格`,()=>{if(held()!==k)hotPut(k)}]);
+  if(!ARMORS[k])acts.push([held()===k?'手持中':WEAPONS[k]?'裝備':`放快捷欄第 ${hotSel+1} 格`,()=>{if(held()!==k)hotPut(k)}]);
   acts.push(['丟出 1',()=>dropItem(k,1)]);if(n>2)acts.push([`丟出一半（${Math.floor(n/2)}）`,()=>dropItem(k,Math.floor(n/2))]);if(n>1)acts.push([`全部丟出（${n}）`,()=>dropItem(k,n),1]);
   m.innerHTML=`<b>${k} ×${n}</b>${equipStats(k).length?statsHtml(k):sub?`<p>${sub}</p>`:''}`+acts.map(([t,,d],i)=>`<button type="button" data-mi="${i}"${d?' class="danger"':''}>${t}</button>`).join('');
   document.body.appendChild(m);m.style.left=Math.max(8,Math.min(x,innerWidth-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(y,innerHeight-m.offsetHeight-8))+'px';
@@ -876,13 +914,17 @@ const GOALS=[
   ['收集 3 獠牙（野豬）與 5 樹脂（苔精、松樹）',()=>((inv['獠牙']||0)>=3&&(inv['樹脂']||0)>=5)||flags.summoned||flags.boss],
   ['跟著指針前往石祭壇，獻上祭品',()=>flags.summoned||flags.boss],
   ['擊敗灰鬃狼王',()=>flags.boss],
-  ['用狼王之牙打造狼牙劍',()=>has('狼牙劍')]
+  ['用狼王之牙打造狼牙劍',()=>has('狼牙劍')],
+  ['用狼王之牙與材料做一顆古樹種子',()=>has('古樹種子')||boss&&boss.k==='treant'||treantDown],
+  ['把古樹種子帶到石祭壇，打倒樹精',()=>treantDown],
+  ['到工作台製作樹精法杖或樹精裝備',()=>has('樹精法杖')||has('樹精裝備')]
 ];
 function goalIdx(){for(let i=0;i<GOALS.length;i++)if(!GOALS[i][1]())return i;return GOALS.length}
 
 /* ---------- update ---------- */
 const cam={x:P.x,y:P.y};function camY(){return cam.y}
 let spawnT=0,regrowT=0,saveT=0,hudT=0,TG=[];
+function nearCount(k,T){let n=0;for(const m of mobs)if(m.k===k&&(W<=OLD_MAP||T&&Math.abs(m.x-T.x)<1500&&Math.abs(m.y-T.y)<1500))n++;return n}
 function targets(){const t=[];if(started&&!P.dead)t.push(P);for(const o of others.values())if(!o.dead)t.push(o);return t}
 // world simulation: runs in solo and on the host only
 function updateWorld(dt){
@@ -891,12 +933,14 @@ function updateWorld(dt){
   // mobs
   for(const m of mobs)updateMob(m,dt);
   // night spawns
-  spawnT-=dt;if(spawnT<=0){spawnT=5;const T=TG[Math.floor(Math.random()*TG.length)],mossN=mobs.filter(m=>m.k==='moss').length;
+  spawnT-=dt;if(spawnT<=0){spawnT=5;const T=TG[Math.floor(Math.random()*TG.length)],mossN=nearCount('moss',T);
     if(T&&isNight()&&mossN<5+Math.min(day,6)){const s=findSpot(T.x,T.y,480,620);if(s)spawnMob('moss',s.x,s.y)}
-    if(T&&mobs.filter(m=>m.k==='boar').length<18){const s=findSpot(T.x,T.y,600,1100,[2]);if(s)spawnMob('boar',s.x,s.y)}
+    if(T&&nearCount('boar',T)<18&&mobs.length<220){const s=findSpot(T.x,T.y,600,1100,[2]);if(s)spawnMob('boar',s.x,s.y)}
     if(!isNight())for(let i=mobs.length-1;i>=0;i--){const m=mobs[i];if(m.k==='moss'&&TG.every(t=>dist(m,t)>750)&&biome[ci(m.x,m.y)]!==3&&Math.random()<.3)mobs.splice(i,1)}}
   regrowT-=dt;if(regrowT<=0){regrowT=2;for(let i=regrow.length-1;i>=0;i--){const g=regrow[i];if(time>=g.at&&!resGrid[g.cell]&&!structGrid[g.cell]&&TG.every(t=>Math.hypot(g.x-t.x,g.y-t.y)>360)){evt({t:'ra',k:g.k,x:g.x,y:g.y,c:g.cell});regrow.splice(i,1)}}}
   for(const s of structs)s.anim+=dt;
+  // treant seeds: positions move in updateFx on every client, hits are decided here
+  for(const s of seeds){const h=TG.find(q=>dist(s,q)<q.r+7);if(h){hurt(h,SEED_DMG,s);evt({t:'sx',id:s.id})}}
   tickFurnaces(dt);
 }
 // solo / host: a lit coal burns down whether or not there is ore; a new coal is lit only when there is ore waiting
@@ -909,6 +953,7 @@ function updateLocal(dt){
   // input → movement
   let mx=0,my=0,sprint=false;
   if(TOUCH){mx=joy.dx;my=joy.dy;sprint=Math.hypot(mx,my)>.95}else{mx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);my=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);sprint=keys.ShiftLeft||keys.ShiftRight}
+  if(P.rooted>0){P.rooted-=dt;mx=my=0;sprint=false}
   const ml=Math.hypot(mx,my);
   if(!TOUCH&&mouse.on){const w=worldMouse();P.face=Math.atan2(w.y-P.y,w.x-P.x)}else if(ml>.15)P.face=Math.atan2(my,mx);
   if(P.roll>0){P.roll-=dt;move(P,P.rdx*360*dt,P.rdy*360*dt)}
@@ -918,7 +963,7 @@ function updateLocal(dt){
   if(atkHeld&&!placing)attack();
   const MH=maxHp(),MS=maxSt();
   if(P.stDelay<=0)P.st=Math.min(MS,P.st+(P.rest>0?22:14)*dt);
-  P.hp=Math.min(MH,P.hp+(.35+foods.length*.45)*dt);P.st=Math.min(P.st,MS);
+  const ak=armorKey();P.hp=Math.min(MH,P.hp+(.35+foods.length*.45+(ak?ARMORS[ak].regen:0))*dt);P.st=Math.min(P.st,MS);
   for(let i=foods.length-1;i>=0;i--){foods[i].t-=dt;if(foods[i].t<=0){toast(foods[i].k+'的效果消退了');foods.splice(i,1)}}
   if(P.rest>0)P.rest-=dt;
   const nearFire=structs.some(s=>s.k==='fire'&&dist(s,P)<150);
@@ -931,6 +976,15 @@ function updateFx(dt){
   for(let i=floats.length-1;i>=0;i--){const f=floats[i];f.t-=dt;f.y-=22*dt;if(f.t<=0)floats.splice(i,1)}
   for(let i=slashes.length-1;i>=0;i--)if((slashes[i].t-=dt)<=0)slashes.splice(i,1);
   for(let i=rings.length-1;i>=0;i--)if((rings[i].t-=dt)<=0)rings.splice(i,1);
+  for(let i=tfx.length-1;i>=0;i--)if((tfx[i].t-=dt)<=0)tfx.splice(i,1);
+  for(let i=seeds.length-1;i>=0;i--){const s=seeds[i];s.x+=s.vx*dt;s.y+=s.vy*dt;if((s.t-=dt)<=0)seeds.splice(i,1)}
+  // staff shots: the shooter's own client decides the hit, the treant's body counts as well as its feet
+  for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.x+=s.vx*dt;s.y+=s.vy*dt;let gone=(s.t-=dt)<=0;
+    if(!gone&&s.own)for(const m of mobs){const by=m.k==='treant'?Math.min(Math.abs(s.y-m.y),Math.abs(s.y-(m.y-60))):Math.abs(s.y+12-m.y);if(Math.hypot(s.x-m.x,by)<m.r+8){floats.push({x:m.x,y:m.y-m.r-8,txt:String(s.dmg),t:.8,col:'#ffe9b8'});act({t:'hit',id:m.id,dmg:s.dmg,x:s.x,y:s.y});gone=true;break}}
+    if(gone){burst(s.x,s.y,'#9dffb0',6);shots.splice(i,1)}}
+  // the treant leaves roots behind wherever it walks
+  for(const m of mobs)if(m.k==='treant'){if(m.lrx===undefined||Math.hypot(m.x-m.lrx,m.y-m.lry)>20){if(m.lrx!==undefined){rootTrail.push({x:m.x,y:m.y+2,a:Math.atan2(m.y-m.lry,m.x-m.lrx),s:hash(rootTrail.length,seedSeq,7),t:7});if(rootTrail.length>70)rootTrail.shift()}m.lrx=m.x;m.lry=m.y}}
+  for(let i=rootTrail.length-1;i>=0;i--)if((rootTrail[i].t-=dt)<=0)rootTrail.splice(i,1);
   shake=Math.max(0,shake-dt*30);
   cam.x+=(P.x-cam.x)*Math.min(1,dt*8);cam.y+=(P.y-cam.y)*Math.min(1,dt*8);
   saveT-=dt;if(saveT<=0){saveT=8;writeSave()}
@@ -945,6 +999,7 @@ function updateMob(m,dt){
   if(!T)for(const t of TG){const e=dist(m,t);if(e<d){d=e;T=t}}
   const a=T?Math.atan2(T.y-m.y,T.x-m.x):0;
   if(m.k==='boss'){updateBoss(m,dt,d,a,T);return}
+  if(m.k==='treant'){updateTreant(m,dt,d,a,T);return}
   const chase=T&&(m.k==='boar'?m.aggro>0&&d<520:(d<(isNight()?560:340)||m.aggro>0));
   if(chase){m.face=a;const spd=m.k==='boar'?108:m.spd;if(d>m.r+T.r+2)move(m,Math.cos(a)*spd*dt,Math.sin(a)*spd*dt);
     if(d<m.r+T.r+6&&m.acd<=0){hurt(T,m.k==='boar'?7:5,m);m.acd=m.k==='boar'?1.3:1.0}}
@@ -983,6 +1038,33 @@ function updateBoss(m,dt,d,a,T){
   else if(m.state==='wind'){m.t-=dt;m.face=a;if(m.t<=0){m.state='dash';m.t=.42;m.hitDash=false}}
   else if(m.state==='dash'){m.t-=dt;move(m,Math.cos(m.face)*500*dt,Math.sin(m.face)*500*dt);if(!m.hitDash&&d<m.r+T.r+6){hurt(T,18,m);m.hitDash=true}
     if(m.t<=0){m.state='chase';m.atkT=rnd(1.4,2.4)}}
+}
+
+// Treant: slow; every skill stops it and shows a tell first
+const TR_SLAM_R=146,TR_SLAM_ARC=.95,TR_SLAM_DMG=20,ROOT_R=57,ROOT_T=1.6,ROOT_DMG=6,ROOT_MARK=.8,SEED_N=5,SEED_SPD=250,SEED_DMG=7,SEED_LIFE=2.2,TR_CAST_R=560;
+function rootPlayer(dur){if(P.roll>0||P.inv>0||P.dead)return;P.rooted=dur;toast('被根鬚纏住了！')}
+// the treant is the forest walking: trees, rocks and walls don't stop it (at its size it could never fit between them); only water does
+function moveTreant(m,dx,dy){if(!isWater(m.x+dx,m.y))m.x+=dx;if(!isWater(m.x,m.y+dy))m.y+=dy}
+function treantList(T){return T&&!TG.includes(T)?[...TG,T]:TG}
+function updateTreant(m,dt,d,a,T){
+  if(Math.hypot(m.x-altar.x,m.y-altar.y)>1100||d>1000){m.state='chase';m.face=Math.atan2(altar.y-m.y,altar.x-m.x);moveTreant(m,Math.cos(m.face)*m.spd*dt,Math.sin(m.face)*m.spd*dt);m.hp=Math.min(m.max,m.hp+30*dt);return}
+  m.healT=(m.healT??12)-dt;
+  if(m.state==='chase'){m.face=a;if(d>m.r+T.r)moveTreant(m,Math.cos(a)*m.spd*dt,Math.sin(a)*m.spd*dt);
+    if(d<m.r+T.r+8&&m.acd<=0){hurt(T,12,m);m.acd=1.6}
+    m.atkT-=dt;
+    if(m.healT<=0&&m.hp<m.max*.85){m.state='heal';m.t=2.4;m.healT=14;evt({t:'tf',x:Math.round(m.x),y:Math.round(m.y)})}
+    else if(m.atkT<=0){const opts=[];if(d<TR_SLAM_R+T.r)opts.push('slam');if(d<TR_CAST_R)opts.push('root','seed');
+      if(opts.length){const o=opts.length>1?opts.filter(k=>k!==m.lastAtk):opts,k=o[Math.floor(Math.random()*o.length)];m.lastAtk=k;m.face=a;
+        if(k==='slam'){m.state='swind';m.t=.85}else if(k==='root'){m.state='rootc';m.t=.55}else{m.state='seedc';m.t=.7}}}}
+  else if(m.state==='swind'){m.t-=dt;if(m.t<=0){for(const q of treantList(T))if(dist(m,q)<TR_SLAM_R+q.r&&angDiff(Math.atan2(q.y-m.y,q.x-m.x),m.face)<TR_SLAM_ARC)hurt(q,TR_SLAM_DMG,m);
+      evt({t:'ts',x:Math.round(m.x),y:Math.round(m.y),a:Math.round(m.face*100)/100});m.state='trec';m.t=.65}}
+  else if(m.state==='rootc'){m.t-=dt;m.face=a;if(m.t<=0){m.rootAt={x:T.x,y:T.y,T};evt({t:'rm',x:Math.round(T.x),y:Math.round(T.y)});m.state='rootw';m.t=ROOT_MARK}}
+  else if(m.state==='rootw'){m.t-=dt;if(m.t<=0){const r=m.rootAt,q=r.T;evt({t:'ru',x:Math.round(r.x),y:Math.round(r.y)});
+      if(Math.hypot(q.x-r.x,q.y-r.y)<ROOT_R+q.r){if(q===P)rootPlayer(ROOT_T);else if(!q.isPet)sendTo(q.id,{t:'root',d:ROOT_T});hurt(q,ROOT_DMG,r)}
+      m.state='trec';m.t=.5}}
+  else if(m.state==='seedc'){m.t-=dt;m.face=a;if(m.t<=0){for(let i=0;i<SEED_N;i++)evt({t:'sd',id:++seedSeq,x:Math.round(m.x),y:Math.round(m.y-6),a:Math.round((a+(i-(SEED_N-1)/2)*.2)*100)/100});m.state='trec';m.t=.6}}
+  else if(m.state==='heal'){m.t-=dt;m.hp=Math.min(m.max,m.hp+14*dt);if(m.t<=0){m.state='chase';m.atkT=rnd(1,2)}}
+  else if(m.state==='trec'){m.t-=dt;if(m.t<=0){m.state='chase';m.atkT=rnd(1.6,2.6)}}
 }
 
 /* ---------- pets ---------- */
@@ -1033,6 +1115,7 @@ function toAll(o){onPrivate(o);for(const id of others.keys())sendTo(id,Object.as
 function onPrivate(m){switch(m.t){
   case'love':floats.push({x:m.x,y:m.y-24,txt:`♥ ${m.n}/${TAME_N}`,t:1.2,col:'#ff9fb8'});break;
   case'tame':addPet('boar');banner('馴服了野豬','打開背包的「寵物」分頁可以召喚或收回');break;
+  case'tdown':{const first=!treantDown;treantDown=true;if(first||Math.random()<.3)give('樹精核心',1,m.x,m.y-42);if(first)toast('解鎖配方：樹精法杖、樹精裝備');writeSave();if(!$('panel').hidden)renderPanel();break} // the rare core is rolled per player; a first kill always gets one
   case'pup':if(!pets.some(p=>p.k==='wolf'))addPet('wolf');break; // each player's first Wolf King only; pets can't be released, so owning a pup means this one's used
 }}
 function giveAll(k,n,x,y){giveTo(ME,k,n,x,y);for(const id of others.keys())giveTo(id,k,n,x,y)}
@@ -1057,7 +1140,10 @@ function handleAct(m,from){switch(m.t){
     let dy=0;for(const k in back){giveTo(from,k,back[k],s.x,s.y-dy);dy+=14}break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
-  case'summon':{if(boss){refund(from,{獠牙:3,樹脂:5},'狼王已經醒了');break}
+  case'summont':{if(boss){refund(from,{古樹種子:1},'已經有王醒著了');break}
+    const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('treant',sp.x,sp.y);evt({t:'bn',h:'樹精',s:'紅色扇形：樹枝重擊・地上的綠圈：根鬚纏繞，快離開・舉手發光：種子投擲・綠光環繞：正在恢復，趁機輸出'});break}
+  case'shot':evt({t:'sh',x:m.x,y:m.y,a:m.a,dmg:m.dmg,o:from});break;
+  case'summon':{if(boss){refund(from,{獠牙:3,樹脂:5},'已經有王醒著了');break}
     flags.summoned=true;const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('boss',sp.x,sp.y);evt({t:'bn',h:'灰鬃狼王',s:'紅光：衝刺撲擊・橘光：往前三連抓・綠光：原地怒吼，周圍一大圈都會受傷，快跑出圈外或翻滾'});break}
 }}
 function applyEvt(m){switch(m.t){
@@ -1067,6 +1153,13 @@ function applyEvt(m){switch(m.t){
   case'bd':{const o=resGrid[m.c];if(o){o.dep=150;burst(o.x,o.y,ITEM['莓果'],6)}break}
   case'sa':if((isWallK(m.k)||!structGrid[ci(m.x,m.y)])&&addStruct(m.k,m.x,m.y,m.o))burst(m.x,m.y,m.k==='swall'||m.k==='furnace'?'#9a9d98':'#c9a26a',10);break;
   case'bn':banner(m.h,m.s);break;
+  case'sh':shots.push({x:m.x,y:m.y-12,vx:Math.cos(m.a)*520,vy:Math.sin(m.a)*520,t:WEAPONS['樹精法杖'].range/520,own:m.o===(MODE==='client'?myId:ME),dmg:m.dmg});break;
+  case'sd':seeds.push({id:m.id,x:m.x,y:m.y,vx:Math.cos(m.a)*SEED_SPD,vy:Math.sin(m.a)*SEED_SPD,t:SEED_LIFE});break;
+  case'sx':{const i=seeds.findIndex(s=>s.id===m.id);if(i>=0){burst(seeds[i].x,seeds[i].y-10,'#8a6a44',5);seeds.splice(i,1)}break}
+  case'ts':tfx.push({k:'slam',x:m.x,y:m.y,a:m.a,t:.35,T:.35});shake=Math.max(shake,9);burst(m.x+Math.cos(m.a)*90,m.y+Math.sin(m.a)*90,'#8a6a44',16);break;
+  case'rm':tfx.push({k:'mark',x:m.x,y:m.y,t:ROOT_MARK,T:ROOT_MARK});break;
+  case'ru':tfx.push({k:'burst',x:m.x,y:m.y,t:.6,T:.6});burst(m.x,m.y,'#6f9a4a',12);shake=Math.max(shake,4);break;
+  case'tf':floats.push({x:m.x,y:m.y-135,txt:'自然恢復',t:1.4,col:'#9dffb0'});burst(m.x,m.y-60,'#9dffb0',16);break;
   case'cl':slashes.push({x:m.x,y:m.y,a:m.a,n:m.n,t:.3});shake=Math.max(shake,4);break;
   case'rr':rings.push({x:m.x,y:m.y,t:.55});shake=Math.max(shake,11);floats.push({x:m.x,y:m.y-56,txt:'吼——！',t:1,col:'#9dff9a'});burst(m.x,m.y,'#9dff9a',24);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
@@ -1078,7 +1171,7 @@ function applyEvt(m){switch(m.t){
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
+  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -1086,10 +1179,10 @@ function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;co
     if(!m){m=makeMob(k,x,y);m.id=id;mobs.push(m)}
     m.tx=x;m.ty=y;m.face=f;m.hp=hp;m.max=max;if(fl)m.flash=.15;m.state=st;m.aggro=ag}
   mobs=mobs.filter(m=>seen.has(m.id));boss=mobs.find(m=>m.id===s.b)||null}
-function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:has('皮甲')?1:0,d:P.dead?1:0,...petState()})}
+function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorKey()==='樹精裝備'?2:armorKey()?1:0,ro:P.rooted>0?1:0,d:P.dead?1:0,...petState()})}
 function petState(){const p=curPet();return p?{pk:p.k,px:Math.round(p.x),py:Math.round(p.y),pf:Math.round(p.face*100)/100,ph:Math.ceil(p.hp),pg:p.glow>0?1:0,pw:p.moving?1:0}:{}}
 function updateOther(m){let o=others.get(m.from);if(!o){o={id:m.from,x:m.x,y:m.y,r:12,walk:0,inv:0,swing:0};others.set(m.from,o)}
-  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=!!m.a;o.dead=!!m.d;
+  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=m.a|0;o.rooted=m.ro?.1:0;o.dead=!!m.d;
   if(PETS[m.pk]){if(!o.pet||o.pet.k!==m.pk)o.pet={isPet:true,owner:m.from,k:m.pk,x:m.px,y:m.py,r:PETS[m.pk].r,anim:0,flash:0,glow:0};
     Object.assign(o.pet,{tx:m.px,ty:m.py,face:m.pf,hp:m.ph,moving:!!m.pw});if(m.pg)o.pet.glow=Math.max(o.pet.glow,.3)}
   else o.pet=null}
@@ -1124,7 +1217,8 @@ function onNet(m){
   case'refund':for(const k in m.cost)inv[k]=(inv[k]||0)+m.cost[k];toast(m.msg);break;
   case'hurt':if(started)hitPlayer(m.dmg,m);break;
   case'phurt':if(started)hurtPet(m.dmg,m);break;
-  case'love':case'tame':case'pup':if(started)onPrivate(m);break;
+  case'love':case'tame':case'pup':case'tdown':if(started)onPrivate(m);break;
+  case'root':if(started)rootPlayer(m.d);break;
   default:applyEvt(m)}}
 function connect(){
   try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws')}catch(e){bootSolo();return}
@@ -1151,11 +1245,13 @@ function render(){
     else if(b===3&&h>.6){ctx.fillStyle='rgba(10,20,10,.35)';ctx.beginPath();ctx.arc(x+h*34,y+(h*53%1)*34,3+h*3,0,6.28);ctx.fill()}
     else if(b===1&&h>.7){ctx.fillStyle='rgba(120,100,70,.35)';ctx.fillRect(x+h*30,y+(h*71%1)*30,2,2)}}
   sea.draw(cx,cy,hw,hh);
+  for(const r of rootTrail)drawRootTrail(r);
+  for(const x of tfx)if(x.k==='mark')drawRootMark(x);
   // drawables
   const list=[];
   for(let j=j0;j<=j1+1&&j<ROWS;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i,o=resGrid[c];if(o)list.push([o.y,0,o]);const s=structGrid[c];if(s)list.push([s.y,1,s]);if(wallH[c])list.push([wallH[c].y,1,wallH[c]]);if(wallV[c])list.push([wallV[c].y,1,wallV[c]])}
   if(Math.abs(altar.x-cx)<hw+80&&Math.abs(altar.y-cy)<hh+80)list.push([altar.y,1,altar]);
-  for(const m of mobs)if(Math.abs(m.x-cx)<hw+60&&Math.abs(m.y-cy)<hh+60)list.push([m.y,2,m]);
+  for(const m of mobs)if(Math.abs(m.x-cx)<hw+60&&Math.abs(m.y-cy)<hh+(m.k==='treant'?170:60))list.push([m.y,2,m]);
   if(MODE==='solo'||started)list.push([P.y,3,P]);
   for(const o of others.values()){if(!o.dead)list.push([o.y,3,o]);if(o.pet)list.push([o.pet.y,4,o.pet])}
   const cp=curPet();if(cp)list.push([cp.y,4,cp]);
@@ -1174,6 +1270,10 @@ function render(){
   for(const c of slashes){const k=c.t/.3,cx=c.x+Math.cos(c.a)*44,cy=c.y-14+Math.sin(c.a)*44;ctx.save();ctx.translate(cx,cy);ctx.rotate(c.a+Math.PI/2+(c.n%2?.45:-.45));
     ctx.lineCap='round';for(let j=-1;j<=1;j++){ctx.strokeStyle=`rgba(220,240,255,${.9*k})`;ctx.lineWidth=4*k+1;ctx.beginPath();ctx.moveTo(-26,j*9-6);ctx.quadraticCurveTo(0,j*9+8,26,j*9-6);ctx.stroke()}
     ctx.restore()}
+  // treant effects and projectiles
+  for(const x of tfx){if(x.k==='slam')drawSlamFx(x);else if(x.k==='burst')drawRootBurst(x)}
+  for(const s of seeds){ctx.save();ctx.translate(s.x,s.y-12);ctx.rotate(time*12+s.id);ctx.fillStyle='#1f1712';ctx.beginPath();ctx.ellipse(0,0,6,4.2,0,0,6.28);ctx.fill();ctx.fillStyle='#8a6a44';ctx.beginPath();ctx.ellipse(0,0,4.8,3,0,0,6.28);ctx.fill();ctx.fillStyle='#c9a26a';ctx.fillRect(-2,-1.4,2.4,1);ctx.restore()}
+  for(const s of shots){const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,13);g.addColorStop(0,'rgba(190,255,200,.9)');g.addColorStop(1,'rgba(90,220,120,0)');ctx.fillStyle=g;ctx.fillRect(s.x-13,s.y-13,26,26);ctx.fillStyle='#eafff0';ctx.beginPath();ctx.arc(s.x,s.y,3.2,0,6.28);ctx.fill()}
   // particles
   for(const p of parts){ctx.globalAlpha=Math.min(1,p.t*2);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)}ctx.globalAlpha=1;
   // darkness
@@ -1191,7 +1291,7 @@ function render(){
   const dusk=dayT>.5&&dayT<.7?Math.sin((dayT-.5)/.2*Math.PI)*.16:0;if(dusk>0){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=`rgba(255,120,50,${dusk})`;ctx.fillRect(0,0,cv.width,cv.height)}
   // overlay in world: eyes at night, floats, hint, compass
   ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
-  if(dk>.3)for(const m of mobs)if(m.k!=='boar'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
+  if(dk>.3)for(const m of mobs)if(m.k==='treant'){const fl=Math.cos(m.face)<0?-1:1;ctx.fillStyle='#b6ffc4';ctx.fillRect(m.x+fl*.6-2,m.y-80,4,3);ctx.fillRect(m.x+fl*15.6-2,m.y-80,4,3)}else if(m.k!=='boar'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
       ctx.fillRect(m.x+ex*o-ey*s*2-s/2,m.y+ey*o-8+ex*s*2-s/2,s,s);ctx.fillRect(m.x+ex*o+ey*s*2-s/2,m.y+ey*o-8-ex*s*2-s/2,s,s)}
   ctx.textAlign='center';ctx.font='600 11px system-ui,sans-serif';
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.t*2);ctx.fillStyle='#000a';ctx.fillText(f.txt,f.x+1,f.y+1);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,f.y)}ctx.globalAlpha=1;
@@ -1282,6 +1382,7 @@ function drawBoar(m,f){const angry=m.aggro>0,walk=Math.abs(m.x-(m.lx??m.x))+Math
 function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
   if(m.k==='boar')drawBoar(m,f);
   else if(m.k==='moss')drawMoss(m,f,c,sn);
+  else if(m.k==='treant')drawTreant(m,f);
   else{const rw=m.state==='rwind';if(rw){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(120,255,140,${.14+p*.12})`;ctx.strokeStyle=`rgba(170,255,175,${.65+p*.35})`;ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.beginPath();ctx.ellipse(m.x,m.y,ROAR_R,ROAR_R*.75,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([])}
     shadow(m.x,m.y+10,34,11);const wind=m.state==='wind',cw=m.state==='cwind';ctx.save();ctx.translate(m.x,m.y-14);ctx.rotate(a);
     if(wind){ctx.fillStyle=`rgba(255,80,60,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(6,0,46,26,0,0,6.28);ctx.fill()}
@@ -1289,7 +1390,7 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
     if(cw){ctx.fillStyle=`rgba(255,180,70,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(18,0,42,30,0,0,6.28);ctx.fill();
       ctx.strokeStyle='#ffe3a8';ctx.lineWidth=2;for(const sy of[-1,1])for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(22,sy*(14+j*3));ctx.lineTo(32,sy*(18+j*3));ctx.stroke()}}
     drawWolf(m,f,wind,cw,rw);ctx.restore()}
-  if(m.hp<m.max&&m.k!=='boss'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
+  if(m.hp<m.max&&m.k!=='boss'&&m.k!=='treant'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
 // moss sprite: lumpy body, sprouting leaf and toadstool, drawn around its own centre
 const MOSS_DARK=(()=>{const p=new Path2D();for(const[x,y,r]of[[-5,-5,3.6],[5,2,3.2],[-6,5,2.6],[6,-6,2.2],[0,7,2]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
 const MOSS_LIGHT=(()=>{const p=new Path2D();for(const[x,y,r]of[[-2,-9,2.8],[3,-8.5,2],[-8,-3,1.8],[8,-2,1.6],[-3,0,1.2],[2,4,1.1]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
@@ -1351,6 +1452,53 @@ function drawWolf(m,f,wind,cw,rw){const k=q=>f?'#fff':q,LINE='#1e2226',el=(x,y,r
   ctx.strokeStyle=k(LINE);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(38,0);ctx.lineTo(46.6,0);ctx.stroke();
   const eye=wind?'#ff5a3a':cw?'#ffb347':rw?'#9dff9a':'#bfe8ff';ctx.lineWidth=1.3;
   for(const s of[-1,1]){ctx.fillStyle=k(LINE);ctx.beginPath();ctx.moveTo(29.8,s*6.4);ctx.lineTo(36.8,s*2.2);ctx.lineTo(33,s*2);ctx.lineTo(29.8,s*3.2);ctx.closePath();ctx.fill();ctx.fillStyle=eye;ctx.beginPath();ctx.moveTo(31,s*5);ctx.lineTo(35.2,s*2.7);ctx.lineTo(32.4,s*2.7);ctx.lineTo(31,s*3.4);ctx.closePath();ctx.fill()}}
+// Treant: an upright walking tree, about twice the player's height. Bark, moss and branches are built once as paths
+const trPoly=pts=>{const p=new Path2D();pts.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));p.closePath();return p};
+const trBlobs=L=>{const p=new Path2D();for(const[x,y,r]of L){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p};
+const TR_TRUNK=trPoly([[-23,-5],[-20,-26],[-17,-44],[-23,-59],[-25,-70],[-17,-82],[-7,-88],[7,-88],[17,-82],[25,-70],[23,-59],[17,-44],[20,-26],[23,-5],[11,-1],[0,-6],[-11,-1]]);
+const TR_BARK_D=(()=>{const p=new Path2D();for(const[x,a,b,c]of[[-13,-8,-36,-13],[-5,-4,-46,-1],[5,-4,-42,9],[14,-8,-34,10],[-16,-48,-72,-14],[17,-48,-70,16]]){p.moveTo(x,a);p.quadraticCurveTo(x+(c-x)*.2+2,(a+b)/2,c,b)}return p})();
+const TR_BARK_L=(()=>{const p=new Path2D();for(const[x,a,b,c]of[[-9,-6,-30,-8],[1,-8,-34,3],[10,-6,-28,7],[-11,-46,-68,-9],[11,-46,-66,11]]){p.moveTo(x,a);p.quadraticCurveTo(x+1.5,(a+b)/2,c,b)}return p})();
+const TR_BRANCH=(()=>{const p=new Path2D();for(const L of[[[-10,-84],[-21,-102],[-35,-110]],[[-21,-102],[-17,-117]],[[-14,-92],[-26,-92]],[[9,-84],[20,-104],[35,-112]],[[20,-104],[14,-120]],[[15,-94],[28,-93]],[[0,-86],[1,-108]],[[1,-100],[-6,-112]]])L.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));return p})();
+const TR_MOSS_D=trBlobs([[-17,-73,8.5],[-7,-82,7.5],[14,-78,8.5],[21,-66,5.5],[-21,-60,5],[-9,-43,6.5],[10,-36,7],[-13,-20,5],[13,-14,4.5]]);
+const TR_MOSS_L=trBlobs([[-18,-76,4.8],[-8,-85,4],[13,-81,4.8],[21,-68,2.8],[-10,-45,3.2],[10,-38,3.5],[-14,-21,2.4]]);
+const TR_VINE=(()=>{const p=new Path2D();p.moveTo(-15,-76);p.bezierCurveTo(-23,-54,-6,-42,-14,-18);p.moveTo(17,-74);p.bezierCurveTo(10,-52,24,-36,14,-12);return p})();
+const TR_LEAF=(()=>{const p=new Path2D();for(const[x,y,a]of[[-16,-58,.6],[-10,-34,-.5],[17,-58,2.4],[16,-32,2.8],[-35,-110,.2],[-17,-117,1.2],[35,-112,2.9],[14,-120,1.9],[1,-108,-1.5],[-6,-112,-2.2],[-26,-92,.4],[28,-93,2.8]]){const c=Math.cos(a),s=Math.sin(a);p.moveTo(x,y);p.quadraticCurveTo(x+c*4-s*3,y+s*4+c*3,x+c*8,y+s*8);p.quadraticCurveTo(x+c*4+s*3,y+s*4-c*3,x,y)}return p})();
+function drawTreant(m,f){const k=q=>f?'#fff':q,INK='#1f1712',st=m.state,w=Math.sin(m.anim*3.2),flip=Math.cos(m.face)<0?-1:1;
+  // tells on the ground, in world space
+  if(st==='swind'){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(255,80,50,${.16+p*.14})`;ctx.strokeStyle=`rgba(255,150,110,${.6+p*.35})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.arc(m.x,m.y,TR_SLAM_R,m.face-TR_SLAM_ARC,m.face+TR_SLAM_ARC);ctx.closePath();ctx.fill();ctx.stroke()}
+  if(st==='heal'){const p=.5+Math.sin(time*9)*.5;ctx.strokeStyle=`rgba(150,255,170,${.45+p*.4})`;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(m.x,m.y,69+p*12,30+p*4,0,0,6.28);ctx.stroke()}
+  shadow(m.x,m.y+3,48,16);ctx.save();ctx.translate(m.x,m.y);ctx.scale(flip*1.2,1.2);ctx.lineCap='round';ctx.lineJoin='round';
+  // arms by state, angle from straight ahead (0) round to straight down (1.57)
+  const sway=Math.sin(m.anim*2.4)*.1,FA=st==='swind'?-1.95:st==='trec'?.45:st==='seedc'?-.2:st==='rootc'?-1.15:st==='heal'?-.55:1.25+sway,BA=st==='rootc'?-1.95:st==='heal'?-2.6:st==='swind'?2.1:1.9-sway;
+  const arm=(sx,sy,a,len)=>{const ex=sx+Math.cos(a)*len,ey=sy+Math.sin(a)*len,mx=(sx+ex)/2-Math.sin(a)*5,my=(sy+ey)/2+Math.cos(a)*5,seg=(lw,q)=>{ctx.strokeStyle=k(q);ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(mx,my,ex,ey);ctx.stroke()};
+    ctx.strokeStyle=k(INK);ctx.lineWidth=5.6;ctx.beginPath();for(const d of[-.6,0,.6]){ctx.moveTo(ex,ey);ctx.lineTo(ex+Math.cos(a+d)*13,ey+Math.sin(a+d)*13)}ctx.stroke();ctx.strokeStyle=k('#6b4e34');ctx.lineWidth=3.4;ctx.stroke();
+    seg(15,INK);seg(12,'#5f452e');ctx.strokeStyle=k('#3a2818');ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(mx+2,my+1,ex,ey);ctx.stroke();ctx.fillStyle=k('#5f8a3a');ctx.beginPath();ctx.arc(sx+Math.cos(a)*9,sy+Math.sin(a)*9-3,4.2,0,6.28);ctx.fill()};
+  // root legs step slowly in turn, drawn first so the trunk sits on them
+  for(const q of[-1,1]){const lift=Math.max(0,w*q)*4,x=q*15,sx=-w*q*4;ctx.strokeStyle=k(INK);ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(x,-14);ctx.lineTo(x+sx,-2-lift);ctx.stroke();ctx.strokeStyle=k('#4a3424');ctx.lineWidth=12;ctx.stroke();
+    ctx.strokeStyle=k(INK);ctx.lineWidth=5.2;ctx.beginPath();for(const d of[-1,0,1]){ctx.moveTo(x+sx,-2-lift);ctx.lineTo(x+sx+d*13,3-lift+Math.abs(d)*-1)}ctx.stroke();ctx.strokeStyle=k('#4a3424');ctx.lineWidth=3;ctx.stroke()}
+  arm(-21,-64,BA,34);
+  // antler branches, then the trunk with its outline
+  ctx.strokeStyle=k(INK);ctx.lineWidth=7.5;ctx.stroke(TR_BRANCH);ctx.strokeStyle=k('#6b4e34');ctx.lineWidth=5;ctx.stroke(TR_BRANCH);ctx.fillStyle=k('#7ea64a');ctx.fill(TR_LEAF);
+  ctx.fillStyle=k('#5f452e');ctx.fill(TR_TRUNK);ctx.strokeStyle=k(INK);ctx.lineWidth=2.4;ctx.stroke(TR_TRUNK);
+  ctx.lineWidth=2.1;ctx.strokeStyle=k('#3a2818');ctx.stroke(TR_BARK_D);ctx.lineWidth=1.2;ctx.strokeStyle=k('#7d5f43');ctx.stroke(TR_BARK_L);
+  // moss, vines and leaves over the bark
+  ctx.fillStyle=k('#476d2c');ctx.fill(TR_MOSS_D);ctx.fillStyle=k('#7ea64a');ctx.fill(TR_MOSS_L);ctx.strokeStyle=k('#3f6a2a');ctx.lineWidth=2;ctx.stroke(TR_VINE);ctx.fillStyle=k('#8fb257');ctx.fill(TR_LEAF);
+  // face, turned toward where it faces: brow ridge, glowing eyes, a crack for a mouth
+  const eye=st==='swind'?'#ffd27a':'#b6ffc4',glow=st==='heal'||st==='rootc'||st==='seedc';
+  ctx.fillStyle=k('#2c1e13');ctx.beginPath();ctx.moveTo(-6,-73);ctx.lineTo(7,-67);ctx.lineTo(19,-73);ctx.lineTo(18,-62);ctx.lineTo(7,-59);ctx.lineTo(-5,-62);ctx.closePath();ctx.fill();
+  if(glow){const g=ctx.createRadialGradient(7,-66,0,7,-66,26);g.addColorStop(0,'rgba(170,255,190,.55)');g.addColorStop(1,'rgba(170,255,190,0)');ctx.fillStyle=g;ctx.fillRect(-19,-92,52,52)}
+  ctx.fillStyle=eye;ctx.beginPath();ctx.moveTo(-3,-68);ctx.lineTo(4,-65);ctx.lineTo(-2,-63.5);ctx.closePath();ctx.moveTo(16,-68);ctx.lineTo(10,-65);ctx.lineTo(15.5,-63.500);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=k('#1a120b');ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(-1,-52);ctx.lineTo(4,-50);ctx.lineTo(8,-53);ctx.lineTo(12,-50);ctx.lineTo(16,-52);ctx.stroke();
+  arm(21,-64,FA,36);
+  // while casting seeds or roots the raised hand shows what is coming
+  if(st==='seedc'||st==='rootc'){const c=st==='seedc'?'255,220,120':'150,255,170',a=FA,ex=21+Math.cos(a)*48,ey=-64+Math.sin(a)*48,g=ctx.createRadialGradient(ex,ey,0,ex,ey,20);g.addColorStop(0,`rgba(${c},.9)`);g.addColorStop(1,`rgba(${c},0)`);ctx.fillStyle=g;ctx.fillRect(ex-20,ey-20,40,40)}
+  ctx.restore()}
+function drawRootTrail(r){const al=Math.min(1,r.t/2)*.75,c=Math.cos(r.a),s=Math.sin(r.a),n=r.s>.5?1:-1;ctx.globalAlpha=al;ctx.lineCap='round';ctx.strokeStyle='#2a1c12';ctx.lineWidth=3.4;ctx.beginPath();ctx.moveTo(r.x-c*9,r.y-s*9);ctx.quadraticCurveTo(r.x-s*n*4,r.y+c*n*4,r.x+c*9,r.y+s*9);ctx.moveTo(r.x,r.y);ctx.lineTo(r.x-s*n*9+c*3,r.y+c*n*9+s*3);ctx.stroke();
+  ctx.strokeStyle='#5a4028';ctx.lineWidth=1.8;ctx.stroke();ctx.globalAlpha=1}
+function drawRootMark(x){const p=1-x.t/x.T,a=.35+p*.5;ctx.fillStyle=`rgba(120,230,130,${.12+p*.2})`;ctx.strokeStyle=`rgba(170,255,175,${a})`;ctx.lineWidth=2.5;ctx.setLineDash([6,5]);ctx.beginPath();ctx.ellipse(x.x,x.y,ROOT_R,ROOT_R*.72,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle='#5a4028';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();for(let i=0;i<6;i++){const t=i/6*6.28,bx=x.x+Math.cos(t)*ROOT_R*.7,by=x.y+Math.sin(t)*ROOT_R*.5;ctx.moveTo(bx,by);ctx.lineTo(bx,by-3-p*5)}ctx.stroke()}
+function drawRootBurst(x){const p=1-x.t/x.T,h=Math.sin(Math.min(1,p*2.2)*1.57)*(1-p*.45)*44;ctx.lineCap='round';for(let i=0;i<7;i++){const t=i/7*6.28+.3,bx=x.x+Math.cos(t)*ROOT_R*.55,by=x.y+Math.sin(t)*ROOT_R*.34,tx=x.x+Math.cos(t)*9,ty=by-h;for(const[w,q]of[[6.5,'#1f1712'],[4,'#5f452e']]){ctx.strokeStyle=q;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx,by-h*.6,tx,ty);ctx.stroke()}}}
+function drawSlamFx(x){const p=x.t/x.T;ctx.fillStyle=`rgba(255,210,150,${.32*p})`;ctx.beginPath();ctx.moveTo(x.x,x.y);ctx.arc(x.x,x.y,TR_SLAM_R,x.a-TR_SLAM_ARC,x.a+TR_SLAM_ARC);ctx.closePath();ctx.fill();ctx.strokeStyle=`rgba(255,230,190,${.8*p})`;ctx.lineWidth=4*p+1;ctx.beginPath();ctx.arc(x.x,x.y,TR_SLAM_R-3,x.a-TR_SLAM_ARC,x.a+TR_SLAM_ARC);ctx.stroke()}
 const CAPES=['#7a3b33','#2f5d7a','#4f6b2a','#8a6a2a','#5f3a7a','#2a6b62'];
 // pets reuse the boar / Wolf King art (pup = shrunken wolf), plus a heart in the owner's cape colour and a green hp bar
 function drawPet(p){const D=PETS[p.k],wolf=p.k==='wolf';
@@ -1389,13 +1537,13 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
   const fold=Math.sin(pl.walk*.5);ctx.save();ctx.translate(x-c*5,y-8-s*5+bob);ctx.rotate(a);ctx.lineJoin='miter';ctx.miterLimit=5;ctx.scale(1+fold*.04,1);ctx.fillStyle=capeCol;ctx.fill(PL_CAPE);ctx.fillStyle='rgba(0,0,0,.26)';ctx.fill(PL_CAPE_S);ctx.strokeStyle=PL_INK;ctx.lineWidth=1.1;ctx.stroke(PL_CAPE);
   ctx.strokeStyle='rgba(0,0,0,.34)';ctx.lineWidth=1;ctx.beginPath();for(const q of[-1,1]){ctx.moveTo(0,q*5);ctx.lineTo(-10,q*(3.4+fold*.6));ctx.moveTo(1,q*1.6);ctx.lineTo(-10.4,q*(.6-fold*.4))}ctx.stroke();ctx.restore();
   // body: outlined tunic, shading and seams; leather armour adds a stitched chest plate and rivets
-  const armored=pl===P?has('皮甲'):pl.armor,hit=pl.hurt>0,cx0=x,cy0=y-10+bob;
-  plEl(cx0,cy0,11,11,0,PL_INK);plEl(cx0,cy0,10,10,0,hit?'#fff':armored?'#7a5236':'#3f6688');
-  if(!hit){plEl(cx0,cy0+4,8.6,5,0,armored?'#6a452c':'#35587a');plEl(cx0-1,cy0-5,6.5,3,0,armored?'#8d6444':'#4f7a9e');
-    ctx.strokeStyle=armored?'#3f2818':'#274660';ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(cx0,cy0,8.2,.45,2.69);ctx.moveTo(cx0,cy0+3.4);ctx.lineTo(cx0,cy0+9);ctx.stroke();
-    if(armored){ctx.strokeStyle='#d9b777';ctx.lineWidth=.8;ctx.setLineDash([1.6,1.6]);ctx.beginPath();ctx.moveTo(cx0-6.5,cy0-3);ctx.quadraticCurveTo(cx0,cy0-.8,cx0+6.5,cy0-3);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e2c88e';for(const q of[-1,1])ctx.fillRect(cx0+q*5-.7,cy0+5,1.4,1.4)}}
+  const armored=pl===P?(armorKey()==='樹精裝備'?2:armorKey()?1:0):pl.armor,hit=pl.hurt>0,cx0=x,cy0=y-10+bob;
+  plEl(cx0,cy0,11,11,0,PL_INK);plEl(cx0,cy0,10,10,0,hit?'#fff':armored===2?'#566b38':armored?'#7a5236':'#3f6688');
+  if(!hit){plEl(cx0,cy0+4,8.6,5,0,armored===2?'#465a2d':armored?'#6a452c':'#35587a');plEl(cx0-1,cy0-5,6.5,3,0,armored===2?'#6d8547':armored?'#8d6444':'#4f7a9e');
+    ctx.strokeStyle=armored===2?'#33451f':armored?'#3f2818':'#274660';ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(cx0,cy0,8.2,.45,2.69);ctx.moveTo(cx0,cy0+3.4);ctx.lineTo(cx0,cy0+9);ctx.stroke();
+    if(armored){ctx.strokeStyle=armored===2?'#b7d67a':'#d9b777';ctx.lineWidth=.8;ctx.setLineDash([1.6,1.6]);ctx.beginPath();ctx.moveTo(cx0-6.5,cy0-3);ctx.quadraticCurveTo(cx0,cy0-.8,cx0+6.5,cy0-3);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e2c88e';for(const q of[-1,1])ctx.fillRect(cx0+q*5-.7,cy0+5,1.4,1.4)}}
   // shoulder pads and off hand
-  for(const q of[-1,1]){const sx=cx0-s*q*9,sy=cy0+c*q*7;plEl(sx,sy,5,4.2,a,PL_INK);plEl(sx,sy,4.1,3.3,a,hit?'#fff':armored?'#5e3e29':'#2f5270');if(armored&&!hit){ctx.fillStyle='#e2c88e';ctx.fillRect(sx-.7,sy-.7,1.4,1.4)}}
+  for(const q of[-1,1]){const sx=cx0-s*q*9,sy=cy0+c*q*7;plEl(sx,sy,5,4.2,a,PL_INK);plEl(sx,sy,4.1,3.3,a,hit?'#fff':armored===2?'#6b4e34':armored?'#5e3e29':'#2f5270');if(armored&&!hit){ctx.fillStyle=armored===2?'#9dbf62':'#e2c88e';ctx.fillRect(sx-.7,sy-.7,1.4,1.4)}}
   plHand(cx0+Math.cos(a+1.25)*11,cy0+Math.sin(a+1.25)*9,2.3);
   // belt, buckle and a pouch
   ctx.fillStyle=PL_INK;ctx.fillRect(x-10,y-9.8+bob,20,3.8);ctx.fillStyle='#4a3522';ctx.fillRect(x-10,y-9.2+bob,20,2.6);ctx.fillStyle=PL_INK;ctx.fillRect(x-2.5,y-10.2+bob,5,4.6);ctx.fillStyle='#d9b45f';ctx.fillRect(x-1.8,y-9.5+bob,3.6,3.2);ctx.fillStyle='#4a3522';ctx.fillRect(x-.7,y-8.6+bob,1.4,1.4);
@@ -1405,13 +1553,14 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
   const hx=x+Math.cos(wa)*9,hy=y-10+bob+Math.sin(wa)*9;
   if(w.len){ctx.strokeStyle='#6b4a2b';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(hx,hy);ctx.lineTo(hx+Math.cos(wa)*w.len,hy+Math.sin(wa)*w.len);ctx.stroke();
     const tx=hx+Math.cos(wa)*w.len,ty=hy+Math.sin(wa)*w.len;ctx.fillStyle=ITEM[pl.weapon];
-    if(pl.weapon==='燧石矛'){ctx.beginPath();ctx.moveTo(tx+Math.cos(wa)*9,ty+Math.sin(wa)*9);ctx.lineTo(tx-Math.sin(wa)*4,ty+Math.cos(wa)*4);ctx.lineTo(tx+Math.sin(wa)*4,ty-Math.cos(wa)*4);ctx.fill()}
+    if(w.proj){ctx.strokeStyle='#6b4e34';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(tx-Math.cos(wa)*5,ty-Math.sin(wa)*5);ctx.lineTo(tx-Math.sin(wa)*6,ty+Math.cos(wa)*6);ctx.moveTo(tx-Math.cos(wa)*5,ty-Math.sin(wa)*5);ctx.lineTo(tx+Math.sin(wa)*6,ty-Math.cos(wa)*6);ctx.stroke();const orb=ctx.createRadialGradient(tx,ty,0,tx,ty,10);orb.addColorStop(0,'rgba(190,255,200,.85)');orb.addColorStop(1,'rgba(90,220,120,0)');ctx.fillStyle=orb;ctx.fillRect(tx-10,ty-10,20,20);ctx.fillStyle='#1f1712';ctx.beginPath();ctx.arc(tx,ty,4.2,0,6.28);ctx.fill();ctx.fillStyle='#7fd98a';ctx.beginPath();ctx.arc(tx,ty,3.2,0,6.28);ctx.fill();ctx.fillStyle='#eafff0';ctx.fillRect(tx-1.4,ty-1.6,1.3,1.3)}
+    else if(pl.weapon==='燧石矛'){ctx.beginPath();ctx.moveTo(tx+Math.cos(wa)*9,ty+Math.sin(wa)*9);ctx.lineTo(tx-Math.sin(wa)*4,ty+Math.cos(wa)*4);ctx.lineTo(tx+Math.sin(wa)*4,ty-Math.cos(wa)*4);ctx.fill()}
     else if(pl.weapon==='狼牙劍'){ctx.strokeStyle='#d7e9f3';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(hx+Math.cos(wa)*6,hy+Math.sin(wa)*6);ctx.lineTo(tx+Math.cos(wa)*6,ty+Math.sin(wa)*6);ctx.stroke()}
     else if(pl.weapon!=='木棒'){ctx.save();ctx.translate(tx,ty);ctx.rotate(wa);ctx.fillRect(-3,pl.weapon==='燧石鎬'?-8:-2,6,pl.weapon==='燧石鎬'?16:9);ctx.restore()}
     else{ctx.lineWidth=5;ctx.strokeStyle='#7b5634';ctx.beginPath();ctx.moveTo(hx+Math.cos(wa)*12,hy+Math.sin(wa)*12);ctx.lineTo(tx,ty);ctx.stroke()}}
   // the weapon hand: a fist on the grip, or held out when unarmed
   if(w.len)plHand(hx+Math.cos(wa)*3,hy+Math.sin(wa)*3,2.5);else plHand(hx+Math.cos(wa)*4,hy+Math.sin(wa)*4,2.9);
-  if(pl.swing>0){const al=Math.min(1,pl.swing/.24);ctx.fillStyle=`rgba(255,240,200,${.14*al})`;ctx.beginPath();ctx.moveTo(x,y-10);ctx.arc(x,y-10,w.range,a-w.arc,a+w.arc);ctx.closePath();ctx.fill();
+  if(pl.swing>0&&!w.proj){const al=Math.min(1,pl.swing/.24);ctx.fillStyle=`rgba(255,240,200,${.14*al})`;ctx.beginPath();ctx.moveTo(x,y-10);ctx.arc(x,y-10,w.range,a-w.arc,a+w.arc);ctx.closePath();ctx.fill();
     ctx.strokeStyle=`rgba(255,240,200,${.45*al})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-10,w.range-4,a-w.arc,a+w.arc);ctx.stroke()}
   // head, in its own frame facing +x: ears, skin, beard, spiky hair with locks, then the face
   ctx.save();ctx.translate(x,y-14+bob);ctx.rotate(a);ctx.lineJoin='miter';ctx.miterLimit=5;
@@ -1422,6 +1571,7 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
   // eyes and brows, hidden when walking away from the camera
   if(!away){ctx.strokeStyle='#6d4518';ctx.lineWidth=1;ctx.beginPath();for(const q of[-1,1]){ctx.moveTo(4,q*4.3);ctx.lineTo(6,q*1.8)}ctx.stroke();ctx.fillStyle=PL_INK;for(const q of[-1,1])ctx.fillRect(5.3,q*2.9-1,1.9,2);ctx.fillStyle='#fff';for(const q of[-1,1])ctx.fillRect(6.2,q*2.9-.8,.7,.7);ctx.fillStyle='#c48f68';ctx.fillRect(7.1,-.7,1.2,1.4)}
   ctx.restore();
+  if(pl.rooted>0){ctx.lineCap='round';for(const[w2,q]of[[5,'#1f1712'],[3,'#5f452e']]){ctx.strokeStyle=q;ctx.lineWidth=w2;ctx.beginPath();for(let i=0;i<5;i++){const t=i/5*6.28,bx=x+Math.cos(t)*13,by=y+1+Math.sin(t)*6;ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx,by-10,x+Math.cos(t)*5,y-13+Math.sin(t)*2)}ctx.stroke()}}
   ctx.globalAlpha=1}
 
 /* ---------- HUD ---------- */
@@ -1436,8 +1586,8 @@ function hud(){const MH=maxHp(),MS=maxSt();
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   syncHeld();renderHot();const hk=held();
-  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${has('皮甲')?'・穿著皮甲':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
-  $('bossBar').hidden=!boss;if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
+  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorKey()?'・穿著'+armorKey():''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
+  $('bossBar').hidden=!boss;if(boss)$('bossName').textContent=boss.k==='treant'?'樹精':'灰鬃狼王';if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
 
