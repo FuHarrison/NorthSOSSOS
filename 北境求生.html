@@ -679,7 +679,7 @@ function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=dmg;m.flash=.15;const a=Math.atan2
 function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y});
   if(m.k==='boar'){giveTo(from,'生肉',ri(1,2),m.x,m.y);if(Math.random()<.8)giveTo(from,'皮革',ri(1,2),m.x,m.y-14);if(Math.random()<.4)giveTo(from,'獠牙',1,m.x,m.y-28)}
   if(m.k==='moss'){giveTo(from,'樹脂',ri(1,2),m.x,m.y);if(Math.random()<.25)giveTo(from,'燧石',1,m.x,m.y-14)}
-  if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'每個人都得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
+  if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'第一次打倒狼王的人會得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
 function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;if(has('皮甲'))dmg*=.7;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
@@ -699,7 +699,7 @@ function nearestUse(){let best=null,bd=1e9;
   if(best)return best;forCells(P.x,P.y,1,o=>{if(RES[o.k].pick&&!(o.k==='bush'&&o.dep>0)){const d=dist(o,P);if(d<46&&d<bd){bd=d;best={o}}}});return best}
 function useLabel(u){if(!u)return null;if(u.o||u.l)return'撿起';if(u.m)return'餵莓果';const s=u.s;
   if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';
-  if(s.k==='altar')return flags.boss?'祭壇已沉寂':boss?'狼王已醒':'獻上祭品';return null}
+  if(s.k==='altar')return boss?'狼王已醒':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
   if(u.o){hitRes(u.o);return}
   if(u.l){act({t:'pick',id:u.l.id});return}
@@ -709,7 +709,7 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
   else if(s.k==='bench')togglePanel(true,'craft');
   else if(s.k==='furnace'){furnaceC=s.cell;togglePanel(true,'furnace')}
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
-  else if(s.k==='altar'){if(flags.boss){toast('祭壇的符文已經熄滅');return}if(boss)return;
+  else if(s.k==='altar'){if(boss)return;
     if((inv['獠牙']||0)>=3&&(inv['樹脂']||0)>=5){inv['獠牙']-=3;inv['樹脂']-=5;act({t:'summon'});shake=12}
     else toast(`祭壇需要：獠牙 ${inv['獠牙']||0}/3、樹脂 ${inv['樹脂']||0}/5`)}}
 
@@ -791,7 +791,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       return`<div class="card"><h3>${p.name}<em>${D.name}・${D.role}${out?'・召喚中':''}</em></h3><p>${p.down>0?`倒下了，${Math.ceil(p.down)} 秒後回來`:`血量 ${Math.ceil(p.hp)}/${D.hp}・傷害 ${D.dmg}`}・攜帶 ${n} 件</p>
       <div class="costs">${Object.entries(p.bag).map(([k,v])=>`<span class="cost">${k} ×${v}</span>`).join('')}</div>
       <button class="act ${out?'':'go'}" type="button" data-sum="${p.id}">${out?'收回':'召喚'}</button><button class="act" type="button" data-take="${p.id}" ${n?'':'disabled'}>取出物品</button></div>`}).join('')+`</div>`
-      :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠；打倒狼王後，每個人都會得到一隻狼崽。</p>`;
+      :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠；第一次打倒狼王時，每個人都會得到一隻狼崽。</p>`;
     b.querySelectorAll('[data-sum]').forEach(x=>x.addEventListener('click',()=>{const id=+x.dataset.sum;if(petOut===id)petOut=null;else summonPet(id);writeSave();renderPanel()}));
     b.querySelectorAll('[data-take]').forEach(x=>x.addEventListener('click',()=>{const p=pets.find(q=>q.id===+x.dataset.take);if(!p)return;
       for(const k in p.bag){inv[k]=(inv[k]||0)+p.bag[k];hotAdd(k)}toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
@@ -799,7 +799,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
-    <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>打倒狼王後每個人都會得到一隻狼崽。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
+    <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li></ul></div>
     ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
@@ -1033,7 +1033,7 @@ function toAll(o){onPrivate(o);for(const id of others.keys())sendTo(id,Object.as
 function onPrivate(m){switch(m.t){
   case'love':floats.push({x:m.x,y:m.y-24,txt:`♥ ${m.n}/${TAME_N}`,t:1.2,col:'#ff9fb8'});break;
   case'tame':addPet('boar');banner('馴服了野豬','打開背包的「寵物」分頁可以召喚或收回');break;
-  case'pup':addPet('wolf');break;
+  case'pup':if(!pets.some(p=>p.k==='wolf'))addPet('wolf');break; // each player's first Wolf King only; pets can't be released, so owning a pup means this one's used
 }}
 function giveAll(k,n,x,y){giveTo(ME,k,n,x,y);for(const id of others.keys())giveTo(id,k,n,x,y)}
 function refund(from,cost,msg){if(from===ME){for(const k in cost)inv[k]=(inv[k]||0)+cost[k];toast(msg)}else sendTo(from,{t:'refund',cost,msg})}
@@ -1057,7 +1057,7 @@ function handleAct(m,from){switch(m.t){
     let dy=0;for(const k in back){giveTo(from,k,back[k],s.x,s.y-dy);dy+=14}break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
-  case'summon':{if(boss||flags.boss){refund(from,{獠牙:3,樹脂:5},'狼王已經醒了');break}
+  case'summon':{if(boss){refund(from,{獠牙:3,樹脂:5},'狼王已經醒了');break}
     flags.summoned=true;const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('boss',sp.x,sp.y);evt({t:'bn',h:'灰鬃狼王',s:'紅光：衝刺撲擊・橘光：往前三連抓・綠光：原地怒吼，周圍一大圈都會受傷，快跑出圈外或翻滾'});break}
 }}
 function applyEvt(m){switch(m.t){
@@ -1182,7 +1182,7 @@ function render(){
     dctx.globalCompositeOperation='destination-out';const k=SCALE/2;
     const light=(x,y,r,f)=>{const X=(x-cx)*k+dark.width/2,Y=(y-cy)*k+dark.height/2,R=r*k;if(X<-R||Y<-R||X>dark.width+R||Y>dark.height+R)return;const g=dctx.createRadialGradient(X,Y,0,X,Y,R);g.addColorStop(0,`rgba(0,0,0,${f})`);g.addColorStop(1,'rgba(0,0,0,0)');dctx.fillStyle=g;dctx.fillRect(X-R,Y-R,R*2,R*2)};
     light(P.x,P.y,190,.75);for(const o of others.values())if(!o.dead)light(o.x,o.y,190,.75);for(const s of structs)if(s.k==='furnace'&&s.fz.burn>0)light(s.x,s.y,140,.6);for(const s of structs)if(s.k==='fire')light(s.x,s.y,300+Math.sin(time*9+s.anim)*8,1);
-    if(!flags.boss)light(altar.x,altar.y,120,.6);
+    light(altar.x,altar.y,120,.6);
     ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(dark,0,0,cv.width,cv.height);
     // warm glow
     ctx.globalCompositeOperation='lighter';ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
@@ -1247,7 +1247,7 @@ function drawStruct(s){const x=s.x,y=s.y;
   case'bed':shadow(x+2,y+8,18,6);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-16,y-18,32,26);ctx.fillStyle='#e6dcc4';ctx.fillRect(x-13,y-15,26,7);ctx.fillStyle='#7a3b33';ctx.fillRect(x-13,y-8,26,13);ctx.fillStyle='#9a5a3e';ctx.fillRect(x-13,y-8,26,2);break;
   case'altar':{shadow(x+3,y+8,32,10);ctx.fillStyle='#55605c';ctx.fillRect(x-30,y-8,60,16);ctx.fillStyle='#6d7873';ctx.fillRect(x-30,y-8,60,4);
     ctx.fillStyle='#5f6a66';ctx.beginPath();ctx.moveTo(x-14,y-6);ctx.lineTo(x-12,y-54);ctx.lineTo(x,y-62);ctx.lineTo(x+12,y-54);ctx.lineTo(x+14,y-6);ctx.closePath();ctx.fill();
-    const glow=flags.boss?'#3c4542':`rgba(224,166,70,${.6+Math.sin(time*2)*.3})`;ctx.strokeStyle=glow;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-50);ctx.lineTo(x,y-18);ctx.moveTo(x,y-44);ctx.lineTo(x+6,y-36);ctx.moveTo(x,y-34);ctx.lineTo(x-6,y-26);ctx.stroke();
+    const glow=`rgba(224,166,70,${.6+Math.sin(time*2)*.3})`;ctx.strokeStyle=glow;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-50);ctx.lineTo(x,y-18);ctx.moveTo(x,y-44);ctx.lineTo(x+6,y-36);ctx.moveTo(x,y-34);ctx.lineTo(x-6,y-26);ctx.stroke();
     ctx.fillStyle='#d8d2c4';for(const dx of[-22,22]){ctx.beginPath();ctx.ellipse(x+dx,y-2,4,2.5,0,0,6.28);ctx.fill()}break}
   }}
 // boar art, facing +x. Paths are built once so 20-odd boars stay cheap to draw
@@ -1451,7 +1451,7 @@ function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=
   const at=(x,y)=>[S/2+(x-cx)*k,S/2+(y-cy)*k];
   for(const s of structs){if(!seen[s.cell])continue;const[x,y]=at(s.x,s.y);g.fillStyle=MAPCOL[s.k];
     if(s.o){const L=CELL/2*k,t=.8*u;if(s.o==='v')g.fillRect(x-t,y-L,t*2,L*2);else g.fillRect(x-L,y-t,L*2,t*2)}else{const r=2.6*u;g.fillRect(x-r,y-r,r*2,r*2)}}
-  if(seen[altar.cell]){const[x,y]=at(altar.x,altar.y);g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle=flags.boss?'#6d7873':'#e0a646';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(-3.5*u,-3.5*u,7*u,7*u);g.strokeRect(-3.5*u,-3.5*u,7*u,7*u);g.restore()}
+  if(seen[altar.cell]){const[x,y]=at(altar.x,altar.y);g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle='#e0a646';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(-3.5*u,-3.5*u,7*u,7*u);g.strokeRect(-3.5*u,-3.5*u,7*u,7*u);g.restore()}
   for(const o of others.values())if(!o.dead){const[x,y]=at(o.x,o.y);g.fillStyle=CAPES[o.id%CAPES.length];g.strokeStyle='#fff';g.lineWidth=u;g.beginPath();g.arc(x,y,3.2*u,0,6.28);g.fill();g.stroke()}
   {const[x,y]=at(P.x,P.y);g.save();g.translate(x,y);g.rotate(P.face);g.fillStyle='#ffe08a';g.strokeStyle='#000';g.lineWidth=u;g.beginPath();g.moveTo(6*u,0);g.lineTo(-4*u,-4*u);g.lineTo(-2*u,0);g.lineTo(-4*u,4*u);g.closePath();g.fill();g.stroke();g.restore()}}
 function toggleMap(on){const m=$('bigmap');on=on===undefined?m.hidden:on;if(on&&(!$('intro').hidden||!$('dead').hidden))return;
