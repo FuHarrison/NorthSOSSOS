@@ -461,7 +461,7 @@ function connectLand(){const N=COLS*ROWS,lab=new Int32Array(N).fill(-1),comps=[]
   for(let c=0;c<N;c++){if(!biome[c]||lab[c]>=0)continue;const id=comps.length,cells=[c];lab[c]=id;for(let h=0;h<cells.length;h++)for(const n of nb(cells[h]))if(biome[n]&&lab[n]<0){lab[n]=id;cells.push(n)}comps.push(cells)}
   const main=lab[ci(W/2,H/2)],prev=new Int32Array(N).fill(-2),q=new Int32Array(N);let head=0,tail=0;for(const c of comps[main]){prev[c]=-1;q[tail++]=c}
   while(head<tail){const c=q[head++];for(const n of nb(c)){if(prev[n]!==-2)continue;
-    if(biome[n]&&comps[lab[n]].length>=25){for(let p=c;p>=0;p=prev[p])if(!biome[p]){for(const b of[p,p+1,p+COLS])if(b<N&&!biome[b]){biome[b]=2;cellH[b]=.42}}
+    if(biome[n]&&lab[n]>=0&&comps[lab[n]].length>=25){ // lab<0: a bridge laid just now, not an island of its ownfor(let p=c;p>=0;p=prev[p])if(!biome[p]){for(const b of[p,p+1,p+COLS])if(b<N&&!biome[b]){biome[b]=2;cellH[b]=.42}}
       for(const m of comps[lab[n]]){prev[m]=-1;q[tail++]=m}}
     else{prev[n]=c;q[tail++]=n}}}}
 function genWorld(){
