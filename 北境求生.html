@@ -289,6 +289,8 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 const cv=document.getElementById('game'),ctx=cv.getContext('2d');
 const dark=document.createElement('canvas'),dctx=dark.getContext('2d');
 const $=id=>document.getElementById(id);
+// server.js runs this same script in Node as the multiplayer host (simulates the world, draws nothing): see startSim in server.js
+const HEADLESS=!!globalThis.__NORTH_HEADLESS__;
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 if(TOUCH)document.body.classList.add('touch');
 let DPR=1,VW=0,VH=0,SCALE=1;
@@ -545,8 +547,9 @@ function writeSave(ack){if(!ready||noSave)return;
   if(MODE==='solo'){try{const w=worldData();w.flags.ate=ate;localStorage.setItem(SKEY,JSON.stringify(Object.assign(personal(),w)))}catch(e){}return}
   if(MODE==='host')net({t:'wsave',d:worldData(),ack:ack==='w'?1:0});
   if(started)net({t:'psave',d:personal(),ack:ack==='p'?1:0})}
+// multiplayer: only a tab on the host machine (netInfo.local) gets the button; the server archives the world and restarts it
 function resetSave(){
-  if(MODE==='host'){noSave=true;try{localStorage.removeItem(WKEY);sessionStorage.removeItem(MAPW_KEY)}catch(e){}net({t:'wipe'});return} // reloads on 'wiped'
+  if(MODE!=='solo'){noSave=true;try{localStorage.removeItem(WKEY);sessionStorage.removeItem(MAPW_KEY)}catch(e){}net({t:'wipe'});return} // reloads on 'wiped'
   try{localStorage.removeItem(SKEY);sessionStorage.removeItem(MAPW_KEY)}catch(e){}location.reload()}
 function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=!!s.flags.summoned;flags.boss=!!s.flags.boss}
   // 舊存檔的木牆在格子中央、沒有方向：上下有鄰居的在左緣放直牆，左右有鄰居（或沒鄰居）的在下緣放橫牆，轉角兩種都放，圍起來的地方才不會漏
@@ -849,7 +852,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
-    ${MODE==='client'?'':`<button class="danger" id="wipe" type="button">${MODE==='host'?'開始新世界（刪除這個世界，大家會重新連線）':'開始新世界（刪除存檔）'}</button>`}</div>`;
+    ${MODE==='solo'||netInfo&&netInfo.local?`<button class="danger" id="wipe" type="button">${MODE==='solo'?'開始新世界（刪除存檔）':'開始新世界（目前的世界會改名保留，大家會重新連線）'}</button>`:''}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
 const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear',craftQty=1;const craftSel={};
 let furnaceC=-1,fzSig='';
@@ -980,7 +983,7 @@ function updateLocal(dt){
   if(nearFire){P.restT+=dt;if(P.restT>3&&P.rest<240){if(P.rest<=0)toast('獲得「休息」');P.rest=300}}else P.restT=0;
 }
 function updateFx(dt){
-  sea.update(dt);
+  if(!HEADLESS)sea.update(dt);
   // particles
   for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.9;p.vy*=.9;if(p.t<=0)parts.splice(i,1)}
   for(let i=floats.length-1;i>=0;i--){const f=floats[i];f.t-=dt;f.y-=22*dt;if(f.t<=0)floats.splice(i,1)}
@@ -1911,7 +1914,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(ready){if(!paused)updateLocal(dt);
     if(MODE==='solo'){if(!paused){updateWorld(dt);updatePet(dt);updateFx(dt)}else if(panelTab==='furnace'&&!$('panel').hidden)tickFurnaces(dt)}
     else{if(MODE==='host')updateWorld(dt);else tickClient(dt);if(started)updatePet(dt);tickOthers(dt);updateFx(dt);netTick(dt)}
-    render();hudT-=dt;if(hudT<=0){hudT=.1;hud();refreshFurnacePanel()}}
+    if(!HEADLESS){render();hudT-=dt;if(hudT<=0){hudT=.1;hud();refreshFurnacePanel()}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 
@@ -1923,11 +1926,10 @@ function setupIntro(){
   else{const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     $('introBtns').innerHTML=`<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">`+
       `<input class="namein pinin" id="pinIn" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN" aria-label="PIN">`+
-      (MODE==='host'?(save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`)
-      :`<button class="act go" id="go" type="button">加入（第 ${day} 天）</button>`)+
+      `<button class="act go" id="go" type="button">加入（第 ${day} 天）</button>`+(netInfo.local?`<button class="act" id="fresh" type="button">新世界</button>`:'')+
       `<p class="sub" id="loginMsg" style="flex-basis:100%"></p>`;
     const n=$('introNet');n.hidden=false;
-    n.innerHTML=MODE==='host'?`你是主機。同事在瀏覽器網址列輸入：<br>${netInfo.ips.length?netInfo.ips.map(ip=>`<b>http://${ip}:${netInfo.port}</b>`).join('<br>'):'（找不到區網 IP，請確認這台電腦有接上公司網路）'}<br><small style="color:var(--mute)">這個分頁要一直開著，關掉世界就停了。</small>`:'已連上主機，你會跟大家在同一個世界。';
+    n.innerHTML=netInfo.local?`這台電腦是主機。同事在瀏覽器網址列輸入：<br>${netInfo.ips.length?netInfo.ips.map(ip=>`<b>http://${ip}:${netInfo.port}</b>`).join('<br>'):'（找不到區網 IP，請確認這台電腦有接上公司網路）'}<br><small style="color:var(--mute)">世界由黑色的伺服器視窗在跑，這個分頁可以隨時關掉；關掉黑色視窗世界才會停。</small>`:'已連上主機，你會跟大家在同一個世界。';
     for(const id of['nameIn','pinIn'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
     $('nameIn').addEventListener('input',pinHint);pinHint()}
   $('go').addEventListener('click',()=>{
