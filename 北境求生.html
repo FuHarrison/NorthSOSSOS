@@ -200,6 +200,8 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .ctl{font-size:12px;color:var(--mute);line-height:1.8;border-top:1px solid var(--line);padding-top:10px}
 .namein{flex:1 1 140px;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:9px 12px;font:inherit;font-size:15px;color:var(--ink)}
 .namein:focus{outline:2px solid var(--accent);outline-offset:1px}
+.namein.pinin{flex:0 1 110px}
+#intro #loginMsg{font-size:12px}#intro #loginMsg.err{color:#ff8a7a}
 #introNet{font-size:13px;color:var(--accent2);line-height:1.7;margin:0}
 #introNet b{color:var(--ink);user-select:text;-webkit-user-select:text}
 @media (prefers-reduced-motion:reduce){.bar i,#toast,#banner{transition:none}}
@@ -495,15 +497,22 @@ function populate(){
 }
 
 /* ---------- load / save ---------- */
-// solo keeps everything in SKEY; in multiplayer the host keeps the world (WKEY) and every player keeps their own bag per world+name
+// solo keeps everything in localStorage (SKEY). In multiplayer everything is sent to server.js and stored in saves/ on the host machine:
+// the host sends the world (wsave), every player sends their own bag (psave) after logging in with name + PIN.
+// WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
+let noSave=false,loggingIn=false,kicked=false;
 function worldData(){return{seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen()}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
-function writeSave(){if(!ready)return;try{
-  if(MODE==='solo'){const w=worldData();w.flags.ate=ate;localStorage.setItem(SKEY,JSON.stringify(Object.assign(personal(),w)))}
-  else{if(MODE==='host')localStorage.setItem(WKEY,JSON.stringify(worldData()));if(started)localStorage.setItem(pkey(),JSON.stringify(personal()))}}catch(e){}}
-function resetSave(){try{localStorage.removeItem(MODE==='host'?WKEY:SKEY)}catch(e){}location.reload()}
+// ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
+function writeSave(ack){if(!ready||noSave)return;
+  if(MODE==='solo'){try{const w=worldData();w.flags.ate=ate;localStorage.setItem(SKEY,JSON.stringify(Object.assign(personal(),w)))}catch(e){}return}
+  if(MODE==='host')net({t:'wsave',d:worldData(),ack:ack==='w'?1:0});
+  if(started)net({t:'psave',d:personal(),ack:ack==='p'?1:0})}
+function resetSave(){
+  if(MODE==='host'){noSave=true;try{localStorage.removeItem(WKEY)}catch(e){}net({t:'wipe'});return} // reloads on 'wiped'
+  try{localStorage.removeItem(SKEY)}catch(e){}location.reload()}
 function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=!!s.flags.summoned;flags.boss=!!s.flags.boss}
   // 舊存檔的木牆在格子中央、沒有方向：上下有鄰居的在左緣放直牆，左右有鄰居（或沒鄰居）的在下緣放橫牆，轉角兩種都放，圍起來的地方才不會漏
   const old=new Set((s.structs||[]).filter(st=>st.k==='wall'&&!st.o).map(st=>ci(st.x,st.y)));
@@ -521,7 +530,8 @@ function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]
   petOut=pets.some(p=>p.id===s.petOut)?s.petOut:null;const cp=curPet();if(cp)placePet(cp,false);
   if(s.seen)unpackSeen(s.seen)}
 function bootSolo(){MODE='solo';save=loadKey(SKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
-function bootHost(){save=loadKey(WKEY);seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;setupIntro()}
+function bootHost(w){const old=w?null:loadKey(WKEY);save=w||old;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;
+  if(old)writeSave('w');setupIntro()}
 function bootClient(m){seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
   for(const[k,x,y,o,fz]of m.structs)addStruct(k,x,y,o||undefined,fz||undefined);
@@ -1108,12 +1118,16 @@ function netTick(dt){
 function netMsg(t){$('netTxt').textContent=t;$('netbox').hidden=!t}
 function onNet(m){
   switch(m.t){
-  case'hello':myId=m.id;netInfo=m;if(m.role==='host'){MODE='host';bootHost()}else{MODE='client';if(!m.hostReady)netMsg('等待主機開啟世界…（主機那台電腦要先執行「開主機.bat」）')}return;
+  case'hello':myId=m.id;netInfo=m;if(m.role==='host'){MODE='host';bootHost(m.world)}else{MODE='client';if(!m.hostReady)netMsg('等待主機開啟世界…（主機那台電腦要先執行「開主機.bat」）')}return;
   case'host':if(MODE==='client'){writeSave();location.reload()}return;
   case'nohost':writeSave();netMsg('主機離線了。主機回來後會自動重新連上。');return;
   case'leave':others.delete(m.id);return;
   case'peer':if(MODE==='host'&&ready)sendWorld(m.id);return;
   case'world':if(MODE==='client'&&!ready){netMsg('');bootClient(m)}return;
+  case'login':onLogin(m);return;
+  case'saved':try{localStorage.removeItem(m.k==='w'?WKEY:pkey())}catch(e){}return;
+  case'wiped':location.reload();return;
+  case'kicked':kicked=true;noSave=true;netMsg('你的名字在別的分頁或電腦登入了，這裡已經離線。');return;
   }
   if(!ready)return;
   if(m.t==='st'){updateOther(m);return}
@@ -1129,7 +1143,7 @@ function onNet(m){
 function connect(){
   try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws')}catch(e){bootSolo();return}
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}onNet(m)};
-  ws.onclose=()=>{if(MODE==='pending'){bootSolo();return}writeSave();netMsg('跟主機的連線斷了，重新連線中…');retry()}}
+  ws.onclose=()=>{if(MODE==='pending'){bootSolo();return}if(kicked)return;writeSave();netMsg('跟主機的連線斷了，重新連線中…');retry()}}
 function retry(){setTimeout(()=>fetch(location.href,{cache:'no-store'}).then(()=>location.reload(),retry),3000)}
 
 /* ---------- effects ---------- */
@@ -1758,17 +1772,34 @@ function setupIntro(){
   if(MODE==='solo')$('introBtns').innerHTML=save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`;
   else{const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     $('introBtns').innerHTML=`<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">`+
+      `<input class="namein pinin" id="pinIn" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN" aria-label="PIN">`+
       (MODE==='host'?(save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`)
-      :`<button class="act go" id="go" type="button">加入（第 ${day} 天）</button>`);
+      :`<button class="act go" id="go" type="button">加入（第 ${day} 天）</button>`)+
+      `<p class="sub" id="loginMsg" style="flex-basis:100%"></p>`;
     const n=$('introNet');n.hidden=false;
     n.innerHTML=MODE==='host'?`你是主機。同事在瀏覽器網址列輸入：<br>${netInfo.ips.length?netInfo.ips.map(ip=>`<b>http://${ip}:${netInfo.port}</b>`).join('<br>'):'（找不到區網 IP，請確認這台電腦有接上公司網路）'}<br><small style="color:var(--mute)">這個分頁要一直開著，關掉世界就停了。</small>`:'已連上主機，你會跟大家在同一個世界。';
-    $('nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()})}
-  $('go').addEventListener('click',()=>{let fresh=!save;
-    if(MODE!=='solo'){myName=($('nameIn').value.trim()||myName).slice(0,10);try{localStorage.setItem('northland-name',myName)}catch(e){}
-      const ps=loadKey(pkey());fresh=!ps;if(ps)applyPersonal(ps);cam.x=P.x;cam.y=P.y}
-    started=true;$('intro').hidden=true;paused=false;if(fresh)banner(`第 ${day} 天`,'先砍幾棵樹吧')});
+    for(const id of['nameIn','pinIn'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
+    $('nameIn').addEventListener('input',pinHint);pinHint()}
+  $('go').addEventListener('click',()=>{
+    if(MODE==='solo'){begin(!save);return}
+    if(loggingIn)return;
+    myName=($('nameIn').value.trim()||myName).slice(0,10);try{localStorage.setItem('northland-name',myName)}catch(e){}
+    loggingIn=true;$('go').disabled=true;loginMsg('登入中…');
+    net({t:'login',n:myName,pin:$('pinIn').value.trim(),tok:loadTok()[myName]||'',seed})});
   if($('fresh'))$('fresh').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.c)resetSave();else{b.dataset.c='1';b.textContent='確認刪除存檔？'}});
 }
+function begin(fresh){started=true;$('intro').hidden=true;paused=false;if(fresh)banner(`第 ${day} 天`,'先砍幾棵樹吧')}
+// 登入：名字 + PIN。server 驗證後回傳記號（這台電腦記住，下次免輸入 PIN）和這個人在這個世界的存檔
+function loadTok(){try{return JSON.parse(localStorage.getItem('northland-tok'))||{}}catch(e){return{}}}
+function loginMsg(t,err){const e=$('loginMsg');if(!e)return;e.textContent=t;e.classList.toggle('err',!!err)}
+function pinHint(){const n=$('nameIn').value.trim();
+  loginMsg(loadTok()[n]?`這台電腦已記住「${n}」，直接按按鈕就好。`:'第一次用這個名字時，輸入的 PIN（4～8 位數字）就是你之後的密碼。不要用你的真實密碼。')}
+function onLogin(m){loggingIn=false;const g=$('go');if(g)g.disabled=false;
+  if(!m.ok){loginMsg(m.msg,true);return}
+  try{const t=loadTok();t[m.n]=m.tok;localStorage.setItem('northland-tok',JSON.stringify(t))}catch(e){}
+  myName=m.n;let ps=m.d;const old=ps?null:loadKey(pkey()); // server 上沒有 → 把這台瀏覽器的舊存檔搬上去
+  ps=ps||old;if(ps)applyPersonal(ps);cam.x=P.x;cam.y=P.y;
+  begin(!ps);if(old)writeSave('p')}
 if(MODE==='solo')bootSolo();else{$('introBtns').innerHTML='<p class="sub">連線中…</p>';connect()}
 if(TOUCH)$('touch').hidden=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden)writeSave()});

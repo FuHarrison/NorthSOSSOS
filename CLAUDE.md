@@ -72,11 +72,16 @@ This split is the core of the multiplayer design. Keep it when adding features.
 
 In multiplayer the world keeps running while the panel is open or the player is dead. Only local input stops.
 
-### Saves (localStorage)
+### Saves
 
-- Solo saves everything under `northland-save-v1`. Keep this format backward compatible. The old `flags.ate` field is still read into `ate`.
-- The host saves the world under `northland-mp-world-v1`.
-- Each player saves their own bag under `northland-mp-p-${seed}-${name}`. This happens only after the player has started (`started`).
+- Solo saves everything in localStorage under `northland-save-v1`. Keep this format backward compatible. The old `flags.ate` field is still read into `ate`.
+- Multiplayer saves live on the host machine in `saves/` (gitignored), written by `server.js`. `writeSave()` sends `wsave` (host only, `worldData()`) and `psave` (after `started`, `personal()`). The server handles `login`/`psave`/`wsave`/`wipe` itself (`SRV` in server.js) and never forwards them, because the host passes every other message to `handleAct`.
+  - `saves/world.json`: sent to the host in `hello.world`; `bootHost(w)` uses it.
+  - `saves/accounts.json`: per name, a scrypt PIN hash (`salt:hash`) and sha256 hashes of up to 5 remember-me tokens. Deleting a name's `pin` lets that name register a new PIN.
+  - `saves/players/<seed>-<name>.json`: returned in the `login` reply (`d`). Characters invalid in file names become `%xx`.
+  - Files are read fresh on every load (no cache) and written via temp file + rename, keeping a `.bak` that `loadSave` falls back to. `wipe` renames `world.json` to `world-<timestamp>.json`.
+- Login: the player sends name + PIN (or the token in localStorage `northland-tok`). 5 wrong PINs lock PIN entry for that name for 60 s; a valid token is not blocked. A new valid login kicks the older connection with the same name (`kicked`), except the host's, which is refused instead.
+- Migration: the old localStorage saves (`northland-mp-world-v1`, `northland-mp-p-${seed}-${name}`) are uploaded once when the server has none, with `ack`; the browser copy is removed on the `saved` reply.
 
 ### Behaviour that differs from solo
 
