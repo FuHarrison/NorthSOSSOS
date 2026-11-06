@@ -304,7 +304,8 @@ function loadKey(k){try{const s=localStorage.getItem(k);return s?JSON.parse(s):n
 // Everything is sized once at load, so a tab that finds out it has the wrong size (a client joining, a host starting over) remembers the right one and reloads
 const OLD_MAP=3200,NEW_MAP=7200,MAPW_KEY='northland-mapw';
 const mapWOf=s=>s?(s.mapW||OLD_MAP):NEW_MAP;
-const W=(()=>{const http=location.protocol.startsWith('http');let ov=null;try{ov=http&&sessionStorage.getItem(MAPW_KEY)}catch(e){}return +ov||mapWOf(loadKey(http?WKEY:SKEY))})(),H=W,CELL=40,COLS=W/CELL,ROWS=H/CELL;
+// over http, server.js writes the current world's size into the page as __NORTH_MAPW, so clients start with the right size instead of reloading once
+const W=(()=>{const http=location.protocol.startsWith('http');let ov=null;try{ov=http&&sessionStorage.getItem(MAPW_KEY)}catch(e){}return http&&+globalThis.__NORTH_MAPW||+ov||mapWOf(loadKey(http?WKEY:SKEY))})(),H=W,CELL=40,COLS=W/CELL,ROWS=H/CELL;
 function wrongMapSize(want){if(want===W)return false;try{sessionStorage.setItem(MAPW_KEY,want)}catch(e){return false}location.reload();return true}
 let save=null,seed=0;
 

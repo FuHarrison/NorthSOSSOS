@@ -82,12 +82,12 @@ In multiplayer the world keeps running while the panel is open or the player is 
 ### Saves
 
 - Solo saves everything in localStorage under `northland-save-v1`. Keep this format backward compatible. The old `flags.ate` field is still read into `ate`.
-- World saves carry `mapW`. Saves without it are the old 3200 map, and `genWorld` must keep generating those exactly as before. New worlds use `NEW_MAP`. All map arrays are sized once at load, so a tab that learns it has the wrong size stores the right one in sessionStorage and reloads (`wrongMapSize`).
+- World saves carry `mapW`. Saves without it are the old 3200 map, and `genWorld` must keep generating those exactly as before. New worlds use `NEW_MAP`. All map arrays are sized once at load, so a tab that learns it has the wrong size stores the right one in sessionStorage and reloads (`wrongMapSize`). Over http, server.js writes the current world's size into the page as `window.__NORTH_MAPW` (tracked from `wsave`), which `W` uses first, so clients normally never reload.
 - Multiplayer saves live on the host machine in `saves/` (gitignored), written by `server.js`. `writeSave()` sends `wsave` (host only, `worldData()`) and `psave` (after `started`, `personal()`). The server handles `login`/`psave`/`wsave`/`wipe` itself (`SRV` in server.js) and never forwards them, because the host passes every other message to `handleAct`.
   - `saves/world.json`: sent to the sim in `hello.world`; `bootHost(w)` uses it. Only the sim may `wsave`.
   - `saves/accounts.json`: per name, a scrypt PIN hash (`salt:hash`) and sha256 hashes of up to 5 remember-me tokens. Deleting a name's `pin` lets that name register a new PIN.
   - `saves/players/<seed>-<name>.json`: returned in the `login` reply (`d`). Characters invalid in file names become `%xx`.
-  - Files are read fresh on every load (no cache) and written via temp file + rename, keeping a `.bak` that `loadSave` falls back to. `wipe` renames `world.json` to `world-<timestamp>.json`.
+  - Files are read fresh on every load (no cache) and written via temp file + rename, keeping a `.bak` that `loadSave` falls back to. `wipe` renames `world.json` to `world-<local YYYYMMDD-HHMMSS>.json`. `dailyBackup` copies `world.json`, `accounts.json` and `players/*.json` to `saves/backups/<YYYYMMDD>/` at startup and hourly (once per day), keeping the newest 7.
 - Login: the player sends name + PIN (or the token in localStorage `northland-tok`). 5 wrong PINs lock PIN entry for that name for 60 s; a valid token is not blocked. A new valid login kicks the older connection with the same name (`kicked`).
 - Migration: a player's old localStorage bag (`northland-mp-p-${seed}-${name}`) is uploaded once on login when the server has none, with `ack`; the browser copy is removed on the `saved` reply. (The old browser-host world, `northland-mp-world-v1`, is no longer uploaded: the sim has no browser storage.)
 

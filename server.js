@@ -9,8 +9,10 @@ const FILE=path.join(__dirname,'北境求生.html');
 const server=http.createServer((req,res)=>{
   const u=req.url.split('?')[0];
   if(u!=='/'&&u!=='/index.html'){res.writeHead(404);res.end();return}
-  fs.readFile(FILE,(e,d)=>{
+  fs.readFile(FILE,'utf8',(e,d)=>{
     if(e){res.writeHead(500,{'Content-Type':'text/plain; charset=utf-8'});res.end('找不到 北境求生.html，請把它跟 server.js 放在同一個資料夾');return}
+    // 先告訴網頁現在世界的地圖大小，遊戲一開始就用對的大小，不用發現不對再重新載入
+    if(mapW)d=d.replace(/\r?\n<script>\r?\n/,s=>`\n<script>window.__NORTH_MAPW=${mapW}</script>`+s);
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(d)});
 });
 
@@ -27,6 +29,18 @@ function storeSave(file,data){const tmp=file+'.tmp';fs.writeFileSync(tmp,JSON.st
   if(fs.existsSync(file))fs.copyFileSync(file,file+'.bak');fs.renameSync(tmp,file)}
 // 名字裡不能當檔名的字元換成 %xx，其他（含中文）照原樣，檔名才看得懂
 const playerFile=(seed,n)=>path.join(PLAYER_DIR,`${seed}-${n.replace(/[\\/:*?"<>|%\x00-\x1f]/g,c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0'))}.json`);
+// 本地時間的 YYYYMMDD-HHMMSS（檔名用）
+const stamp=(d=new Date())=>{const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`};
+// 每天備份一次到 saves/backups/<日期>/（世界、帳號、所有玩家），只留最近 7 天
+const BACKUP_DIR=path.join(SAVE_DIR,'backups'),BACKUP_KEEP=7;
+function dailyBackup(){try{
+  const dir=path.join(BACKUP_DIR,stamp().slice(0,8));if(fs.existsSync(dir))return;
+  fs.mkdirSync(path.join(dir,'players'),{recursive:true});
+  for(const f of[WORLD_FILE,ACCT_FILE])if(fs.existsSync(f))fs.copyFileSync(f,path.join(dir,path.basename(f)));
+  for(const f of fs.readdirSync(PLAYER_DIR))if(f.endsWith('.json'))fs.copyFileSync(path.join(PLAYER_DIR,f),path.join(dir,'players',f));
+  const old=fs.readdirSync(BACKUP_DIR).filter(f=>/^\d{8}$/.test(f)).sort().slice(0,-BACKUP_KEEP);
+  for(const f of old)fs.rmSync(path.join(BACKUP_DIR,f),{recursive:true,force:true});
+  console.log(`已備份存檔到 saves/backups/${path.basename(dir)}`)}catch(e){console.error('備份失敗：',e.message)}}
 const hashPin=(pin,salt)=>crypto.scryptSync(pin,salt,32).toString('hex');
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const fails=new Map(); // 名字 → {n: 連續錯幾次, until: 鎖到什麼時候}
@@ -61,18 +75,18 @@ function login(p,m){
 const SRV={
   login,
   psave(p,m){if(!p.name||!m.d||typeof m.d!=='object')return;storeSave(playerFile(p.seed,p.name),m.d);if(m.ack)send(p,{t:'saved',k:'p'})},
-  wsave(p,m){if(p!==host||!m.d||typeof m.d!=='object')return;storeSave(WORLD_FILE,m.d);if(m.ack)send(p,{t:'saved',k:'w'})},
+  wsave(p,m){if(p!==host||!m.d||typeof m.d!=='object')return;storeSave(WORLD_FILE,m.d);mapW=m.d.mapW||mapW;if(m.ack)send(p,{t:'saved',k:'w'})},
   // 「新世界」：只有主機那台電腦的分頁可以按。停掉世界（不存檔）→ 舊世界改名留著 → 重新開一個世界
   wipe(p){if(!p.local||p.sim)return;
     stopSim(false);
-    if(fs.existsSync(WORLD_FILE)){const ts=new Date().toISOString().replace(/[-:]/g,'').replace('T','-').slice(0,15);fs.renameSync(WORLD_FILE,path.join(SAVE_DIR,`world-${ts}.json`))}
+    if(fs.existsSync(WORLD_FILE))fs.renameSync(WORLD_FILE,path.join(SAVE_DIR,`world-${stamp()}.json`));
     fs.rmSync(WORLD_FILE+'.bak',{force:true});console.log('開了新世界，舊世界已改名保留');send(p,{t:'wiped'});startSim()}};
 
 /* ---------- 世界模擬：server 自己跑世界 ---------- */
 // 在 Node 裡執行北境求生.html 裡的同一份遊戲程式，當成主機（MODE='host'）：怪物、資源、熔爐、Boss、日夜和存世界都照原本主機分頁的邏輯，只是不畫畫面。
 // 遊戲程式以為自己在瀏覽器裡：DOM、畫布、Path2D 都換成什麼都不做的替身，WebSocket 換成直接接到下面的轉發。
 const SIM_FPS=30;
-let sim=null;
+let sim=null,mapW=0; // mapW：現在世界的地圖大小（送網頁時告訴瀏覽器）；新世界第一次存檔前是 0
 function noop(){}
 const stub=new Proxy(noop,{get:(t,k)=>k===Symbol.toPrimitive?()=>'':k===Symbol.iterator?function*(){}:stub,set:()=>true,apply:()=>stub,construct:()=>stub});
 function memStore(init){const d=new Map(Object.entries(init));return{getItem:k=>d.has(k)?d.get(k):null,setItem:(k,v)=>{d.set(k,String(v))},removeItem:k=>{d.delete(k)}}}
@@ -80,6 +94,7 @@ function startSim(){
   const code=(fs.readFileSync(FILE,'utf8').match(/\n<script>\r?\n([\s\S]*?)\r?\n<\/script>/)||[])[1];
   if(!code){console.error('北境求生.html 裡找不到遊戲程式，世界沒有啟動');return}
   const world=loadSave(WORLD_FILE),me={alive:true,hidden:false,vis:[],errs:0};
+  mapW=world?world.mapW||0:0;
   // 給遊戲程式的訊息延後一拍送，免得在它自己送訊息的途中又被叫進去
   me.peer={id:++nextId,sim:true,local:false,addr:'server',push:s=>setImmediate(()=>{if(me.alive&&me.ws&&me.ws.onmessage)me.ws.onmessage({data:s})})};
   class FakeSocket{constructor(){this.readyState=1;me.ws=this;setImmediate(()=>{if(me.alive)onOpen(me.peer)})}send(s){if(me.alive)onMsg(me.peer,s)}close(){}}
@@ -162,6 +177,7 @@ for(const sig of['SIGINT','SIGTERM','SIGHUP','SIGBREAK'])process.on(sig,shutdown
 
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`埠 ${PORT} 已被占用，換一個：node server.js 8081`:e.message);process.exit(1)});
 startSim();
+dailyBackup();setInterval(dailyBackup,60*60*1000); // 每小時檢查一次，換日後的第一次就備份
 server.listen(PORT,'0.0.0.0',()=>{
   console.log(`\n北境求生 主機已啟動（埠 ${PORT}）`);
   console.log(`主機這台：在瀏覽器開 http://localhost:${PORT}`);
