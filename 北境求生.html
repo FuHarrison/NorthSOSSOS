@@ -410,6 +410,9 @@ const ICON={
   胡蘿蔔種子:'<ellipse cx="8" cy="12" rx="2.2" ry="3.2" fill="#b59a5a" transform="rotate(-20 8 12)"/><ellipse cx="14" cy="9" rx="2.2" ry="3.2" fill="#c8ad6a" transform="rotate(15 14 9)"/><ellipse cx="15" cy="16" rx="2.2" ry="3.2" fill="#a88a4a" transform="rotate(35 15 16)"/>',
   蘑菇湯:bowl('#c98a4a','#e8dcc0'),胡蘿蔔湯:bowl('#e09a3a','#f0c070'),燉肉:bowl('#8a4a2b','#e07a2a'),
   pot:'<path d="M4 10h16v4a8 6 0 0 1-16 0z" fill="#3d403b"/><path d="M3 10h18" stroke="#6d716b" stroke-width="2"/><path d="M6 19l-1.5 3M18 19l1.5 3" stroke="#3d403b" stroke-width="1.6"/><path d="M9 7c0-2 2-2 2-4M14 7c0-2 2-2 2-4" stroke="#c8d6e2" stroke-width="1" fill="none"/>',
+  chair:'<rect x="6" y="3" width="3" height="18" fill="#6b4a2b"/><rect x="6" y="11" width="12" height="3" fill="#8f6a3e"/><rect x="15" y="14" width="3" height="7" fill="#6b4a2b"/><rect x="6" y="4" width="3" height="7" fill="#a87d4a"/>',
+  rug:'<ellipse cx="12" cy="13" rx="10" ry="6.5" fill="#8a6a4a"/><ellipse cx="12" cy="13" rx="7" ry="4" fill="#a8845a"/><path d="M3 10l-1-2M5 18l-1 2M19 18l1 2M21 10l1-2" stroke="#6b4e34" stroke-width="1.4"/>',
+  banner:'<rect x="5" y="2" width="2" height="20" fill="#6b4a2b"/><path d="M7 4h12v11l-6-3-6 3z" fill="#a83a32"/><circle cx="13" cy="8.5" r="2.2" fill="#e0a646"/>',
   plot:'<rect x="2" y="7" width="20" height="12" rx="1.5" fill="#5a3d22"/><path d="M4 10h16M4 13h16M4 16h16" stroke="#3d2a17" stroke-width="1.2"/><path d="M7 10V7M12 13V9.5M17 10V7" stroke="#6fae3e" stroke-width="1.6"/>',
   木盾:shieldI('#8f6a3e','#d9b07a'),青銅盾:shieldI('#b07a36','#e6b468'),鐵盾:shieldI('#8a939b','#c8cfd5'),
   鐵盔:helm('#8a939b','#c8cfd5'),鐵甲:bodyA('#8a939b','#c8cfd5'),鐵護腿:legsA('#757e86','#c8cfd5'),
@@ -496,6 +499,9 @@ const RECIPES=[
   {id:'rack',name:'工具架',cost:{木頭:10,鐵錠:3,皮革:4},build:true,bench:true,up:true,desc:'工作台擴充件：蓋在工作台旁邊，工作台再升一級。樹精法杖、樹精裝備要 Lv3 工作台。'},
   {id:'pot',name:'料理鍋',cost:{石頭:6,銅錠:2},build:true,bench:true,desc:'放在營火旁邊（2 格內）才能煮東西。按 E 打開料理清單。'},
   {id:'plot',name:'菜圃',cost:{木頭:4,石頭:2},build:true,desc:'按 E 種下種子，過一陣子就能收成。走得過去，不會擋路。'},
+  {id:'chair',name:'椅子',cost:{木頭:6},build:true,bench:true,desc:'家具，舒適度 +1。在營火旁休息時，附近每多一種家具，「休息」就維持更久。'},
+  {id:'rug',name:'毛皮地毯',cost:{皮革:4},build:true,bench:true,desc:'家具，舒適度 +1。走得過去，不會擋路。'},
+  {id:'banner',name:'旗幟',cost:{木頭:4,皮革:2,莓果:2},build:true,bench:true,desc:'家具，舒適度 +1。'},
   {id:'chest',name:'箱子',cost:{木頭:10},build:true,bench:true,desc:`存放東西用，可以放 ${CHEST_SLOTS} 格。拆掉時裡面的東西會退回給你。`},
   {id:'boat',name:'船',cost:{木頭:20,樹脂:4},build:true,bench:true,desc:'放在岸邊的水面上。按 E 上船就能出海，靠岸再按 E 下船，船會停在原地。'},
   {id:'lamp',name:'水晶燈',cost:{魔力水晶:3,石頭:4},build:true,bench:true,desc:'用魔法森林的魔力水晶做的燈，整夜照亮周圍。'},
@@ -803,7 +809,7 @@ function addWall(k,x,y,o){if(o!=='v')o='h';const g=snapWall(o,x,y),grid=o==='v'?
   const s={k,x:g.x,y:g.y,o,cell:g.c,anim:0};structs.push(s);grid[g.c]=s;return s}
 
 /* ---------- collision ---------- */
-const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17,lamp:9,chest:13,anvil:12,rack:14,pot:11,plot:0},WALL_T=6;
+const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17,lamp:9,chest:13,anvil:12,rack:14,pot:11,plot:0,chair:9,rug:0,banner:6},WALL_T=6;
 function wallHit(w,x,y,r){const T=WALL_T+r,L=CELL/2+r;return w.o==='v'?Math.abs(x-w.x)<T&&Math.abs(y-w.y)<L:Math.abs(y-w.y)<T&&Math.abs(x-w.x)<L}
 function blocked(x,y,r,e){
   if(e&&e.boat)return!(isSea(x,y)&&isSea(x+r*.7,y)&&isSea(x-r*.7,y)&&isSea(x,y+r*.7)&&isSea(x,y-r*.7)); // on a boat: only open sea
@@ -856,6 +862,10 @@ function benchLvOf(b){return 1+BENCH_UPS.filter(k=>structs.some(s=>s.k===k&&dist
 function benchLv(){let lv=0;for(const s of structs)if(s.k==='bench'&&dist(s,P)<240)lv=Math.max(lv,benchLvOf(s));return lv}
 const recipeLv=k=>{const r=RECIPES.find(r=>r.id===k);return r&&r.lv||1};
 const upNames=lv=>BENCH_UPS.slice(0,lv-1).map(k=>RECIPES.find(r=>r.id===k).name).join('、');
+// comfort: 1 + each kind of furniture within COMFORT_R; resting by a fire lasts restDur(comfort) seconds
+const COMFORT=['bed','chair','rug','banner','lamp'],COMFORT_R=220;
+const comfortAt=(x,y)=>1+COMFORT.filter(k=>structs.some(s=>s.k===k&&Math.hypot(s.x-x,s.y-y)<COMFORT_R)).length;
+const restDur=lv=>120+60*lv;
 function isNight(){return dayT>.66}
 function darkness(){const t=dayT;if(t<.58)return 0;if(t<.68)return(t-.58)/.1*.74;if(t<.94)return .74;return(1-(t-.94)/.06)*.74}
 
@@ -1064,7 +1074,7 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
   else if(s.k==='plot'){const c=s.crop;if(c){if(c.g>0){toast(`還要 ${Math.ceil(c.g)} 秒才成熟`);return}act({t:'harv',c:s.cell});return}
     const k=Object.keys(CROPS).find(k=>has(CROPS[k].seed));if(!k){toast('需要種子：採莓果有機會拿到胡蘿蔔種子');return}inv[CROPS[k].seed]--;act({t:'plant',c:s.cell,k})}
   else if(s.k==='boat')act({t:'board',x:s.x,y:s.y});
-  else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
+  else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.restLv=comfortAt(s.x,s.y);P.rest=restDur(P.restLv);act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
   else if(s.k==='altar'){if(boss)return;
     if(has('古樹種子')){inv['古樹種子']--;act({t:'summont'});shake=12;return}
     if((inv['獠牙']||0)>=3&&(inv['樹脂']||0)>=5){inv['獠牙']-=3;inv['樹脂']-=5;act({t:'summon'});shake=12}
@@ -1174,7 +1184,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>格擋：按住擋正面的攻擊，剛按下的瞬間被打中就是招架</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），按住右鍵格擋，空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>料理鍋（銅錠、石頭）放在營火旁邊，按 E 就能煮湯和燉肉，比烤肉好很多。蓋菜圃種胡蘿蔔：種子在採莓果時有機會拿到，種下約 4 分鐘後收成。</li><li>倒下時背包裡的東西會留在原地的墓碑裡，只有你撿得回來；快捷欄上的和身上穿的會跟著你。地圖上會標出墓碑。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>料理鍋（銅錠、石頭）放在營火旁邊，按 E 就能煮湯和燉肉，比烤肉好很多。蓋菜圃種胡蘿蔔：種子在採莓果時有機會拿到，種下約 4 分鐘後收成。</li><li>倒下時背包裡的東西會留在原地的墓碑裡，只有你撿得回來；快捷欄上的和身上穿的會跟著你。地圖上會標出墓碑。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。休息維持多久看舒適度：附近每多一種家具（床、椅子、毛皮地毯、旗幟、水晶燈）舒適度 +1，每級多 1 分鐘（3～8 分鐘）。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
@@ -1336,7 +1346,8 @@ function updateLocal(dt){
   if(P.rest>0)P.rest-=dt;
   if(!P.dead){const was=P.burn>0;if(burnTick(P,dt)){if(!was)toast('踩到熔岩，著火了！');P.hp-=BURN_DPS*dt;if(P.hp<=0){P.hp=0;die()}}}
   const nearFire=structs.some(s=>s.k==='fire'&&dist(s,P)<150);
-  if(nearFire){P.restT+=dt;if(P.restT>3&&P.rest<240){if(P.rest<=0)toast('獲得「休息」');P.rest=300}}else P.restT=0;
+  P.comfort=nearFire?comfortAt(P.x,P.y):0;
+  if(nearFire){P.restT+=dt;const D=restDur(P.comfort);if(P.restT>3&&P.rest<D-60){if(P.rest<=0)toast(`獲得「休息」（舒適度 ${P.comfort}）`);P.rest=D;P.restLv=P.comfort}}else P.restT=0;
 }
 function updateFx(dt){
   if(!HEADLESS)sea.update(dt);
@@ -1801,6 +1812,13 @@ function drawStruct(s){const x=s.x,y=s.y;
     ctx.fillStyle='#3d403b';ctx.beginPath();ctx.ellipse(x,y-6,13,11,0,0,Math.PI);ctx.lineTo(x-13,y-8);ctx.fill();ctx.fillStyle='#6d716b';ctx.fillRect(x-14,y-10,28,4);
     const lit=potLit(s);ctx.fillStyle=lit?'#c98a4a':'#2a2c28';ctx.beginPath();ctx.ellipse(x,y-10,11,3,0,0,6.28);ctx.fill();
     if(lit&&Math.random()<.08)parts.push({x:x+rnd(-6,6),y:y-14,vx:rnd(-3,3),vy:-18,t:1.4,col:'rgba(220,230,240,.5)',s:3});break}
+  case'chair':shadow(x+2,y+6,10,4);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-8,y-4,3,10);ctx.fillRect(x+5,y-4,3,10);ctx.fillStyle='#8f6a3e';ctx.fillRect(x-9,y-8,18,5);
+    ctx.fillStyle='#6b4a2b';ctx.fillRect(x-9,y-26,3,19);ctx.fillRect(x+6,y-26,3,19);ctx.fillStyle='#a87d4a';ctx.fillRect(x-9,y-24,18,4);ctx.fillRect(x-9,y-17,18,3);break;
+  case'rug':ctx.fillStyle='#6b4e34';ctx.beginPath();ctx.ellipse(x,y,19,12,0,0,6.28);ctx.fill();ctx.fillStyle='#8a6a4a';ctx.beginPath();ctx.ellipse(x,y,17,10,0,0,6.28);ctx.fill();
+    ctx.fillStyle='#a8845a';ctx.beginPath();ctx.ellipse(x,y,11,6,0,0,6.28);ctx.fill();ctx.strokeStyle='#6b4e34';ctx.lineWidth=1.4;ctx.beginPath();for(const[a,b]of[[-19,-3],[19,-3],[-14,9],[14,9]]){ctx.moveTo(x+a,y+b);ctx.lineTo(x+a*1.15,y+b*1.3)}ctx.stroke();break;
+  case'banner':{shadow(x+2,y+5,8,3);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-7,y-46,3,50);const wv=Math.sin(time*2+s.anim)*1.5;
+    ctx.fillStyle='#a83a32';ctx.beginPath();ctx.moveTo(x-4,y-44);ctx.lineTo(x+14,y-44+wv);ctx.lineTo(x+14,y-22+wv);ctx.lineTo(x+5,y-27);ctx.lineTo(x-4,y-22);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#e0a646';ctx.beginPath();ctx.arc(x+5,y-36+wv/2,3.5,0,6.28);ctx.fill();break}
   case'plot':{ctx.fillStyle='#4a3020';ctx.fillRect(x-19,y-15,38,30);ctx.strokeStyle='#33200f';ctx.lineWidth=2;for(let k=-1;k<=1;k++){ctx.beginPath();ctx.moveTo(x-17,y+k*9);ctx.lineTo(x+17,y+k*9);ctx.stroke()}
     ctx.strokeStyle='#6b4a2b';ctx.lineWidth=1.5;ctx.strokeRect(x-19,y-15,38,30);
     const c=s.crop;if(c){const pr=Math.min(1,1-c.g/CROPS[c.k].t),h=3+pr*9;for(let k=-1;k<=1;k++)for(const dx of[-10,0,10]){const px=x+dx,py=y+k*9;
@@ -2101,7 +2119,8 @@ function hud(){const MH=maxHp(),MS=maxSt();learn();
   $('hpFill').style.width=(P.hp/MH*100)+'%';$('hpTxt').textContent=`${Math.ceil(P.hp)} / ${Math.round(MH)}`;$('stFill').style.width=(P.st/MS*100)+'%';
   let fh='';for(let i=0;i<3;i++){const f=foods[i];if(f){const d=FOODS[f.k],p=f.t/d.t,C=2*Math.PI*17;fh+=`<div class="food" style="color:${d.col};border-color:${d.col}66" title="${f.k}"><svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="none" stroke="${d.col}" stroke-width="2.5" stroke-dasharray="${C*p} ${C}"/></svg><span style="color:var(--ink)">${f.k[0]}</span></div>`}else fh+='<div class="food empty"></div>'}
   $('foods').innerHTML=fh;
-  $('buffs').textContent=P.rest>0?`休息 ${Math.ceil(P.rest)}s`:'';
+  const mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+  $('buffs').textContent=[P.rest>0?`休息 Lv${P.restLv||1} ${mmss(P.rest)}`:'',P.comfort?`舒適度 ${P.comfort}`:''].filter(Boolean).join('・');
   const po=pets.find(p=>p.id===petOut);
   $('petHud').textContent=!po?'':po.down>0?`${po.name} 倒下了・${Math.ceil(po.down)} 秒後回來`:`${po.name}  ${Math.ceil(po.hp)}/${PETS[po.k].hp}`+(Object.keys(po.bag).length?`・攜帶 ${Object.values(po.bag).reduce((a,b)=>a+b,0)} 件`:'');
   $('petHud').classList.toggle('down',!!po&&po.down>0);
@@ -2115,7 +2134,7 @@ function hud(){const MH=maxHp(),MS=maxSt();learn();
 
 /* ---------- maps ---------- */
 // minimap = MINI_SPAN world units around you (top-left); big map = whole world (M key or click the minimap)
-const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a',boat:'#e0c08a',lamp:'#b49cff',chest:'#a87d4a',anvil:'#8a8e88',rack:'#8f6a3e',pot:'#3d403b',plot:'#6fae3e'};
+const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a',boat:'#e0c08a',lamp:'#b49cff',chest:'#a87d4a',anvil:'#8a8e88',rack:'#8f6a3e',pot:'#3d403b',plot:'#6fae3e',chair:'#8f6a3e',rug:'#a8845a',banner:'#a83a32'};
 function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=S/span,u=big?S/260:S/140;
   g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b1a22';g.fillRect(0,0,S,S);
   g.imageSmoothingEnabled=false;g.setTransform(k,0,0,k,S/2-cx*k,S/2-cy*k);g.drawImage(mapImg,0,0,W,H);
