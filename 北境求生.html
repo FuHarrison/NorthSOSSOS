@@ -95,6 +95,7 @@ body.touch #placeBar{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 .hs kbd{position:absolute;left:3px;top:1px;border:0;padding:0;font-size:9px}
 .hs .sw{width:16px;height:16px;border-radius:4px}.hs .ico{width:22px;height:22px}
 .hs .hn{font-size:10px;line-height:1;white-space:nowrap;overflow:hidden;max-width:42px}
+.dur{position:absolute;left:4px;right:4px;bottom:3px;height:3px;border-radius:2px;background:#0008;overflow:hidden}.dur i{display:block;height:100%}
 .hs small{position:absolute;right:3px;top:1px;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums}
 body.touch #hotbar{left:calc(env(safe-area-inset-left,0px) + 10px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 36px);display:grid;grid-template-columns:repeat(4,38px)}
 body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
@@ -185,6 +186,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .photh b{font-weight:600;font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}.photh b.full{color:var(--bad)}
 .photh .act{margin:0 0 0 auto;padding:3px 10px;font-size:12px}
 .chestwrap .bagsec{flex:1 1 0}.chestwrap .bs{cursor:pointer}
+#repairBtn{margin:0 0 0 auto;padding:5px 12px;font-size:12px;flex:none}
 #chMsg{margin:0;min-height:16px;font-size:12px;color:var(--bad)}
 .phot{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 .phot .bs kbd{position:absolute;left:4px;top:2px;border:0;padding:0;font-size:9px}
@@ -412,6 +414,8 @@ const WEAPONS={
 // armour is worn just by owning it; the best one counts
 const ARMORS={皮甲:{mul:.7,regen:0},樹精裝備:{mul:.55,regen:.6}};
 const armorKey=()=>has('樹精裝備')?'樹精裝備':has('皮甲')?'皮甲':null;
+// 耐久：打中東西才扣 1；用完就壞掉。在工作台旁免費修理
+const DUR_MAX={木棒:50,燧石斧:120,燧石鎬:120,燧石矛:100,銅鎬:200,狼牙劍:250,樹精法杖:200};
 const CHOP={none:3,木棒:5,燧石斧:16,燧石鎬:3,銅鎬:4,燧石矛:3,狼牙劍:8};
 // 鎬的等級：大石頭、煤、銅、錫要 1 級（燧石鎬），鐵要 2 級（銅鎬）
 const MINE={燧石鎬:16,銅鎬:26},PICK_TIER={燧石鎬:1,銅鎬:2};
@@ -487,7 +491,7 @@ function unpackSeen(str,merge){if(!merge)resetFog();let s;try{s=atob(str)}catch(
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1);if(merge&&MODE!=='solo')fogNew.push(c)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
 let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
-let inv={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
+let inv={},dur={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
@@ -674,7 +678,7 @@ function populate(){
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
 function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box}))};if(MODE!=='solo')w.seen=packSeen();return w}
-function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
+function personal(){return{inv,dur,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 // ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
@@ -695,7 +699,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(MODE!=='solo'&&s.seen)unpackSeen(s.seen);
   if(flags.summoned&&!flags.boss)flags.summoned=false}
-function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
+function applyPersonal(s){inv=s.inv||{};dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(DUR_MAX[k],s.dur[k]);foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
   if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none';P.boat=!!s.p.b}
   // older saves have no hotbar: fill it from the bag and select the weapon that was in hand
   if(Array.isArray(s.hot)&&s.hot.length===HOT_N){hot=s.hot.map(k=>typeof k==='string'&&ITEM[k]?k:null);hotSel=Math.min(HOT_N-1,Math.max(0,s.hotSel|0))}
@@ -859,8 +863,8 @@ function renderHot(){const hb=$('hotbar');
   // build mode: each slot shows how many more you can build; the place bar shows what the selected one needs and what you have left
   if(placing){const L=buildList(),ns=L.map(r=>r===DEMOLISH?-1:buildN(r)),pc=placing===DEMOLISH?'':placeCostHtml(placing),sig=JSON.stringify(['b',buildSel,ns,pc]);if(sig===hotSig)return;hotSig=sig;hb.classList.add('build');$('placeCost').innerHTML=pc;
     hb.innerHTML=L.map((r,i)=>`<button type="button" class="hs${r===placing?' on':''}${ns[i]===0?' no':''}" data-hs="${i}" title="${r.name}"><kbd>${i+1}</kbd>${ns[i]>=0?`<small>${ns[i]}</small>`:''}${icon(r.id)}<span class="hn">${r.name}</span></button>`).join('');return}
-  hb.classList.remove('build');const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k])]);if(sig===hotSig)return;hotSig=sig;
-  $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k?k+(statsText(k)?'：'+statsText(k):''):'空'}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</button>`).join('')}
+  hb.classList.remove('build');const sig=JSON.stringify([hot,hotSel,hot.map(k=>k&&inv[k]),hot.map(k=>k&&durOf(k))]);if(sig===hotSig)return;hotSig=sig;
+  $('hotbar').innerHTML=hot.map((k,i)=>`<button type="button" class="hs${i===hotSel?' on':''}" data-hs="${i}" title="${k?k+(statsText(k)?'：'+statsText(k):''):'空'}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}${durBar(k)}`:''}</button>`).join('')}
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;return Math.abs(d)}
 function attack(){
   const w=WEAPONS[P.weapon];if(P.cd>0||P.roll>0)return;if(P.st<w.st){P.stDelay=Math.max(P.stDelay,.4);return}
@@ -869,7 +873,7 @@ function attack(){
     if(!best){forCells(P.x,P.y,2,o=>{const d=dist(o,P);if(d<bd&&!(o.k==='bush'&&o.dep>0)){bd=d;best=o}})}
     if(best)P.face=Math.atan2(best.y-P.y,best.x-P.x)}
   P.cd=w.cd;P.swing=.24;P.st-=w.st;P.stDelay=.9;
-  if(w.proj){act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(w.dmg*(P.rest>0?1.1:1))});return} // ranged: the shot does its own hit test
+  if(w.proj){wear(P.weapon);act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(w.dmg*(P.rest>0?1.1:1))});return} // ranged: the shot does its own hit test
   let hit=false;
   for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(w.dmg*(P.rest>0?1.1:1));
     floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});burst(m.x,m.y,m.k==='moss'||m.k==='treant'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
@@ -878,18 +882,29 @@ function attack(){
   const inArc=o=>{const d=dist(o,P)-(RES[o.k].solid||6)*o.sz;return d<w.range-4&&angDiff(Math.atan2(o.y-P.y,o.x-P.x),P.face)<w.arc+.3?d:-1};
   const big=[];let best=null,bd=1e9;
   forCells(P.x,P.y,2,o=>{const d=inArc(o);if(d<0)return;if(!RES[o.k].pick)big.push(o);else if(d<bd){bd=d;best=o}});
-  if(big.length){for(const o of big)hitRes(o);return}
-  if(!hit&&best)hitRes(best);
+  // wear: the weapon in hand if a mob was hit, and each tool that did the chopping or mining (once per swing)
+  const used=new Set();if(hit)used.add(P.weapon);
+  if(big.length){for(const o of big)used.add(hitRes(o))}else if(!hit&&best)hitRes(best);
+  for(const k of used)wear(k);
 }
+// durability of the one in use (you can carry more than one of a kind: the next one starts fresh)
+const durOf=k=>has(k)&&dur[k]!==undefined?dur[k]:DUR_MAX[k];
+function wear(k){const M=DUR_MAX[k];if(!M||!has(k))return;const d=durOf(k)-1;
+  if(d>0){dur[k]=d;if(d===Math.ceil(M*.15))toast(`${k}快壞了，到工作台旁修理`);return}
+  inv[k]--;delete dur[k];syncHeld();burst(P.x,P.y-14,'#c8c2b2',12);toast(has(k)?`${k}壞了，換上下一把`:`${k}壞了`)}
+const damaged=()=>Object.keys(dur).filter(k=>has(k)&&dur[k]<DUR_MAX[k]);
+function durBar(k){const M=DUR_MAX[k];if(!M||!has(k)||durOf(k)>=M)return'';const f=durOf(k)/M;return`<span class="dur"><i style="width:${Math.round(f*100)}%;background:${f>.5?'#7fb069':f>.15?'#e2c14d':'#d06a5a'}"></i></span>`}
 function forCells(x,y,sp,fn){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);for(let j=j0-sp;j<=j0+sp;j++)for(let i=i0-sp;i<=i0+sp;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const o=resGrid[j*COLS+i];if(o)fn(o)}}
 function bestTool(table){let b=0,k=null;for(const n in table){if((n==='none'||has(n))&&table[n]>b){b=table[n];k=n}}return[b,k]}
 // local intent: tool checks use this player's bag, the world change itself goes through act()
 function hitRes(o){const d=RES[o.k];let dmg=0;
   if(d.pick){if(o.k==='bush'&&o.dep>0){toast('莓果還沒長回來');return}if(!d.drop.some(([k])=>roomFor(inv,k,BAG_SLOTS)>0)){toast('背包滿了');return}}
-  else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need)m=Math.max(m,MINE[n]);
+  let tool=null;
+  if(d.pick){}
+  else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need&&MINE[n]>m){m=MINE[n];tool=n}
     if(!m){toast(need>1?`需要銅鎬才能挖${d.name}`:`需要燧石鎬才能挖${d.name}`);o.flash=.15;return}dmg=m;shake=Math.max(shake,2)}
-  else{dmg=bestTool(CHOP)[0];shake=Math.max(shake,2)}
-  act({t:'res',c:o.cell,dmg})}
+  else{[dmg,tool]=bestTool(CHOP);shake=Math.max(shake,2)}
+  act({t:'res',c:o.cell,dmg});return tool}
 // world side (solo / host)
 function worldRes(c,dmg,from,toPet){const o=resGrid[c];if(!o)return;const d=RES[o.k];
   if(d.pick){if(o.k==='bush'){if(o.dep>0)return;evt({t:'bd',c})}else removeRes(o);
@@ -993,8 +1008,8 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
     const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
     const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
-    const why=r.bench&&!nb?'要站在工作台附近才能做':'';
-    b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><div class="craftwrap">
+    const why=r.bench&&!nb?'要站在工作台附近才能做':'',dm=damaged();
+    b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}<button class="act ${nb&&dm.length?'go':''}" type="button" id="repairBtn" ${nb&&dm.length?'':'disabled'} title="${dm.join('、')}">${!dm.length?'裝備都完好':nb?`修理 ${dm.length} 件`:'修理要在工作台旁'}</button></div><div class="craftwrap">
       <div class="clist">${L.map(x=>`<button type="button" class="ci${x===r?' on':''}" data-pick="${x.id}">${icon(x.id)}<span>${x.name}</span><i class="${canMake(x)?'ok':''}"></i></button>`).join('')}</div>
       <div class="cinfo"><div class="cbody">
         <div class="chead">${icon(r.id)}<div><h3>${r.name}</h3><em>${r.build?'建築':'裝備'}${r.bench?'・需要工作台':''}${!r.build&&has(r.id)?`・背包裡有 ${inv[r.id]} 個`:''}</em></div></div>
@@ -1005,13 +1020,14 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
         :`<div class="qty"><button type="button" data-q="-1" aria-label="少一個">−</button><input type="number" id="craftQ" min="1" max="${Math.max(1,max)}" value="${q}" aria-label="製作數量"><button type="button" data-q="1" aria-label="多一個">＋</button><button type="button" data-q="max">最大</button></div><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>製作 ×${q}</button>`}
         ${why?`<small class="cwhy">${why}</small>`:''}</div></div></div></div>`;
     b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));
+    $('repairBtn').addEventListener('click',()=>{if(!nearBench())return;const n=damaged().length;dur={};toast(`修好了 ${n} 件裝備`);writeSave();renderPanel()});
     b.querySelectorAll('[data-pick]').forEach(x=>x.addEventListener('click',()=>{craftSel[craftTab]=x.dataset.pick;craftQty=1;renderPanel()}));
     b.querySelectorAll('[data-q]').forEach(x=>x.addEventListener('click',()=>{const v=x.dataset.q;craftQty=v==='max'?Math.max(1,max):Math.max(1,Math.min(Math.max(1,max),q+(+v)));renderPanel()}));
     const qi=$('craftQ');if(qi)qi.addEventListener('change',()=>{craftQty=Math.max(1,Math.floor(+qi.value)||1);renderPanel()});
     b.querySelector('[data-make]').addEventListener('click',()=>craft(r,q))}
   else if(panelTab==='inv'){const st=stacks(inv),used=slotsOf(inv);
     // bag on top (one slot per stack, BAG_SLOTS in all), hotbar pinned at the bottom, each in its own frame
-    b.innerHTML=`<div class="bagwrap"><section class="bagsec"><p class="photh">背包<b class="${used>=BAG_SLOTS?'full':''}">${used} / ${BAG_SLOTS} 格</b><span>${st.length?(TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出')+'；拖出視窗就丟在地上':'背包是空的，去砍棵樹吧'}</span></p><div class="bag">`+st.map(([k,n])=>bagSlot(k,n)).join('')+'<div class="bs empty"></div>'.repeat(Math.max(0,BAG_SLOTS-st.length))+'</div></section>'+
+    b.innerHTML=`<div class="bagwrap"><section class="bagsec"><p class="photh">背包<b class="${used>=BAG_SLOTS?'full':''}">${used} / ${BAG_SLOTS} 格</b><span>${st.length?(TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出')+'；拖出視窗就丟在地上':'背包是空的，去砍棵樹吧'}</span></p><div class="bag">`+st.map(([k,n],i)=>bagSlot(k,n,!i||st[i-1][0]!==k)).join('')+'<div class="bs empty"></div>'.repeat(Math.max(0,BAG_SLOTS-st.length))+'</div></section>'+
       `<section class="hotsec"><p class="photh">快捷欄<span>拖進來放、拖出去拿掉、拖到別格交換</span></p><div class="phot">`+hot.map((k,i)=>`<div class="bs${i===hotSel?' held':''}${k?'':' empty'}" data-hk="${i}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</div>`).join('')+'</div></section></div>'}
   else if(panelTab==='chest'){const s=structGrid[chestC];if(!s||s.k!=='chest'){togglePanel(false);return}chSig=chestSig(s);
     const cs=stacks(s.box),ps=stacks(inv),cu=slotsOf(s.box),pu=slotsOf(inv),slot=(k,n,a)=>`<div class="bs" data-${a}="${k}" data-n="${n}" title="${k} ×${n}">${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}</div>`,pad=n=>'<div class="bs empty"></div>'.repeat(Math.max(0,n));
@@ -1044,7 +1060,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
@@ -1072,13 +1088,14 @@ function refreshFurnacePanel(){if($('panel').hidden)return;
 function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&!ARMORS[k])return o;
   if(w)o.push(['傷害',w.dmg],['距離',w.range],['範圍',w.proj?'遠程單體':Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
   if(CHOP[k]>3)o.push(['砍樹',CHOP[k]]);
+  if(DUR_MAX[k])o.push(['耐久',has(k)?`${durOf(k)}/${DUR_MAX[k]}`:DUR_MAX[k]]);
   if(MINE[k])o.push(['挖礦',MINE[k]],['可挖',PICK_TIER[k]>1?'所有礦石':'石頭、煤、銅、錫']);
   if(ARMORS[k])o.push(['減傷',Math.round((1-ARMORS[k].mul)*100)+'%']);if(ARMORS[k]&&ARMORS[k].regen)o.push(['回血','+'+ARMORS[k].regen+'/秒']);return o}
 const statsText=k=>equipStats(k).map(([a,b])=>`${a} ${b}`).join('・');
 function statsHtml(k){const o=equipStats(k);return o.length?`<div class="stats">${o.map(([a,b])=>`<span>${a}<b>${b}</b></span>`).join('')}</div>`:''}
 function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:statsText(k)}
-function bagSlot(k,n){const hi=hot.indexOf(k),sub=itemSub(k);
-  return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${n}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}</div>`}
+function bagSlot(k,n,first){const hi=hot.indexOf(k),sub=itemSub(k);
+  return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${n}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}${first?durBar(k):''}</div>`}
 // right-click (or tap) menu for one bag item
 function closeBagMenu(){const m=$('bagMenu');if(m)m.remove()}
 function openBagMenu(k,x,y){closeBagMenu();if(!has(k))return;const n=inv[k],sub=itemSub(k),m=document.createElement('div');m.id='bagMenu';
@@ -1922,7 +1939,7 @@ function hud(){const MH=maxHp(),MS=maxSt();
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   syncHeld();renderHot();const hk=held();
-  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorKey()?'・穿著'+armorKey():''}${bagFull()?'・<b style="color:var(--bad)">背包滿了</b>':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
+  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}${DUR_MAX[P.weapon]?`・耐久 ${durOf(P.weapon)}/${DUR_MAX[P.weapon]}`:''}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorKey()?'・穿著'+armorKey():''}${bagFull()?'・<b style="color:var(--bad)">背包滿了</b>':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
   $('bossBar').hidden=!boss;if(boss)$('bossName').textContent=boss.k==='treant'?'樹精':'灰鬃狼王';if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
