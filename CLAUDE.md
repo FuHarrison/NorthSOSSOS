@@ -61,6 +61,13 @@ This split is the core of the multiplayer design. Keep it when adding features.
 - `world.json` is put into the fake localStorage so the script picks the right map size (`W`) at load; `bootHost(hello.world)` then loads it.
 - `stopSim(true)` fires the script's `visibilitychange` listener, which calls `writeSave()` synchronously. `shutdown` does this on SIGINT/SIGHUP (closing the console window on Windows). `wipe` (only from a `local` peer) stops the sim without saving, archives `world.json`, and starts a new one.
 
+### Bosses
+
+- Every boss is woken at the stone altar (`doUse` → `act` → `handleAct`). Only one boss is awake at a time (`boss`).
+- The 灰鬃狼王 takes 獠牙 ×3 + 樹脂 ×5. Each later boss needs two things: the previous boss's keepsake, which is never used up, and a crafted summon item, which is. The player holds either one in hand (`hot[hotSel]`) at the altar. 狼王的心臟 + 古樹種子 wake the 樹精長老 (`treant`); the 長老年輪 is meant for the next boss.
+- A keepsake is given on a player's kill when they don't already have one (`pup` / `tdown` in `onPrivate`).
+- The 樹精長老 (`updateTreant`) calls a wave of 小樹精 (`sprout` mobs; 2 per player, 4 in phase 2, a new wave only once none are left; in phase 2 any still alive after `EAT_T` are called back and eaten, each healing `EAT_HEAL` of max HP; while it eats, state `eat`, it takes no damage, see `shielded`), casts black fog (`fogs`; each client checks its own player and shrinks the view to `BLIND_R`), and grows a ring of choppable `etree` resources that never regrow and wither after `ETREE_LIFE`. Below half HP it enters phase 2 (`m.p2`) with shorter cooldowns.
+
 ### Server routing (`onMsg` in server.js)
 
 - A message with `all` goes to everyone except the sender.
