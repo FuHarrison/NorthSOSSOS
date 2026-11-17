@@ -185,7 +185,7 @@ const json=(res,code,o)=>{res.writeHead(code,{'Content-Type':'application/json; 
 const WORLD_RE=/^world(-\d{8}-\d{6})?\.json$/,BACKUP_RE=/^(\d{8}|restore-\d{8}-\d{6})$/,RESTORE_KEEP=5;
 // 問正在跑的世界（天數、怪物等）：送 adm 給世界，等它回 admr；1 秒沒回就當沒有
 let admSeq=0;const admWait=new Map();
-function askSim(c){return new Promise(r=>{if(!host)return r(null);const q=++admSeq;admWait.set(q,r);send(host,{t:'adm',q,c});setTimeout(()=>{if(admWait.delete(q))r(null)},1000)})}
+function askSim(c,v){return new Promise(r=>{if(!host)return r(null);const q=++admSeq;admWait.set(q,r);send(host,{t:'adm',q,c,v});setTimeout(()=>{if(admWait.delete(q))r(null)},1000)})}
 function worldInfo(file){let st;try{st=fs.statSync(file)}catch(e){return null}const w=loadSave(file)||{};
   const n=w.seed==null?0:fs.readdirSync(PLAYER_DIR).filter(f=>f.startsWith(w.seed+'-')&&f.endsWith('.json')).length;
   return{file:path.basename(file),seed:w.seed??null,mapW:w.mapW||(w.seed==null?null:3200),day:w.day??null,size:st.size,mtime:st.mtimeMs,players:n}}
@@ -210,7 +210,12 @@ const ADMIN_GET={
     if(!file||!fs.existsSync(file)){json(res,404,{err:'找不到檔案'});return}
     const nm=q.get('b')?`world-backup-${q.get('b')}.json`:f;
     res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(nm)}`});fs.createReadStream(file).pipe(res)}};
+const SIM_CMDS={pause:'暫停世界',resume:'繼續世界',time:'調整時間',clearMobs:'清除怪物',endBoss:'結束王戰',announce:'發公告'};
 const ADMIN_POST={
+  // 即時控制世界：交給 server 自己跑的世界去做，回傳世界現在的狀態
+  async world(m){if(!Object.hasOwn(SIM_CMDS,m.c))throw new Error('沒有這個指令');if(!host)throw new Error('世界沒有在跑');
+    const d=await askSim(m.c,typeof m.v==='string'?m.v.slice(0,60):undefined);if(!d)throw new Error('世界沒有回應');if(d.err)throw new Error(d.err);
+    console.log(`後台：${SIM_CMDS[m.c]}${m.c==='announce'?`「${m.v}」`:m.c==='time'?` → ${m.v}`:''}`);return{ok:1,world:d}},
   // 開新世界：先存好現在的世界再封存（遊戲裡的「新世界」按鈕不存，最多少 8 秒）
   newWorld(){stopSim(true);archiveWorld();console.log('後台：開了新世界，舊世界已改名保留');startSim()},
   // 切換到封存的世界：現在的世界存好、封存，選的那個變成 world.json。玩家存檔跟著世界的種子走，不用搬
@@ -240,7 +245,7 @@ function admin(req,res,u){
   if(!Object.hasOwn(ADMIN_POST,name))return json(res,404,{err:'沒有這個功能'});
   let body='';req.on('data',d=>{body+=d;if(body.length>1e5)req.destroy()});
   req.on('end',()=>{let m;try{m=JSON.parse(body||'{}')}catch(e){return json(res,400,{err:'格式錯誤'})}
-    try{json(res,200,ADMIN_POST[name](m)||{ok:1})}catch(e){json(res,400,{err:e.message})}})}
+    Promise.resolve().then(()=>ADMIN_POST[name](m)).then(o=>json(res,200,o||{ok:1}),e=>json(res,400,{err:e.message}))})}
 
 // 關掉黑色視窗（Windows 送 SIGHUP）或按 Ctrl+C：先把世界存起來再結束
 let closing=false;

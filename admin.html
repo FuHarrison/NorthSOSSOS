@@ -10,7 +10,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
 header{position:sticky;top:0;z-index:2;background:#0e1411f2;border-bottom:1px solid var(--line);padding:12px max(16px,calc(50vw - 520px)) 0}
 .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 h1{font-family:var(--display);font-weight:900;font-size:20px;letter-spacing:.08em;margin:0}
-.live{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}.live i{width:8px;height:8px;border-radius:50%;background:var(--bad)}.live.on i{background:var(--good)}
+.live{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}.live i{width:8px;height:8px;border-radius:50%;background:var(--bad)}.live.on i{background:var(--good)}.live.pz i{background:var(--accent)}
 .top a{margin-left:auto;color:var(--accent);font-size:13px}
 nav{display:flex;gap:4px;margin-top:8px}
 nav button{background:none;border:none;border-bottom:2px solid transparent;color:var(--mute);font:inherit;padding:8px 12px;cursor:pointer}
@@ -39,6 +39,9 @@ button.danger{border-color:#6b3a33;background:#2a1714;color:#f0b4a8}button.dange
 .empty{padding:14px;color:var(--mute);font-size:13px}
 #msg{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000d;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:5}
 #msg.on{opacity:1}#msg.err{border-color:var(--bad);color:#ffb4a8}
+.ctl{display:grid;gap:10px}.ctl .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ctl .row>span{width:72px;color:var(--mute);font-size:12px}
+.ctl input{flex:1;min-width:180px;max-width:420px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font:inherit;font-size:13px;color:var(--ink)}
+.ctl button.b{margin-left:0}.tag.pause{border-color:var(--accent);background:var(--accent);color:#1b1407}
 .list{display:flex;flex-wrap:wrap;gap:6px}.who{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
 @media (max-width:640px){th.hide,td.hide{display:none}td.acts{white-space:normal}}
 </style></head><body>
@@ -64,17 +67,36 @@ function confirmBtn(b,run){b.addEventListener('click',async()=>{if(!b.classList.
   b.disabled=true;try{await run();}catch(e){msg(e.message,true)}b.disabled=false;b.classList.remove('c');b.textContent=b.dataset.t;show()})}
 function live(ok,t){$('live').classList.toggle('on',ok);$('live').lastElementChild.textContent=t}
 
+// the overview is drawn once (so a half-typed announcement or a half-clicked confirm survives), then refreshed in place
+function homeShell(){main.innerHTML=`<section id="cards"></section>
+  <section><h2>世界控制</h2><div class="box" style="padding:12px 14px"><div class="ctl">
+    <div class="row"><span>世界</span><button class="b go" id="pauseBtn">暫停世界</button><span class="note" style="width:auto;margin:0">暫停時怪物、時間、熔爐、作物都會停，所有人都不能動</span></div>
+    <div class="row"><span>時間</span><button class="b" data-time="morning">早上</button><button class="b" data-time="noon">中午</button><button class="b" data-time="dusk">黃昏</button><button class="b" data-time="night">夜晚</button></div>
+    <div class="row"><span>怪物</span><button class="b danger" id="clearBtn">清除怪物</button><button class="b danger" id="bossBtn">結束王戰</button><span class="note" style="width:auto;margin:0">清除不含醒著的王；結束王戰不會掉東西</span></div>
+    <div class="row"><span>公告</span><input id="annIn" maxlength="40" placeholder="想跟大家說的話（40 字內）"><button class="b go" id="annBtn">送出</button></div>
+  </div></div></section>
+  <section id="online"></section><section id="ips"></section>`;
+  const cmd=async(c,v,done)=>{try{await post('world',{c,v});msg(done);show()}catch(e){msg(e.message,true)}};
+  $('pauseBtn').addEventListener('click',()=>{const p=$('pauseBtn').dataset.p==='1';cmd(p?'resume':'pause',undefined,p?'世界繼續了':'世界暫停了')});
+  main.querySelectorAll('[data-time]').forEach(b=>b.addEventListener('click',()=>cmd('time',b.dataset.time,`時間調到${b.textContent}`)));
+  confirmBtn($('clearBtn'),async()=>{await post('world',{c:'clearMobs'});msg('怪物清掉了')});
+  confirmBtn($('bossBtn'),async()=>{await post('world',{c:'endBoss'});msg('王戰結束了')});
+  const ann=()=>{const t=$('annIn').value.trim();if(!t){msg('先輸入公告內容',true);return}cmd('announce',t,'公告送出了').then(()=>{$('annIn').value=''})};
+  $('annBtn').addEventListener('click',ann);$('annIn').addEventListener('keydown',e=>{if(e.key==='Enter')ann()})}
 async function home(){const s=await get('status'),w=s.world,sv=s.saved;
-  live(s.running,s.running?'世界運作中':'世界沒有在跑');
+  live(s.running,s.running?(w&&w.paused?'世界暫停中':'世界運作中'):'世界沒有在跑');$('live').classList.toggle('pz',!!(w&&w.paused));
   const names=s.online.filter(o=>o.name);
-  main.innerHTML=`<section><div class="cards">
-    <div class="card"><small>世界</small><b>${w?`第 ${w.day} 天・${tod(w.dayT)}`:'—'}</b><span>${w?`地圖 ${w.mapW}・種子 ${w.seed}`:'世界沒有回應'}</span></div>
+  if(!$('cards'))homeShell();
+  const pb=$('pauseBtn');pb.dataset.p=w&&w.paused?'1':'0';pb.textContent=w&&w.paused?'繼續世界':'暫停世界';
+  for(const b of main.querySelectorAll('.ctl button:not(.c)'))b.disabled=!w;if(w&&!w.boss&&!$('bossBtn').classList.contains('c'))$('bossBtn').disabled=true;
+  $('cards').innerHTML=`<div class="cards">
+    <div class="card"><small>世界${w&&w.paused?'<span class="tag pause">暫停中</span>':''}</small><b>${w?`第 ${w.day} 天・${tod(w.dayT)}`:'—'}</b><span>${w?`地圖 ${w.mapW}・種子 ${w.seed}`:'世界沒有回應'}</span></div>
     <div class="card"><small>線上玩家</small><b>${names.length}</b><span>另有 ${s.online.length-names.length} 個分頁還沒登入</span></div>
     <div class="card"><small>怪物</small><b>${w?w.mobs:'—'}</b><span>${w&&w.boss?`王：${esc(w.boss)} 醒著`:'沒有王醒著'}</span></div>
     <div class="card"><small>建築／地上的袋子</small><b>${w?`${w.structs}／${w.loots}`:'—'}</b><span>世界存檔 ${sv?when(sv.mtime):'還沒存過'}</span></div>
-    <div class="card"><small>伺服器</small><b>${dur(s.uptime)}</b><span>埠 ${s.port}</span></div></div></section>
-  <section><h2>線上玩家</h2>${names.length?`<div class="list">${names.map(o=>`<span class="who">${esc(o.name)}${o.local?'（主機這台）':''}</span>`).join('')}</div>`:'<p class="note">目前沒有人在線上。</p>'}</section>
-  <section><h2>同事怎麼連進來</h2><p class="note">${s.ips.length?s.ips.map(ip=>`http://${ip}:${s.port}`).join('　'):'找不到區網 IP'}</p></section>`}
+    <div class="card"><small>伺服器</small><b>${dur(s.uptime)}</b><span>埠 ${s.port}</span></div></div>`;
+  $('online').innerHTML=`<h2>線上玩家</h2>${names.length?`<div class="list">${names.map(o=>`<span class="who">${esc(o.name)}${o.local?'（主機這台）':''}</span>`).join('')}</div>`:'<p class="note">目前沒有人在線上。</p>'}`;
+  $('ips').innerHTML=`<h2>同事怎麼連進來</h2><p class="note">${s.ips.length?s.ips.map(ip=>`http://${ip}:${s.port}`).join('　'):'找不到區網 IP'}</p>`}
 
 async function worlds(){const d=await get('worlds'),c=d.current;
   const row=(w,acts,tag)=>`<tr><td>${tag||fileDate(w.file)}</td><td class="num">${w.day??'—'}</td><td class="num hide">${w.mapW??'—'}</td><td class="num">${w.players}</td><td class="num hide">${kb(w.size)}</td><td class="hide">${when(w.mtime)}</td><td class="acts">${acts}</td></tr>`;
@@ -108,6 +130,7 @@ async function show(){clearTimeout(timer);try{await PAGES[page]();if(page!=='hom
   catch(e){live(false,'連不到伺服器');main.innerHTML=`<p class="empty">連不到伺服器：${esc(e.message)}。黑色的伺服器視窗還開著嗎？</p>`}
   // the overview refreshes itself; the other pages only after an action, so a half-clicked confirm is not wiped out
   if(page==='home')timer=setTimeout(show,3000)}
-document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.p;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));show()}));
+// confirmBtn re-renders through show(); on the overview that is an in-place refresh
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.p;main.innerHTML='';document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));show()}));
 show();
 </script></body></html>

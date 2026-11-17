@@ -47,6 +47,7 @@ html.gray{filter:grayscale(1)}
 
 #weaponTag{bottom:calc(env(safe-area-inset-bottom,0px) + 14px);left:calc(env(safe-area-inset-left,0px) + 14px);font-size:12px;color:var(--mute);text-shadow:0 1px 2px #000}
 #weaponTag b{color:var(--ink);font-weight:600}
+#pauseNote{top:calc(env(safe-area-inset-top,0px) + 66px);left:50%;transform:translateX(-50%);font-size:13px;font-weight:600;color:#1b1407;background:var(--accent);border-radius:999px;padding:4px 14px;box-shadow:0 2px 10px #0008}
 #toast{top:calc(env(safe-area-inset-top,0px) + 92px);left:50%;transform:translateX(-50%);font-size:13px;background:#000b;border-radius:6px;padding:6px 12px;opacity:0;transition:opacity .3s;white-space:nowrap}
 #toast.on{opacity:1}
 #bossBar{bottom:calc(env(safe-area-inset-bottom,0px) + 130px);left:50%;transform:translateX(-50%);width:min(420px,80vw);text-align:center}
@@ -257,6 +258,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 <div class="hud" id="weaponTag"></div>
 <div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
+<div class="hud" id="pauseNote" hidden>世界暫停中・主機按了暫停</div>
 <div class="hud" id="bossBar" hidden><span id="bossName">灰鬃狼王</span><div class="bar"><i id="bossFill"></i></div></div>
 <div class="hud" id="banner"></div>
 
@@ -588,6 +590,7 @@ let inv={},dur={},q={},sk={},eq=noEq(),known=new Set(),foods=[],ate=false,pets=[
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={em:-1,emT:0,x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
+let worldPaused=false; // the admin page paused the whole world (multiplayer only); sent to clients in every snapshot
 let shake=0,time=0,paused=true,placing=null,placeRot='h',panelTab='craft';
 /* multiplayer: solo when opened as a file; over http the first localhost tab is host (simulates the world), others are clients that send intents */
 let MODE=location.protocol.startsWith('http')?'pending':'solo',ws=null,myId=0,netInfo=null,ready=false,started=false,mobSeq=0;
@@ -983,7 +986,7 @@ function renderSettings(){const wipe=MODE==='solo'||netInfo&&netInfo.local;
 function toggleSettings(on){const m=$('settings');on=on===undefined?m.hidden:on;
   if(on){closeBagMenu();$('panel').hidden=true;$('bigmap').hidden=true;atkHeld=false;renderSettings()}m.hidden=!on;syncPaused();if(!on)writeSave()}
 // any open window pauses your own input (and the whole world in solo)
-function syncPaused(){paused=['intro','dead','panel','bigmap','settings'].some(id=>!$(id).hidden)}
+function syncPaused(){paused=worldPaused||['intro','dead','panel','bigmap','settings'].some(id=>!$(id).hidden)}
 $('btnSet').addEventListener('click',()=>toggleSettings());
 $('setX').addEventListener('click',()=>toggleSettings(false));
 $('settings').addEventListener('pointerdown',e=>{if(e.target.id==='settings')toggleSettings(false)});
@@ -1690,9 +1693,10 @@ function applyEvt(m){switch(m.t){
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
   sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.box?[s.k,s.x,s.y,0,s.box]:s.crop?[s.k,s.x,s.y,0,s.crop]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag,l.g||0]),seen:packSeen()})}
-function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
+function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,wp:worldPaused?1:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0,m.stun>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
+  if(!!s.wp!==worldPaused){worldPaused=!!s.wp;$('pauseNote').hidden=!worldPaused;atkHeld=blockHeld=false;syncPaused();toast(worldPaused?'主機暫停了世界':'世界繼續了')}
   for(const[id,k,x,y,f,hp,max,fl,st,ag,sn]of s.m){seen.add(id);let m=mobs.find(o=>o.id===id);
     if(!m){m=makeMob(k,x,y);m.id=id;mobs.push(m)}
     m.tx=x;m.ty=y;m.face=f;m.hp=hp;m.max=max;if(fl)m.flash=.15;m.state=st;m.aggro=ag;m.stun=sn?.2:0}
@@ -1718,6 +1722,18 @@ function netTick(dt){
   fogT-=dt;if(fogT<=0&&fogNew.length){fogT=.25;net({t:'fog',all:1,c:fogNew});fogNew=[]}
   if(MODE==='host'){snapT-=dt;if(snapT<=0){snapT=.1;sendSnap()}}
   bushT-=dt;if(bushT<=0){bushT=1;for(const o of resGrid)if(o&&o.dep>0)o.dep-=1}}
+// admin page commands, run by the server-run world; returns an error message or nothing
+const ADMIN_TIME={morning:.02,noon:.3,dusk:.6,night:.72};
+function adminDo(m){switch(m.c){
+  case'pause':worldPaused=true;break;
+  case'resume':worldPaused=false;break;
+  case'time':if(!(m.v in ADMIN_TIME))return'不認得的時間';dayT=ADMIN_TIME[m.v];break;
+  // every mob except the awake boss and its saplings; they come back the usual way
+  case'clearMobs':for(const o of mobs.filter(o=>o!==boss&&!(boss&&o.k==='sprout')))evt({t:'mk',id:o.id,x:o.x,y:o.y});mobs=mobs.filter(o=>o===boss||boss&&o.k==='sprout');break;
+  // the boss just leaves (no loot); the treant's saplings and tree walls go with it
+  case'endBoss':{if(!boss)return'現在沒有王醒著';const k=boss.k;mobs=mobs.filter(o=>o!==boss&&o.k!=='sprout');for(const e of etrees)e.at=0;boss=null;flags.summoned=flags.boss;
+    evt({t:'bn',h:k==='treant'?'樹精長老離開了':'灰鬃狼王離開了',s:'主機結束了這場王戰'});break}
+  case'announce':{const t=String(m.v||'').trim().slice(0,40).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));if(!t)return'公告是空的';evt({t:'bn',h:t,s:'主機公告'});break}}}
 function netMsg(t){$('netTxt').textContent=t;$('netbox').hidden=!t}
 function onNet(m){
   switch(m.t){
@@ -1735,7 +1751,7 @@ function onNet(m){
   if(m.t==='fog'){if(Array.isArray(m.c))ready?seeCells(m.c):fogPend.push(...m.c);return}
   if(!ready)return;
   // the admin page (server.js /admin) asks the world how it is doing; only the server-run world answers
-  if(m.t==='adm'){if(MODE==='host')net({t:'admr',q:m.q,d:{seed,mapW:W,day,dayT,night:isNight(),mobs:mobs.length,boss:boss?(boss.k==='treant'?'樹精長老':'灰鬃狼王'):null,structs:structs.length,loots:loots.length}});return}
+  if(m.t==='adm'){if(MODE==='host'){const err=adminDo(m);net({t:'admr',q:m.q,d:{seed,mapW:W,day,dayT,night:isNight(),paused:worldPaused,mobs:mobs.length,boss:boss?(boss.k==='treant'?'樹精長老':'灰鬃狼王'):null,structs:structs.length,loots:loots.length,err}})}return}
   if(m.t==='st'){updateOther(m);return}
   if(m.t==='ping'){addPing(m);return}
   if(MODE==='host'){handleAct(m,m.from);return}
@@ -2645,7 +2661,7 @@ let last=performance.now();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(ready){if(!paused)updateLocal(dt);
     if(MODE==='solo'){if(!paused){updateWorld(dt);updatePet(dt);updateFx(dt)}else if(panelTab==='furnace'&&!$('panel').hidden)tickFurnaces(dt)}
-    else{if(MODE==='host')updateWorld(dt);else tickClient(dt);if(started)updatePet(dt);tickOthers(dt);updateFx(dt);netTick(dt)}
+    else{if(!worldPaused){if(MODE==='host')updateWorld(dt);else tickClient(dt);if(started)updatePet(dt)}tickOthers(dt);updateFx(dt);netTick(dt)}
     if(!HEADLESS){render();hudT-=dt;if(hudT<=0){hudT=.1;hud();refreshFurnacePanel()}}}
   requestAnimationFrame(frame)}
 requestAnimationFrame(frame);

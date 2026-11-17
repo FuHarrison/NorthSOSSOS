@@ -76,6 +76,7 @@ This split is the core of the multiplayer design. Keep it when adding features.
 - Live world numbers come from the sim: `askSim` sends `{t:'adm'}` to the host, the game answers `{t:'admr'}` (handled in `SRV.admr`, host only). `onMsg` drops `adm` from anyone but the sim, so a player cannot fake it.
 - Switching worlds, a new world and restoring a backup all `stopSim(true)` (save first), then `archiveWorld()` renames `world.json` to `world-<stamp>.json`, then `startSim()`; clients reload on `host`. Player saves are keyed by seed, so they follow the world. A restore first copies everything into `saves/backups/restore-<stamp>/` (newest `RESTORE_KEEP` kept). Accounts are never restored.
 - `kick(name, why)` sends `kicked` with a reason the client shows.
+- `ADMIN_POST.world` runs a live command in the sim (`SIM_CMDS`: pause, resume, time, clearMobs, endBoss, announce) through `askSim(c, v)`; the game does it in `adminDo` and answers with its status (plus `err`). `worldPaused` stops `updateWorld` on the host and `tickClient`/`updatePet` on clients, goes out in every snapshot (`wp`), and feeds `syncPaused` so local input stops too. It is not saved.
 
 ### Server routing (`onMsg` in server.js)
 
