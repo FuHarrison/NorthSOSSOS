@@ -10,11 +10,15 @@ const T0=Date.now();
 const server=http.createServer((req,res)=>{
   const u=req.url.split('?')[0];
   if(u==='/admin'||u.startsWith('/api/admin/')){admin(req,res,u);return}
+  // 遊戲拆成的 js/、css/ 檔案（只認這兩個資料夾裡的 .js / .css，不能往上跳）
+  const st=/^\/(js|css)\/([\w.-]+\.(js|css))$/.exec(u);
+  if(st){fs.readFile(path.join(__dirname,st[1],st[2]),(e,d)=>{if(e){res.writeHead(404);res.end();return}
+    res.writeHead(200,{'Content-Type':(st[3]==='js'?'text/javascript':'text/css')+'; charset=utf-8','Cache-Control':'no-store'});res.end(d)});return}
   if(u!=='/'&&u!=='/index.html'){res.writeHead(404);res.end();return}
   fs.readFile(FILE,'utf8',(e,d)=>{
     if(e){res.writeHead(500,{'Content-Type':'text/plain; charset=utf-8'});res.end('找不到 北境求生.html，請把它跟 server.js 放在同一個資料夾');return}
     // 先告訴網頁現在世界的地圖大小，遊戲一開始就用對的大小，不用發現不對再重新載入
-    if(mapW)d=d.replace(/\r?\n<script>\r?\n/,s=>`\n<script>window.__NORTH_MAPW=${mapW}</script>`+s);
+    if(mapW)d=d.replace(/<script[ >]/,s=>`<script>window.__NORTH_MAPW=${mapW}</script>\n`+s);
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(d)});
 });
 
@@ -97,9 +101,13 @@ let sim=null,mapW=0; // mapW：現在世界的地圖大小（送網頁時告訴�
 function noop(){}
 const stub=new Proxy(noop,{get:(t,k)=>k===Symbol.toPrimitive?()=>'':k===Symbol.iterator?function*(){}:stub,set:()=>true,apply:()=>stub,construct:()=>stub});
 function memStore(init){const d=new Map(Object.entries(init));return{getItem:k=>d.has(k)?d.get(k):null,setItem:(k,v)=>{d.set(k,String(v))},removeItem:k=>{d.delete(k)}}}
+// 遊戲程式：北境求生.html 裡 <script src="js/…"> 的檔案，照順序；發佈用的單一 HTML 則是裡面那一段 <script>
+function gameScripts(){const html=fs.readFileSync(FILE,'utf8'),src=[...html.matchAll(/<script src="(js\/[\w.-]+\.js)"><\/script>/g)].map(m=>m[1]);
+  if(src.length)return src.map(f=>({name:f,code:fs.readFileSync(path.join(__dirname,f),'utf8')}));
+  const one=(html.match(/\n<script>\r?\n([\s\S]*?)\r?\n<\/script>/)||[])[1];return one?[{name:'北境求生.html',code:one}]:[]}
 function startSim(){
-  const code=(fs.readFileSync(FILE,'utf8').match(/\n<script>\r?\n([\s\S]*?)\r?\n<\/script>/)||[])[1];
-  if(!code){console.error('北境求生.html 裡找不到遊戲程式，世界沒有啟動');return}
+  let scripts;try{scripts=gameScripts()}catch(e){console.error('讀不到遊戲程式：',e.message);return}
+  if(!scripts.length){console.error('北境求生.html 裡找不到遊戲程式，世界沒有啟動');return}
   const world=loadSave(WORLD_FILE),me={alive:true,hidden:false,vis:[],errs:0};
   mapW=world?world.mapW||0:0;
   // 給遊戲程式的訊息延後一拍送，免得在它自己送訊息的途中又被叫進去
@@ -116,7 +124,8 @@ function startSim(){
     location:{protocol:'http:',host:'server',href:'http://server/',reload:()=>{stopSim(false);startSim()}},
     WebSocket:FakeSocket,fetch:()=>Promise.reject(new Error('offline')),requestAnimationFrame:raf,Path2D:stub,confirm:()=>false};
   g.window=g;sim=me;
-  try{vm.runInNewContext(code,g,{filename:'北境求生.html'})}catch(e){console.error('世界啟動失敗：',e);me.alive=false;sim=null}}
+  // 每個檔案各自執行，跟瀏覽器的 <script> 一樣共用頂層宣告；錯誤訊息會標出是哪個檔案
+  try{vm.createContext(g);for(const s of scripts)vm.runInContext(s.code,g,{filename:s.name})}catch(e){console.error('世界啟動失敗：',e);me.alive=false;sim=null}}
 // save：跟瀏覽器切走分頁一樣觸發遊戲自己的存檔（同步寫進 world.json），再停掉
 function stopSim(save){if(!sim)return;const me=sim;sim=null;
   if(save){me.hidden=true;for(const f of me.vis)try{f()}catch(e){console.error('存世界失敗：',e)}}
