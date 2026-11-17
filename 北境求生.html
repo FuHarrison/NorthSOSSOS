@@ -295,14 +295,14 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
     <header><h2>地圖</h2><div class="subtabs"><button type="button" class="subtab on" data-mm="pin">標記</button><button type="button" class="subtab" data-mm="ping">信號</button></div><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
     <canvas id="bigCv" width="640" height="640"></canvas>
     <div id="pinEdit" hidden><input id="pinName" maxlength="12" aria-label="標記名稱"><button type="button" id="pinOk">確定</button><button type="button" id="pinDel">刪除</button></div>
-    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#a87d4a"></i>箱子</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><i style="background:#ffd23f"></i>標記</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span><span id="mapHint"></span></div>
+    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#a87d4a"></i>箱子</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><i style="background:#ffd23f"></i>標記</span><span><i style="background:#d8d4c8"></i>你的墓碑</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span><span id="mapHint"></span></div>
   </div>
 </div>
 
 <div class="modal" id="dead" hidden>
   <div class="sheet" style="padding:24px;gap:12px;max-width:360px;text-align:center">
     <h2 style="font-family:var(--display);font-size:28px;margin:0;letter-spacing:.1em">你倒下了</h2>
-    <p class="note" style="margin:0">食物效果消失，背包物品保留。你會在床邊（或出生點）醒來。</p>
+    <p class="note" style="margin:0" id="deadMsg"></p><p class="note" style="margin:0">食物效果消失。你會在床邊（或出生點）醒來。</p>
     <button class="act go" id="respawn" type="button">重新站起</button>
   </div>
 </div>
@@ -728,7 +728,7 @@ function populate(){
 // the host sends the world (wsave), every player sends their own bag (psave) after logging in with name + PIN.
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
-function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box}))};if(MODE!=='solo')w.seen=packSeen();return w}
+function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box})),loots:loots.map(l=>({id:l.id,x:l.x,y:l.y,bag:l.bag,g:l.g}))};if(MODE!=='solo')w.seen=packSeen();return w}
 function personal(){return{inv,dur,q,eq,known:[...known],foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
@@ -749,6 +749,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
     const c=ci(st.x,st.y);if(c<0)continue;const v=old.has(c-COLS)||old.has(c+COLS),h=old.has(c-1)||old.has(c+1);
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(MODE!=='solo'&&s.seen)unpackSeen(s.seen);
+  loots=(s.loots||[]).filter(l=>l&&isFinite(l.x)&&isFinite(l.y)&&l.bag).map(l=>({id:l.id|0,x:+l.x,y:+l.y,bag:normBox(l.bag),g:l.g?String(l.g).slice(0,10):undefined}));lootSeq=Math.max(0,...loots.map(l=>l.id));
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};known=new Set((Array.isArray(s.known)?s.known:Object.keys(inv)).filter(k=>ITEM[k]));q={};for(const k in s.q||{})if(DUR_MAX[k]&&s.q[k]>1)q[k]=Math.min(Q_MAX,s.q[k]|0);
   dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(durMax(k),s.dur[k]);
@@ -769,7 +770,7 @@ function bootHost(w){const old=w?null:loadKey(WKEY);save=w||old;if(wrongMapSize(
 function bootClient(m){if(wrongMapSize(m.mapW||OLD_MAP))return;seed=m.seed;genWorld();resGrid.fill(null);const RK=Object.keys(RES);
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
   for(const[k,x,y,o,fz]of m.structs)addStruct(k,x,y,o||undefined,fz||undefined);
-  loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
+  loots=(m.loots||[]).map(([id,x,y,bag,g])=>({id,x,y,bag,g:g||undefined}));
   if(m.seen)unpackSeen(m.seen);seeCells(fogPend);fogPend=[];
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
 // data: a furnace's contents (fz) or a chest's (box)
@@ -1003,7 +1004,11 @@ function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;
   dmg*=ARM_K/(ARM_K+armorTotal());for(const[sl]of EQ_SLOTS)if(eq[sl]&&sl!=='off')wear(eq[sl]);P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
-function die(){if(P.boat){P.boat=false;act({t:'unboard',x:P.x,y:P.y})}P.burn=0;P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
+// dying leaves the bag in a grave where you fell; what is on the hotbar and what you wear stays with you
+function die(){if(P.boat){P.boat=false;act({t:'unboard',x:P.x,y:P.y})}P.burn=0;
+  const keep=new Set([...hot,...Object.values(eq)].filter(Boolean)),bag={};for(const k in inv)if(inv[k]>0&&!keep.has(k)){bag[k]=inv[k];inv[k]=0}
+  if(Object.keys(bag).length)act({t:'drop',x:Math.round(P.x),y:Math.round(P.y),bag,g:myName});
+  $('deadMsg').textContent=Object.keys(bag).length?'背包裡的東西留在倒下的地方的墓碑裡（快捷欄和身上穿的還在）。地圖上有標記，回去按 E 拿回來。':'背包是空的，沒有留下東西。';P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
 $('respawn').addEventListener('click',()=>{P.rooted=0;foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
   for(let k=0;k<20&&blocked(P.x,P.y,P.r);k++){P.x+=rnd(-30,30);P.y+=rnd(-30,30)}
   for(const m of mobs)if(m.k!=='boss'&&m.k!=='treant'&&dist(m,P)<400)m.x+=600;
@@ -1021,13 +1026,13 @@ function nearestUse(){let best=null,bd=1e9;
 // from a boat: the closest open ground within reach of the shore
 function landSpot(){let best=null,bd=1e9;for(let r=30;r<=62;r+=16)for(let k=0;k<16;k++){const a=k/16*6.2832,x=P.x+Math.cos(a)*r,y=P.y+Math.sin(a)*r;
   if(!blocked(x,y,P.r)&&biomeAt(x,y)!==B_LAVA&&r<bd){bd=r;best={x,y}}}return best}
-function useLabel(u){if(!u)return null;if(u.land)return'下船';if(u.o||u.l)return'撿起';if(u.m)return'餵'+TAME_FOOD[u.m.k];const s=u.s;
+function useLabel(u){if(!u)return null;if(u.land)return'下船';if(u.l&&u.l.g)return myGrave(u.l)?'拿回遺物':`${u.l.g}的墓碑`;if(u.o||u.l)return'撿起';if(u.m)return'餵'+TAME_FOOD[u.m.k];const s=u.s;
   if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';if(s.k==='chest')return'開箱子';if(s.k==='boat')return'上船';
   if(s.k==='altar')return boss?(boss.k==='treant'?'樹精已醒':'狼王已醒'):has('古樹種子')?'種下古樹種子':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
   if(u.land){const bx=P.x,by=P.y;P.boat=false;P.x=u.land.x;P.y=u.land.y;act({t:'unboard',x:bx,y:by});toast('下船了');writeSave();return}
   if(u.o){hitRes(u.o);return}
-  if(u.l){if(!Object.keys(u.l.bag).some(k=>roomFor(inv,k,BAG_SLOTS)>0)){toast('背包滿了');return}act({t:'pick',id:u.l.id});return}
+  if(u.l){if(u.l.g&&!myGrave(u.l)){toast(`這是${u.l.g}的墓碑`);return}if(!Object.keys(u.l.bag).some(k=>roomFor(inv,k,BAG_SLOTS)>0)){toast('背包滿了');return}act({t:'pick',id:u.l.id});return}
   if(u.m){const food=TAME_FOOD[u.m.k];inv[food]--;act({t:'feed',id:u.m.id,f:food});return}
   const s=u.s;
   if(s.k==='fire'){if(has('生肉')){const n=inv['生肉'];inv['生肉']=0;give('烤肉',n,s.x,s.y);burst(s.x,s.y-10,'#ffb347',12)}else toast('靠近營火一會兒就能獲得「休息」')}
@@ -1145,7 +1150,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>格擋：按住擋正面的攻擊，剛按下的瞬間被打中就是招架</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），按住右鍵格擋，空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>倒下時背包裡的東西會留在原地的墓碑裡，只有你撿得回來；快捷欄上的和身上穿的會跟著你。地圖上會標出墓碑。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
@@ -1474,6 +1479,9 @@ function onPrivate(m){switch(m.t){
   case'board':P.boat=true;P.x=m.x;P.y=m.y;P.roll=0;toast('上船了・靠岸按 E 下船');break; // each player's first Wolf King only; pets can't be released, so owning a pup means this one's used
 }}
 function giveAll(k,n,x,y){giveTo(ME,k,n,x,y);for(const id of others.keys())giveTo(id,k,n,x,y)}
+const nameOf=id=>id===ME?myName:(others.get(id)||{}).n;
+// a grave is yours if your name is on it; solo has one player (whose name is not kept between visits), so every grave is yours
+const myGrave=l=>!!l.g&&(MODE==='solo'||l.g===myName);
 function refund(from,cost,msg){if(from===ME){for(const k in cost)inv[k]=(inv[k]||0)+cost[k];toast(msg)}else sendTo(from,{t:'refund',cost,msg})}
 function handleAct(m,from){switch(m.t){
   case'hit':{const mob=mobs.find(o=>o.id===m.id);if(mob)hitMob(mob,m.dmg,from,m.x,m.y,m.pet);break}
@@ -1482,7 +1490,7 @@ function handleAct(m,from){switch(m.t){
     b.love=(b.love||0)+1;b.wt=2;b.wx=b.wy=0;if(b.k==='frog'){b.state='idle';b.t=2}
     if(b.love>=TAME_N){mobs.splice(mobs.indexOf(b),1);evt({t:'tm',id:b.id,x:b.x,y:b.y});toPlayer(from,{t:'tame',k:b.k})}
     else toPlayer(from,{t:'love',n:b.love,x:b.x,y:b.y});break}
-  case'drop':evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag:m.bag});break;
+  case'drop':{const bag=normBox(m.bag);if(Object.keys(bag).length)evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag,g:m.g?String(m.g).slice(0,10):undefined});break}
   case'fput':{const s=structGrid[m.c],n=Math.floor(m.n);if(!s||s.k!=='furnace'||!(n>0)||m.k!=='煤炭'&&!SMELT[m.k]){if(n>0)refund(from,{[m.k]:n},'熔爐不見了，材料退回');break}
     const f=s.fz;if(m.k==='煤炭')f.fuel+=n;else f.q[m.k]=(f.q[m.k]||0)+n;evt({t:'fz',c:m.c,f});break}
   case'fout':{const s=structGrid[m.c];if(!s||s.k!=='furnace')break;const f=s.fz;for(const k in f.out)giveTo(from,k,f.out[k],s.x,s.y-20);f.out={};evt({t:'fz',c:m.c,f});break}
@@ -1492,7 +1500,7 @@ function handleAct(m,from){switch(m.t){
     evt({t:'cb',c:m.c,b:s.box});if(Object.keys(back).length)refund(from,back,'箱子滿了，放不下的退回');break}
   case'cget':{const s=structGrid[m.c],bag=normBox(m.bag);if(!s||s.k!=='chest')break;let dy=0;
     for(const k in bag){const n=Math.min(bag[k],s.box[k]||0);if(!(n>0))continue;if(!(s.box[k]-=n))delete s.box[k];giveTo(from,k,n,s.x,s.y-20-dy);dy+=14}evt({t:'cb',c:m.c,b:s.box});break}
-  case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
+  case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;if(l.g&&MODE!=='solo'&&l.g!==nameOf(from)){refund(from,{},`這是${l.g}的墓碑`);break}evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{if(isWallK(m.k)){const g=snapWall(m.o==='v'?'v':'h',m.x,m.y);if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:g.x,y:g.y,o:g.o});break}
     const c=ci(m.x,m.y);if(m.k==='boat'?!boatSpotOk(c):c<0||biome[c]===0||biome[c]===B_LAVA||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
   case'demo':{const s=isWallK(m.k)?(m.o==='v'?wallV:wallH)[snapWall(m.o==='v'?'v':'h',m.x,m.y).c]:structGrid[ci(m.x,m.y)];if(!s||s.k!==m.k)break;
@@ -1533,7 +1541,7 @@ function applyEvt(m){switch(m.t){
   case'rr':rings.push({x:m.x,y:m.y,t:.55});shake=Math.max(shake,11);floats.push({x:m.x,y:m.y-56,txt:'吼——！',t:1,col:'#9dff9a'});burst(m.x,m.y,'#9dff9a',24);break;
   case'mk':burst(m.x,m.y,'#6a4a3a',18);if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
-  case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
+  case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag,g:m.g});break;
   case'sr':{const grid=isWallK(m.k)?(m.o==='v'?wallV:wallH):structGrid,c=isWallK(m.k)?snapWall(m.o==='v'?'v':'h',m.x,m.y).c:ci(m.x,m.y),s=grid[c];if(!s||s.k!==m.k)break;
     grid[c]=null;structs.splice(structs.indexOf(s),1);burst(s.x,s.y-10,m.k==='wall'||m.k==='bench'||m.k==='bed'||m.k==='boat'?'#a0703f':'#9a9d98',14);break}
   case'fz':{const s=structGrid[m.c];if(s&&s.k==='furnace')s.fz=normFz(m.f);break}
@@ -1541,7 +1549,7 @@ function applyEvt(m){switch(m.t){
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.box?[s.k,s.x,s.y,0,s.box]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag]),seen:packSeen()})}
+  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.box?[s.k,s.x,s.y,0,s.box]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag,l.g||0]),seen:packSeen()})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0,m.stun>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -1972,7 +1980,11 @@ function drawPet(p){const D=PETS[p.k],wolf=p.k==='wolf';
   const top=p.y-(wolf?24:p.k==='frog'?58:30),w=24;
   ctx.fillStyle='#000a';ctx.fillRect(p.x-w/2,top,w,3);ctx.fillStyle='#7fb069';ctx.fillRect(p.x-w/2,top,w*Math.max(0,p.hp)/D.hp,3);
   ctx.textAlign='center';ctx.font='700 11px system-ui,sans-serif';ctx.fillStyle='#000a';ctx.fillText('♥',p.x+1,top-3);ctx.fillStyle=CAPES[(p.owner===ME?myId:p.owner)%CAPES.length];ctx.fillText('♥',p.x,top-4)}
-function drawLoot(l){shadow(l.x+1,l.y+3,9,4);ctx.fillStyle='#8a6236';ctx.beginPath();ctx.ellipse(l.x,l.y-4,8,7,0,0,6.28);ctx.fill();
+function drawLoot(l){
+  if(l.g){shadow(l.x+1,l.y+4,11,4);ctx.fillStyle='#6d716b';ctx.beginPath();ctx.moveTo(l.x-9,l.y+3);ctx.lineTo(l.x-9,l.y-14);ctx.arc(l.x,l.y-14,9,Math.PI,0);ctx.lineTo(l.x+9,l.y+3);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#8a8e88';ctx.fillRect(l.x-9,l.y-14,3,17);ctx.fillStyle='#3d403b';ctx.fillRect(l.x-1,l.y-18,2,12);ctx.fillRect(l.x-4,l.y-15,8,2);
+    ctx.font='600 10px system-ui,sans-serif';ctx.textAlign='center';ctx.fillStyle='#000a';ctx.fillText(l.g,l.x+1,l.y-25);ctx.fillStyle='#d8d4c8';ctx.fillText(l.g,l.x,l.y-26);return}
+  shadow(l.x+1,l.y+3,9,4);ctx.fillStyle='#8a6236';ctx.beginPath();ctx.ellipse(l.x,l.y-4,8,7,0,0,6.28);ctx.fill();
   ctx.fillStyle='#5a3d22';ctx.fillRect(l.x-4,l.y-12,8,3);ctx.fillStyle='#e0a646';ctx.fillRect(l.x-1,l.y-6,2,2)}
 // player art: shared outline colour and small helpers; hair, beard and cape are built once as paths
 const PL_INK='#1f1712';
@@ -2070,6 +2082,8 @@ function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=
   for(const s of structs){if(!seen[s.cell])continue;const[x,y]=at(s.x,s.y);g.fillStyle=MAPCOL[s.k];
     if(s.o){const L=CELL/2*k,t=.8*u;if(s.o==='v')g.fillRect(x-t,y-L,t*2,L*2);else g.fillRect(x-L,y-t,L*2,t*2)}else{const r=2.6*u;g.fillRect(x-r,y-r,r*2,r*2)}}
   if(seen[altar.cell]){const[x,y]=at(altar.x,altar.y);g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle='#e0a646';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(-3.5*u,-3.5*u,7*u,7*u);g.strokeRect(-3.5*u,-3.5*u,7*u,7*u);g.restore()}
+  for(const l of loots)if(myGrave(l)){const[x,y]=at(l.x,l.y);g.fillStyle='#d8d4c8';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(x-.8*u,y-4*u,1.6*u,8*u);g.fillRect(x-3*u,y-2*u,6*u,1.6*u);g.strokeRect(x-.8*u,y-4*u,1.6*u,8*u);
+    if(big){g.font=`600 ${Math.round(4.4*u)}px system-ui,sans-serif`;g.textAlign='center';g.fillStyle='#d8d4c8';g.fillText('墓碑',x,y+8*u)}}
   for(const p of pins){const[x,y]=at(p.x,p.y);g.strokeStyle='#000';g.lineWidth=u*.9;g.beginPath();g.moveTo(x,y);g.lineTo(x,y-7*u);g.stroke();
     g.fillStyle='#ffd23f';g.beginPath();g.moveTo(x,y-7*u);g.lineTo(x+5*u,y-5.2*u);g.lineTo(x,y-3.4*u);g.closePath();g.fill();g.stroke();
     if(big){g.font=`600 ${Math.round(4.6*u)}px system-ui,sans-serif`;g.textAlign='center';g.lineWidth=u*1.2;g.strokeText(p.t,x,y+5*u);g.fillStyle='#ffe9a8';g.fillText(p.t,x,y+5*u)}}
