@@ -4,24 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-北境求生 is a top-down survival game. The project has no build step, no npm dependencies, no tests, and no linter. It has four files:
+北境求生 is a top-down survival game. There is no build step to run it and no npm dependency; the tools below use only Node built-ins (Node 22+). UI text and comments are in Traditional Chinese.
 
-- `北境求生.html`: the whole game, including CSS, HTML, and one `<script>` IIFE that draws on a canvas. UI text and comments are in Traditional Chinese.
-- `server.js`: the LAN multiplayer host. It uses only Node built-ins. It serves the HTML, relays messages over a hand-written WebSocket (RFC 6455), stores saves, and runs the world itself (see Server-run world).
+- `北境求生.html`: the HTML shell. It links `css/game.css` and loads the game as plain classic scripts, in order: `<script src="js/core.js">` … `<script src="js/main.js">`. This list is the one source of the load order (server.js and tools/build.mjs read it).
+- `js/*.js`: the game, one canvas game split by area, in load order:
+  `core` (canvas, `$`, `HEADLESS`, noise) · `data` (items, icons, foods, weapons, armour, recipes, pets, world settings `CFG`) · `world` (state variables, fog, terrain and biome generation, `makeMob`) · `save` (save/load, `addStruct`, collision) · `player` (stats, bag, toast, input, settings, sound, hotbar, combat, gathering, durability) · `panel` (build mode, bag/craft/chest/furnace panel, upgrades, goals) · `sim` (world simulation, mob and boss AI, local player update, effects, pets) · `net` (`act`/`handleAct`/`evt`, snapshots, admin commands, connection) · `render` (drawing) · `hud` (HUD, maps, emotes, map pins and pings) · `sea` (fish and sharks) · `main` (frame loop, intro, login, boot; last).
+- They are **not** modules: top-level `const`/`let`/`function` are shared between the files (one global scope, like the old IIFE body). Each file starts with `'use strict'`. Code that runs at load time may only use what earlier files (or the same file) define: a function declared in a later file does not exist yet. Event handlers and functions called later can use anything.
+- `css/game.css`: all the game's styles.
+- `server.js`: the LAN multiplayer host. It uses only Node built-ins. It serves the HTML, `js/` and `css/` (only `.js` / `.css` directly in those folders), relays messages over a hand-written WebSocket (RFC 6455), stores saves, and runs the world itself (see Server-run world).
 - `admin.html`: the admin page that `server.js` serves at `/admin` (host machine only).
 - `開主機.bat`: runs `node server.js 8080 --open`. It must keep CRLF line endings and use UTF-8 text with `chcp 65001`.
 
 ## Commands
 
 ```bash
-node server.js 8080          # start the multiplayer host (add --open to launch the browser on Windows)
+node server.js 8080            # start the multiplayer host (add --open to launch the browser on Windows)
+node tests/run.mjs             # all browser tests (headless Chrome or Edge); node tests/run.mjs admin bag  = only files matching
+node tools/format.mjs          # Prettier (settings in .prettierrc.json); --check only reports. Uses node_modules or the VS Code Prettier extension's copy
+node tools/build.mjs           # release: dist/北境求生.html with all css and js inlined, plus server.js, admin.html, 開主機.bat, README.md
+for f in js/*.js server.js; do node --check "$f"; done   # quick syntax check
 ```
 
-Syntax-check the game script by extracting it and running `node --check`:
-
-```bash
-awk '/^<script>/{f=1;next}/^<\/script>/{f=0}f' 北境求生.html > /tmp/game.js && node --check /tmp/game.js && node --check server.js
-```
+- Run `node tools/format.mjs` before committing; keep lines within the Prettier width.
+- `tests/`: one file per feature (`NN-name.mjs`), using `tests/lib/harness.mjs` (Chrome DevTools protocol, no npm). A test works on a copy of the game in `tests/.tmp`; the copy gets an extra `<script>` defining `__dbg(code)`, which evals in the game's global scope, so tests read and set game variables directly. Multiplayer tests start their own server on a port from 18190 up.
+- `dist/` and `tests/.tmp/` are gitignored.
 
 Opening `北境求生.html` directly (`file://`) runs the single-player version. Opening it over http (`http://localhost:8080`) runs the multiplayer version.
 
@@ -57,7 +63,7 @@ This split is the core of the multiplayer design. Keep it when adding features.
 
 ### Server-run world (`startSim` in server.js)
 
-- `startSim` extracts the `<script>` from 北境求生.html and runs it with `vm.runInNewContext` under fake browser globals: DOM, canvas and `Path2D` are a no-op Proxy `stub`, storage is in memory, `WebSocket` is `FakeSocket` wired straight into `onOpen`/`onMsg`, and `requestAnimationFrame` is a 30 Hz timer that keeps going if a frame throws.
+- `startSim` reads the `<script src="js/…">` list from 北境求生.html (`gameScripts`) and runs each file in order with `vm.runInContext` in one context, so they share top-level declarations like in the browser; a single-file release (one inline `<script>`) works too. The context has fake browser globals: DOM, canvas and `Path2D` are a no-op Proxy `stub`, storage is in memory, `WebSocket` is `FakeSocket` wired straight into `onOpen`/`onMsg`, and `requestAnimationFrame` is a 30 Hz timer that keeps going if a frame throws.
 - The script sees `globalThis.__NORTH_HEADLESS__` as `HEADLESS` and skips `render`, `hud` and `sea.update`. Anything else it touches at load time must work against the stub, so a new top-level browser API needs a stub in `startSim` too.
 - `world.json` is put into the fake localStorage so the script picks the right map size (`W`) at load; `bootHost(hello.world)` then loads it.
 - `stopSim(true)` fires the script's `visibilitychange` listener, which calls `writeSave()` synchronously. `shutdown` does this on SIGINT/SIGHUP (closing the console window on Windows). `wipe` (only from a `local` peer) stops the sim without saving, archives `world.json`, and starts a new one.

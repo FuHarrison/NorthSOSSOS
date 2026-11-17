@@ -231,6 +231,24 @@
 
 | 檔案 | 用途 |
 |---|---|
-| `北境求生.html` | 整個遊戲 |
+| `北境求生.html` | 遊戲的網頁外殼，依序載入 `css/` 和 `js/` |
+| `js/*.js` | 遊戲程式，依功能分成 12 個檔案（資料、地形、玩家、面板、怪物、連線、畫面……），載入順序寫在 `北境求生.html` |
+| `css/game.css` | 遊戲的樣式 |
 | `server.js` | 多人主機：跑世界、存檔、轉發連線。只用 Node 內建功能，不需要 `npm install` |
+| `admin.html` | 後台管理頁（只有主機那台電腦打得開） |
 | `開主機.bat` | 一鍵啟動主機，並打開瀏覽器 |
+| `tests/` | 自動測試（用無頭 Chrome 或 Edge 實際操作遊戲） |
+| `tools/` | 發佈（`build.mjs`）與排版（`format.mjs`） |
+
+## 開發與發佈
+
+需要 Node 22 以上；全部都不需要 `npm install`。
+
+```bash
+node tests/run.mjs          # 跑全部測試（約 5 分鐘）；node tests/run.mjs admin 只跑檔名有 admin 的
+node tools/format.mjs       # 排版（用 VS Code 的 Prettier 擴充套件內建的 Prettier）；commit 前跑一次
+node tools/build.mjs        # 發佈：產生 dist/
+```
+
+- **發佈**：`dist/北境求生.html` 是把所有 css、js 合成一個的版本，單獨傳給別人就能玩單人。整個 `dist/` 資料夾（含 `server.js`、`admin.html`、`開主機.bat`）就是一份完整的遊戲，可以直接當主機。
+- 平常開發時，直接開 `北境求生.html` 或跑 `server.js` 就好，不需要先發佈。
