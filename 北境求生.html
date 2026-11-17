@@ -438,17 +438,22 @@ const TAME_N=5,PET_DOWN=60,PET_LEASH=300;
 const biome=new Uint8Array(COLS*ROWS),cellCol=new Array(COLS*ROWS),cellH=new Float32Array(COLS*ROWS);
 const resGrid=new Array(COLS*ROWS).fill(null),structGrid=new Array(COLS*ROWS).fill(null),wallH=new Array(COLS*ROWS).fill(null),wallV=new Array(COLS*ROWS).fill(null);
 const mapImg=document.createElement('canvas');mapImg.width=COLS;mapImg.height=ROWS;
-// fog of war: per player, one flag per cell; fogImg is the matching dark mask (cleared where seen)
+// fog of war: one flag per cell; fogImg is the matching dark mask (cleared where seen)
+// multiplayer: the fog is shared. Newly seen cells collect in fogNew and go to everyone in netTick (t:'fog');
+// the host holds the union, sends it with the world and keeps it in world.json
 const seen=new Uint8Array(COLS*ROWS),fogImg=document.createElement('canvas');fogImg.width=COLS;fogImg.height=ROWS;
-const fctx=fogImg.getContext('2d'),FOG_R=6;
-function resetFog(){seen.fill(0);fctx.fillStyle='#0b1a22';fctx.fillRect(0,0,COLS,ROWS)}
+const fctx=fogImg.getContext('2d'),FOG_R=6;let fogNew=[],fogPend=[];
+function resetFog(){seen.fill(0);fogNew=[];fctx.fillStyle='#0b1a22';fctx.fillRect(0,0,COLS,ROWS)}
 resetFog();
 function reveal(x,y){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);
   for(let j=j0-FOG_R;j<=j0+FOG_R;j++)for(let i=i0-FOG_R;i<=i0+FOG_R;i++){if(i<0||j<0||i>=COLS||j>=ROWS||(i-i0)**2+(j-j0)**2>FOG_R*FOG_R)continue;
-    const c=j*COLS+i;if(!seen[c]){seen[c]=1;fctx.clearRect(i,j,1,1)}}}
+    const c=j*COLS+i;if(!seen[c]){seen[c]=1;fctx.clearRect(i,j,1,1);if(MODE!=='solo')fogNew.push(c)}}}
+// cells another player saw
+function seeCells(cs){for(const c of cs)if(c>=0&&c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1)}}
 function packSeen(){let s='';for(let b=0;b<seen.length;b+=8){let v=0;for(let k=0;k<8;k++)if(seen[b+k])v|=1<<k;s+=String.fromCharCode(v)}return btoa(s)}
-function unpackSeen(str){resetFog();let s;try{s=atob(str)}catch(e){return}
-  for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1)}}}}
+// merge: add to what is already revealed; in multiplayer, cells new to us are shared on too (a player's fog from older saves)
+function unpackSeen(str,merge){if(!merge)resetFog();let s;try{s=atob(str)}catch(e){return}
+  for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1);if(merge&&MODE!=='solo')fogNew.push(c)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
 let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
 let inv={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
@@ -637,7 +642,7 @@ function populate(){
 // the host sends the world (wsave), every player sends their own bag (psave) after logging in with name + PIN.
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
-function worldData(){return{mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
+function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))};if(MODE!=='solo')w.seen=packSeen();return w}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
@@ -657,6 +662,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
     if(st.k!=='wall'||st.o){addStruct(st.k,st.x,st.y,st.o,st.fz);continue}
     const c=ci(st.x,st.y);if(c<0)continue;const v=old.has(c-COLS)||old.has(c+COLS),h=old.has(c-1)||old.has(c+1);
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
+  if(MODE!=='solo'&&s.seen)unpackSeen(s.seen);
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
   if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none';P.boat=!!s.p.b}
@@ -665,7 +671,7 @@ function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]
   else{hotDefault();hotSel=Math.max(0,hot.indexOf(P.weapon))}syncHeld();
   pets=(s.pets||[]).filter(p=>PETS[p.k]).map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp>0?p.hp:PETS[p.k].hp,bag:p.bag||{},down:p.down||0}));
   petOut=pets.some(p=>p.id===s.petOut)?s.petOut:null;const cp=curPet();if(cp)placePet(cp,false);
-  treantDown=!!s.treant;if(s.seen)unpackSeen(s.seen)}
+  treantDown=!!s.treant;if(s.seen)unpackSeen(s.seen,MODE!=='solo')}
 function bootSolo(){MODE='solo';save=loadKey(SKEY);if(wrongMapSize(mapWOf(save)))return;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
 function bootHost(w){const old=w?null:loadKey(WKEY);save=w||old;if(wrongMapSize(mapWOf(save)))return;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;
   if(old)writeSave('w');setupIntro()}
@@ -673,6 +679,7 @@ function bootClient(m){if(wrongMapSize(m.mapW||OLD_MAP))return;seed=m.seed;genWo
   for(const[c,ki,x,y,hp,dep]of m.res){const o=addRes(RK[ki],x,y,c);o.hp=hp;o.dep=dep}
   for(const[k,x,y,o,fz]of m.structs)addStruct(k,x,y,o||undefined,fz||undefined);
   loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
+  if(m.seen)unpackSeen(m.seen);seeCells(fogPend);fogPend=[];
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
 function addStruct(k,x,y,o,fz){if(isWallK(k))return addWall(k,x,y,o);const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};
   if(k==='furnace')s.fz=normFz(fz);structs.push(s);structGrid[c]=s;return s}
@@ -1326,7 +1333,7 @@ function applyEvt(m){switch(m.t){
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag])})}
+  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag]),seen:packSeen()})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -1348,9 +1355,10 @@ function tickClient(dt){time+=dt;dayT=Math.min(.9999,dayT+dt/DAY_LEN);
   for(const s of structs)if(s.fz&&s.fz.burn>0){s.fz.burn=Math.max(0,s.fz.burn-dt);if(Object.keys(s.fz.q).length)s.fz.prog=Math.min(SMELT_T,s.fz.prog+dt)}
   for(const m of mobs){m.anim+=dt;m.flash-=dt;burnTick(m,dt);const k=Math.min(1,dt*12);m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k}
   for(const s of structs)s.anim+=dt}
-let netT=0,snapT=0,bushT=0;
+let netT=0,snapT=0,bushT=0,fogT=0;
 function netTick(dt){
   netT-=dt;if(netT<=0&&started){netT=1/15;sendState()}
+  fogT-=dt;if(fogT<=0&&fogNew.length){fogT=.25;net({t:'fog',all:1,c:fogNew});fogNew=[]}
   if(MODE==='host'){snapT-=dt;if(snapT<=0){snapT=.1;sendSnap()}}
   bushT-=dt;if(bushT<=0){bushT=1;for(const o of resGrid)if(o&&o.dep>0)o.dep-=1}}
 function netMsg(t){$('netTxt').textContent=t;$('netbox').hidden=!t}
@@ -1367,6 +1375,7 @@ function onNet(m){
   case'wiped':location.reload();return;
   case'kicked':kicked=true;noSave=true;netMsg('你的名字在別的分頁或電腦登入了，這裡已經離線。');return;
   }
+  if(m.t==='fog'){if(Array.isArray(m.c))ready?seeCells(m.c):fogPend.push(...m.c);return}
   if(!ready)return;
   if(m.t==='st'){updateOther(m);return}
   if(MODE==='host'){handleAct(m,m.from);return}
