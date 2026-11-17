@@ -68,6 +68,7 @@ This split is the core of the multiplayer design. Keep it when adding features.
 - The 灰鬃狼王 takes 獠牙 ×3 + 樹脂 ×5. Each later boss needs two things: the previous boss's keepsake, which is never used up, and a crafted summon item, which is. The player holds either one in hand (`hot[hotSel]`) at the altar. 狼王的心臟 + 古樹種子 wake the 樹精長老 (`treant`); the 長老年輪 is meant for the next boss.
 - A keepsake is given on a player's kill when they don't already have one (`pup` / `tdown` in `onPrivate`).
 - The 樹精長老 (`updateTreant`) calls a wave of 小樹精 (`sprout` mobs; 2 per player, 4 in phase 2, a new wave only once none are left; in phase 2 any still alive after `EAT_T` are called back and eaten, each healing `EAT_HEAL` of max HP; while it eats, state `eat`, it takes no damage, see `shielded`), casts black fog (`fogs`; each client checks its own player and shrinks the view to `BLIND_R`), and grows a ring of choppable `etree` resources that never regrow and wither after `ETREE_LIFE`. Below half HP it enters phase 2 (`m.p2`) with shorter cooldowns.
+- Bosses are drawn as jointed rigs: 3D joints (x = its right, y = down, z = its forward) projected for the nearest of 8 facings, worked out from `m.face` while drawing. Each limb is one tapering shape (`teTube`) so joints have no seams. The animation state lives in `m.rg` and is driven only by `m.state` and the movement it sees, so clients animate from snapshots alone. Eye positions go to `m.eyes` for the night glow.
 
 ### Admin page (`/admin`, `/api/admin/*` in server.js)
 
