@@ -41,6 +41,7 @@ kbd{font-family:ui-monospace,monospace;font-size:11px;border:1px solid var(--lin
 #goal b{color:var(--accent);font-weight:600;margin-right:6px}
 
 #topr{top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 14px);pointer-events:auto;display:flex;gap:6px}
+html.gray{filter:grayscale(1)}
 .chip-btn{background:#0d130fcc;border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:13px;display:flex;gap:6px;align-items:center}
 .chip-btn:hover{border-color:var(--accent)}
 
@@ -218,7 +219,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
   <canvas id="mini" width="280" height="280" aria-label="小地圖（點一下或按 M 開大地圖）"></canvas>
 </div>
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
-<div class="hud" id="topr"><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
+<div class="hud" id="topr"><button class="chip-btn" id="btnGray" type="button">黑白 <kbd>G</kbd></button><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
 <div class="hud" id="weaponTag"></div>
 <div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
@@ -725,6 +726,7 @@ addEventListener('keydown',e=>{
   if(e.key==='Tab'||e.key==='i'||e.key==='I'){e.preventDefault();if(!$('intro').hidden)return;togglePanel();return}
   if(e.key==='Escape'){if(!$('bigmap').hidden)toggleMap(false);else if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();return}
   if(e.code==='KeyM'){toggleMap();return}
+  if(e.code==='KeyG'){toggleGray();return}
   if(paused)return;
   if(e.code==='KeyR'&&placing){rotPlace();return}
   if(e.code==='KeyB'){toggleBuild();return}
@@ -756,6 +758,10 @@ tbtn('bAtk',()=>{if(placing)tryPlace();else if(!useHeld())atkHeld=true},()=>{atk
 tbtn('bRoll',doRoll);tbtn('bUse',doUse);tbtn('bSwap',hotNext);
 cv.addEventListener('wheel',e=>{if(paused)return;e.preventDefault();const d=e.deltaY>0?1:-1;if(placing)selectBuild(buildSel+d);else hotSelect(hotSel+d)},{passive:false});
 $('hotbar').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-hs]');if(!b)return;e.preventDefault();e.stopPropagation();if(paused)return;if(placing)selectBuild(+b.dataset.hs);else hotSelect(+b.dataset.hs)});
+// 黑白濾鏡：整頁 grayscale，記在 localStorage
+function toggleGray(on){on=document.documentElement.classList.toggle('gray',on);try{localStorage.setItem('northland-gray',on?'1':'')}catch(e){}}
+try{if(localStorage.getItem('northland-gray'))toggleGray(true)}catch(e){}
+$('btnGray').addEventListener('click',()=>toggleGray());
 $('btnBuild').addEventListener('click',()=>{if(!paused)toggleBuild()});
 $('btnPanel').addEventListener('click',()=>togglePanel());
 $('placeOk').addEventListener('click',tryPlace);$('placeRot').addEventListener('click',rotPlace);$('placeCancel').addEventListener('click',stopPlace);
