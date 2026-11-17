@@ -438,6 +438,13 @@ const RES={
 // 熔爐：每塊礦石燒 SMELT_T 秒，一塊煤炭燒 COAL_T 秒
 const SMELT={銅礦:'銅錠',錫礦:'錫錠',鐵礦:'鐵錠'},SMELT_T=6,COAL_T=20;
 const isWallK=k=>k==='wall'||k==='swall';
+// a recipe shows up once you have had every material it needs (known); the treant's gear also needs the treant beaten
+const recipeOpen=r=>Object.keys(r.cost).every(k=>known.has(k))&&(!r.lock||treantDown);
+// called from hud(): anything new in the bag is remembered, and recipes it opens up are announced
+function learn(){const add=Object.keys(inv).filter(k=>inv[k]>0&&!known.has(k));if(!add.length)return;
+  const before=new Set(RECIPES.filter(recipeOpen));for(const k of add)known.add(k);
+  const fresh=RECIPES.filter(r=>recipeOpen(r)&&!before.has(r));
+  if(fresh.length){toast(`新配方：${fresh.map(r=>r.name).join('、')}`);if(!$('panel').hidden&&panelTab==='craft')renderPanel()}}
 const RECIPES=[
   {id:'bench',name:'工作台',cost:{木頭:10},build:true,desc:'製作的中心。站在附近才能做工具與武器。'},
   {id:'fire',name:'營火',cost:{石頭:5,木頭:3},build:true,desc:'夜裡的光。可烤肉，靠近一會兒獲得「休息」。'},
@@ -491,7 +498,7 @@ function unpackSeen(str,merge){if(!merge)resetFog();let s;try{s=atob(str)}catch(
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1);if(merge&&MODE!=='solo')fogNew.push(c)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
 let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
-let inv={},dur={},foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
+let inv={},dur={},known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
@@ -678,7 +685,7 @@ function populate(){
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
 function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box}))};if(MODE!=='solo')w.seen=packSeen();return w}
-function personal(){return{inv,dur,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
+function personal(){return{inv,dur,known:[...known],foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 // ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
@@ -699,7 +706,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(MODE!=='solo'&&s.seen)unpackSeen(s.seen);
   if(flags.summoned&&!flags.boss)flags.summoned=false}
-function applyPersonal(s){inv=s.inv||{};dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(DUR_MAX[k],s.dur[k]);foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
+function applyPersonal(s){inv=s.inv||{};known=new Set((Array.isArray(s.known)?s.known:Object.keys(inv)).filter(k=>ITEM[k]));dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(DUR_MAX[k],s.dur[k]);foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
   if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none';P.boat=!!s.p.b}
   // older saves have no hotbar: fill it from the bag and select the weapon that was in hand
   if(Array.isArray(s.hot)&&s.hot.length===HOT_N){hot=s.hot.map(k=>typeof k==='string'&&ITEM[k]?k:null);hotSel=Math.min(HOT_N-1,Math.max(0,s.hotSel|0))}
@@ -966,7 +973,7 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
 /* ---------- placement ---------- */
 // build mode (B): the hotbar lists every building plus a demolish tool; picking one sets `placing`
 const DEMOLISH={id:'demolish',name:'拆除',cost:{}};let buildSel=0;
-const buildList=()=>[...RECIPES.filter(r=>r.build),DEMOLISH];
+const buildList=()=>[...RECIPES.filter(r=>r.build&&recipeOpen(r)),DEMOLISH];
 function startPlace(r){const L=buildList();buildSel=Math.max(0,L.indexOf(r));placing=r;hotSig='';$('placeBar').hidden=false;
   const demo=r===DEMOLISH;$('placeRot').hidden=!isWallK(r.id);$('placeOk').textContent=demo?'拆除':'放置';$('placeOk').classList.toggle('demo',demo);
   $('placeName').textContent=demo?'拆除：對準建築':`建造：${r.name}`;
@@ -1004,9 +1011,11 @@ function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':panelTab==='chest'?'箱子':'行囊';const b=$('panelBody');
   // recipes are split into equipment and buildings; pick one on the left, the right side shows it and crafts it
-  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id==='狼牙劍'?has('狼王之牙')||has('狼牙劍'):r.id==='古樹種子'?has('狼王之牙')||has('古樹種子')||treantDown:!r.lock||treantDown),canMake=r=>afford(r.cost)&&(!r.bench||nb);
+  if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(recipeOpen),canMake=r=>afford(r.cost)&&(!r.bench||nb);
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
-    const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
+    const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r&&L.length){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
+    if(!r){b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><p class="note">還沒有${craftTab==='build'?'建築':'裝備'}配方。拿到新的材料就會解鎖新的配方，先去砍樹、撿石頭和燧石吧。</p></div>`;
+      b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));return}
     const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
     const why=r.bench&&!nb?'要站在工作台附近才能做':'',dm=damaged();
     b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}<button class="act ${nb&&dm.length?'go':''}" type="button" id="repairBtn" ${nb&&dm.length?'':'disabled'} title="${dm.join('、')}">${!dm.length?'裝備都完好':nb?`修理 ${dm.length} 件`:'修理要在工作台旁'}</button></div><div class="craftwrap">
@@ -1060,7 +1069,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
@@ -1928,7 +1937,7 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
   ctx.globalAlpha=1}
 
 /* ---------- HUD ---------- */
-function hud(){const MH=maxHp(),MS=maxSt();
+function hud(){const MH=maxHp(),MS=maxSt();learn();
   $('hpFill').style.width=(P.hp/MH*100)+'%';$('hpTxt').textContent=`${Math.ceil(P.hp)} / ${Math.round(MH)}`;$('stFill').style.width=(P.st/MS*100)+'%';
   let fh='';for(let i=0;i<3;i++){const f=foods[i];if(f){const d=FOODS[f.k],p=f.t/d.t,C=2*Math.PI*17;fh+=`<div class="food" style="color:${d.col};border-color:${d.col}66" title="${f.k}"><svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="none" stroke="${d.col}" stroke-width="2.5" stroke-dasharray="${C*p} ${C}"/></svg><span style="color:var(--ink)">${f.k[0]}</span></div>`}else fh+='<div class="food empty"></div>'}
   $('foods').innerHTML=fh;
