@@ -302,7 +302,8 @@ const SKEY='northland-save-v1',WKEY='northland-mp-world-v1';
 function loadKey(k){try{const s=localStorage.getItem(k);return s?JSON.parse(s):null}catch(e){return null}}
 // each world keeps the size it was made with: saves from before the bigger map have no mapW and stay OLD_MAP, new worlds get NEW_MAP.
 // Everything is sized once at load, so a tab that finds out it has the wrong size (a client joining, a host starting over) remembers the right one and reloads
-const OLD_MAP=3200,NEW_MAP=7200,MAPW_KEY='northland-mapw';
+// 7200 worlds (MID_MAP) are one big continent; new worlds are 14400 with the same mainland in the middle and three outer continents around it
+const OLD_MAP=3200,MID_MAP=7200,NEW_MAP=14400,MAPW_KEY='northland-mapw';
 const mapWOf=s=>s?(s.mapW||OLD_MAP):NEW_MAP;
 // over http, server.js writes the current world's size into the page as __NORTH_MAPW, so clients start with the right size instead of reloading once
 const W=(()=>{const http=location.protocol.startsWith('http');let ov=null;try{ov=http&&sessionStorage.getItem(MAPW_KEY)}catch(e){}return http&&+globalThis.__NORTH_MAPW||+ov||mapWOf(loadKey(http?WKEY:SKEY))})(),H=W,CELL=40,COLS=W/CELL,ROWS=H/CELL;
@@ -316,7 +317,7 @@ function fbm(x,y,o){let s=0,a=.5,f=1,n=0;for(let i=0;i<o;i++){s+=a*vnoise(x*f,y*
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 /* ---------- data ---------- */
-const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a'};
+const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a',魔力水晶:'#9b7bff',發光蘑菇:'#6fe0ff'};
 /* ---------- icons ---------- */
 // 24×24 SVG icons for items (by name) and buildings (by recipe id); anything without one falls back to a colour swatch
 const meat=(c,l)=>`<rect x="4.5" y="13" width="9" height="3" rx="1.5" transform="rotate(-45 9 14.5)" fill="#eee4d0"/><circle cx="4.6" cy="17.6" r="2" fill="#eee4d0"/><circle cx="6.4" cy="19.4" r="2" fill="#eee4d0"/><ellipse cx="15" cy="9" rx="6.5" ry="5" transform="rotate(-45 15 9)" fill="${c}"/><ellipse cx="13.6" cy="7.6" rx="2.2" ry="1.2" transform="rotate(-45 13.6 7.6)" fill="${l}"/>`;
@@ -366,7 +367,7 @@ const ICON={
   demolish:'<path d="M5 20L13.5 11.5" stroke="#7b5634" stroke-width="2.6" stroke-linecap="round"/><path d="M10.5 5.5l4-2.5 6 6-2.5 4-3-3-2 .5z" fill="#8d918c"/><circle cx="18" cy="18" r="4.5" fill="#c95b5b"/><path d="M16 16l4 4M20 16l-4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>'
 };
 const icon=k=>ICON[k]?`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`:`<span class="sw" style="background:${ITEM[k]||MAPCOL[k]||'#888'}"></span>`;
-const FOODS={莓果:{hp:12,st:25,t:200,col:'#b8324a'},蘑菇:{hp:8,st:38,t:220,col:'#d98a3d'},烤肉:{hp:32,st:14,t:320,col:'#8a4a2b'}};
+const FOODS={莓果:{hp:12,st:25,t:200,col:'#b8324a'},蘑菇:{hp:8,st:38,t:220,col:'#d98a3d'},烤肉:{hp:32,st:14,t:320,col:'#8a4a2b'},發光蘑菇:{hp:6,st:60,t:240,col:'#6fe0ff'}};
 const WEAPONS={
   none:{name:'拳頭',dmg:5,range:34,arc:1.0,cd:.38,st:4,len:0},
   木棒:{name:'木棒',dmg:11,range:44,arc:1.1,cd:.5,st:6,len:22},
@@ -391,6 +392,9 @@ const RES={
   flint:{hp:1,pick:true,drop:[['燧石',1,2]]},
   bush:{hp:1,pick:true,keep:true,drop:[['莓果',2,3]]},
   shroom:{hp:1,pick:true,drop:[['蘑菇',1,1]]},
+  mtree:{hp:32,solid:9,drop:[['木頭',3,4],['魔力水晶',0,1]]},
+  crystal:{hp:50,solid:12,mine:true,tier:1,name:'魔力水晶',drop:[['魔力水晶',2,3]]},
+  glowshroom:{hp:1,pick:true,drop:[['發光蘑菇',1,1]]},
   coal:{hp:70,solid:16,mine:true,tier:1,name:'煤礦',base:'#55534f',ore:'#1c1b1a',drop:[['煤炭',3,5],['石頭',1,2]]},
   copper:{hp:80,solid:16,mine:true,tier:1,name:'銅礦',base:'#77736c',ore:'#d0813f',drop:[['銅礦',3,4],['石頭',1,2]]},
   tin:{hp:80,solid:16,mine:true,tier:1,name:'錫礦',base:'#77736c',ore:'#dfe6ea',drop:[['錫礦',3,4],['石頭',1,2]]},
@@ -406,6 +410,8 @@ const RECIPES=[
   {id:'swall',name:'石牆',cost:{石頭:4},build:true,bench:true,desc:'石頭砌的牆，跟木牆一樣貼著格子邊。按 R 轉向，可以連續放置。'},
   {id:'furnace',name:'熔爐',cost:{石頭:12,煤炭:3,木頭:6},build:true,bench:true,desc:'放入礦石和煤炭，把銅、錫、鐵礦燒成金屬錠。煤炭會隨時間燒完。'},
   {id:'bed',name:'床',cost:{木頭:8,皮革:2},build:true,bench:true,desc:'重生點。夜裡睡覺直接到天亮。'},
+  {id:'boat',name:'船',cost:{木頭:20,樹脂:4},build:true,bench:true,desc:'放在岸邊的水面上。按 E 上船就能出海，靠岸再按 E 下船，船會停在原地。'},
+  {id:'lamp',name:'水晶燈',cost:{魔力水晶:3,石頭:4},build:true,bench:true,desc:'用魔法森林的魔力水晶做的燈，整夜照亮周圍。'},
   {id:'木棒',name:'木棒',cost:{木頭:5},desc:'比拳頭有力的第一把武器。'},
   {id:'燧石斧',name:'燧石斧',cost:{木頭:5,燧石:4},bench:true,desc:'砍樹快五倍。擁有後砍樹自動使用。'},
   {id:'燧石鎬',name:'燧石鎬',cost:{木頭:6,燧石:6},bench:true,desc:'能敲碎大石頭，挖煤、銅、錫礦。擁有後採礦自動使用。'},
@@ -421,8 +427,10 @@ const RECIPES=[
 // pets: boar = tamed by feeding berries, gathers; wolf = pup from the Wolf King, fights
 const PETS={
   boar:{name:'野豬',role:'採集',hp:60,dmg:4,spd:120,r:12,cd:1.0,gather:true},
-  wolf:{name:'狼崽',role:'戰鬥',hp:40,dmg:14,spd:175,r:11,cd:.7,gather:false}
+  wolf:{name:'狼崽',role:'戰鬥',hp:40,dmg:14,spd:175,r:11,cd:.7,gather:false},
+  frog:{name:'奶蛙',role:'耐打',hp:90,dmg:7,spd:130,r:15,cd:.9,gather:false}
 };
+const TAME_FOOD={boar:'莓果',frog:'蘑菇'};
 const TAME_N=5,PET_DOWN=60,PET_LEASH=300;
 
 /* ---------- state ---------- */
@@ -457,6 +465,12 @@ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const ri=(a,b)=>Math.floor(rnd(a,b+1));
 function isWater(x,y){const c=ci(x,y);return c<0||biome[c]===0}
+// biomes: 0 sea, 1 sand, 2 grass, 3 forest; big maps also have 4 snow, 5 swamp, 6 volcanic ash, 7 lava, 8 magic forest
+const B_SNOW=4,B_SWAMP=5,B_ASH=6,B_LAVA=7,B_MAGIC=8,SWAMP_K=.55,SNOW_ST=2,BURN_T=5,BURN_DPS=2,BURN_MOB_DPS=4;
+const biomeAt=(x,y)=>{const c=ci(x,y);return c<0?0:biome[c]};
+const isSea=(x,y)=>{const c=ci(x,y);return c>=0&&biome[c]===0}; // unlike isWater, off the map is not sailable
+// lava: anything that touches it burns for BURN_T seconds; returns whether e is burning now
+function burnTick(e,dt){if(!e.boat&&biomeAt(e.x,e.y)===B_LAVA)e.burn=BURN_T;else if(e.burn>0)e.burn-=dt;return e.burn>0}
 
 /* ---------- world gen ---------- */
 // bigger maps break into islands: walk outward from the spawn island and lay a narrow bridge to every island of any size, so all of it can be reached on foot
@@ -467,38 +481,120 @@ function connectLand(){const N=COLS*ROWS,lab=new Int32Array(N).fill(-1),comps=[]
     if(biome[n]&&lab[n]>=0&&comps[lab[n]].length>=25){ // lab<0: a bridge laid just now, not an island of its ownfor(let p=c;p>=0;p=prev[p])if(!biome[p]){for(const b of[p,p+1,p+COLS])if(b<N&&!biome[b]){biome[b]=2;cellH[b]=.42}}
       for(const m of comps[lab[n]]){prev[m]=-1;q[tail++]=m}}
     else{prev[n]=c;q[tail++]=n}}}}
+// big maps: a few outer continents and small archipelagos out in the sea, kept at least 4 cells off the mainland so you need a boat. Hash and noise only, no R() calls
+function addIslands(cont,arch){const N=COLS*ROWS,dl=new Int16Array(N).fill(-1),q=[];
+  for(let c=0;c<N;c++)if(biome[c]){dl[c]=0;q.push(c)}
+  for(let h=0;h<q.length;h++){const c=q[h],i=c%COLS;for(const n of[i>0?c-1:-1,i<COLS-1?c+1:-1,c-COLS,c+COLS])if(n>=0&&n<N&&dl[n]<0){dl[n]=dl[c]+1;q.push(n)}}
+  const room=c=>{const i=c%COLS,j=Math.floor(c/COLS);return Math.min(dl[c]-4,i-2,j-2,COLS-3-i,ROWS-3-j)},blobs=[];
+  // the roomiest open-sea spot that keeps clear of the islands already placed
+  const pick=(minR,maxR,gap)=>{let best=-1,bs=-1;for(let c=0;c<N;c++){const r=room(c);if(r<minR)continue;const i=c%COLS,j=Math.floor(c/COLS),R=Math.min(r,maxR);
+      if(blobs.some(b=>Math.hypot(b.i-i,b.j-j)<b.r+R+gap))continue;const s=R+hash(c,21,seed)*3;if(s>bs){bs=s;best=c}}
+    if(best<0)return null;const b={i:best%COLS,j:Math.floor(best/COLS),r:Math.min(room(best),maxR)};blobs.push(b);return b};
+  const paint=(ci0,cj0,R,k,rough)=>{for(let j=Math.max(2,Math.floor(cj0-R*1.5));j<=Math.min(ROWS-3,Math.ceil(cj0+R*1.5));j++)for(let i=Math.max(2,Math.floor(ci0-R*1.5));i<=Math.min(COLS-3,Math.ceil(ci0+R*1.5));i++){
+    const c=j*COLS+i;if(biome[c]||dl[c]<4)continue;const dx=i+.5-ci0,dy=j+.5-cj0,qd=Math.hypot(dx,dy)/R,a=Math.atan2(dy,dx);
+    const edge=.75+.45*fbm(Math.cos(a)*1.6+k*13.1,Math.sin(a)*1.6+k*7.7,2)+(rough?(fbm(i/6+k*5.3,j/6+k*3.1,2)-.5)*.6:0);if(qd>=edge)continue;
+    const x=(i+.5)*CELL,y=(j+.5)*CELL;biome[c]=fbm(x/330+71.3,y/330+19.7,3)>.53?3:2;cellH[c]=.42+(1-qd/edge)*.25}};
+  if(cont)for(let k=0;k<3;k++){const b=pick(8,13,6);if(!b)break;paint(b.i,b.j,b.r*.85,k,true)}  // outer continents
+  for(let k=0;k<arch;k++){const b=pick(4,7,5);if(!b)break;const n=5+Math.floor(hash(k,22,seed)*5);  // archipelagos: 5–9 islets each
+    for(let m=0;m<n;m++){const h=k*31+m,a=hash(h,23,seed)*6.2832,d=hash(h,24,seed)*b.r*.9;paint(b.i+Math.cos(a)*d,b.j+Math.sin(a)*d,1.2+hash(h,25,seed)*1.8,10+h,false)}}}
+// each special biome is a single blob: a centre picked per biome on its own side of the map, a wobbly edge around it
+const ZONES=[B_SNOW,B_SWAMP,B_ASH,B_MAGIC],ZONE_R=.11;
+function placeZones(){const R=W*ZONE_R,a0=hash(1,2,seed)*6.2832,zs=[];
+  ZONES.forEach((b,k)=>{const a=a0+k*1.5708+(hash(k,3,seed)-.5)*.7;let best=null,bn=-1;
+    for(let d=.5;d<=.76;d+=.04){const zx=W/2+Math.cos(a)*d*W/2,zy=H/2+Math.sin(a)*d*H/2;let n=0;
+      for(let v=-R;v<=R;v+=CELL*2)for(let u=-R;u<=R;u+=CELL*2){if(u*u+v*v>R*R)continue;const i=Math.floor((zx+u)/CELL),j=Math.floor((zy+v)/CELL);if(i>=0&&j>=0&&i<COLS&&j<ROWS&&biome[j*COLS+i])n++}
+      if(n>bn){bn=n;best={b,x:zx,y:zy,k}}}
+    zs.push(best)});
+  for(const z of zs){const was=new Map(),i0=Math.floor((z.x-R*1.3)/CELL),i1=Math.floor((z.x+R*1.3)/CELL),j0=Math.floor((z.y-R*1.3)/CELL),j1=Math.floor((z.y+R*1.3)/CELL);
+    for(let j=Math.max(0,j0);j<=Math.min(ROWS-1,j1);j++)for(let i=Math.max(0,i0);i<=Math.min(COLS-1,i1);i++){const c=j*COLS+i;if(!biome[c])continue;
+      const x=(i+.5)*CELL,y=(j+.5)*CELL,dx=x-z.x,dy=y-z.y,q=Math.hypot(dx,dy)/R,ang=Math.atan2(dy,dx);
+      // edge wobbles with the angle only, so the zone stays one blob around its centre
+      const edge=.8+.45*fbm(Math.cos(ang)*1.6+z.k*31.7,Math.sin(ang)*1.6+z.k*17.3,2);if(q>edge)continue;
+      was.set(c,biome[c]);biome[c]=z.b===B_ASH&&q<edge*.75&&biome[c]!==1&&fbm(x/190+43.9,y/190+71.1,2)>.56?B_LAVA:z.b}
+    // water can cut off a few cells of the zone: keep the biggest connected piece, the rest goes back to what it was
+    let keep=null;const done=new Set();for(const c0 of was.keys()){if(done.has(c0))continue;const part=[c0];done.add(c0);
+      for(let h=0;h<part.length;h++){const p=part[h],i=p%COLS;for(const o of[-1,1,-COLS,COLS,-COLS-1,-COLS+1,COLS-1,COLS+1]){const n=p+o;if(Math.abs(n%COLS-i)>1||!was.has(n)||done.has(n))continue;done.add(n);part.push(n)}}
+      if(!keep||part.length>keep.length)keep=part}
+    const k=new Set(keep);for(const[c,b]of was)if(!k.has(c))biome[c]=b}}
+const MR=Math.min(W,MID_MAP)/2,OUTER=[],OC_D=6500,OC_R=2500;
+// cells of one land mass (4-neighbour flood fill), starting from the land cell nearest (x,y)
+function landMass(x,y,box){let s=-1,bd=1e9;const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);
+  for(let j=Math.max(0,j0-box);j<=Math.min(ROWS-1,j0+box);j++)for(let i=Math.max(0,i0-box);i<=Math.min(COLS-1,i0+box);i++){const c=j*COLS+i,d=(i-i0)**2+(j-j0)**2;if(biome[c]&&d<bd){bd=d;s=c}}
+  if(s<0)return[];const seen=new Uint8Array(COLS*ROWS),out=[s];seen[s]=1;
+  for(let h=0;h<out.length;h++){const c=out[h],i=c%COLS;for(const n of[i>0?c-1:-1,i<COLS-1?c+1:-1,c-COLS,c+COLS])if(n>=0&&n<COLS*ROWS&&biome[n]&&!seen[n]){seen[n]=1;out.push(n)}}return out}
+// new worlds: three outer continents on three of the four diagonals, each at least about half the mainland. A continent that comes out too small is redrawn bigger
+function addContinents(){const N=COLS*ROWS,dl=new Int16Array(N).fill(-1),q=[];let main=0;
+  for(let c=0;c<N;c++)if(biome[c]){dl[c]=0;q.push(c);main++}
+  for(let h=0;h<q.length;h++){const c=q[h],i=c%COLS;for(const n of[i>0?c-1:-1,i<COLS-1?c+1:-1,c-COLS,c+COLS])if(n>=0&&n<N&&dl[n]<0){dl[n]=dl[c]+1;q.push(n)}}
+  const skip=Math.floor(hash(5,6,seed)*4);OUTER.length=0;
+  for(let s=0;s<4;s++){if(s===skip)continue;const k=OUTER.length,a=.785+s*1.5708+(hash(s,7,seed)-.5)*.3;let R=OC_R,cells,cx,cy;
+    for(let t=0;t<8;t++){cells=[];const m=R*1.1+200;cx=Math.min(W-m,Math.max(m,W/2+Math.cos(a)*OC_D));cy=Math.min(H-m,Math.max(m,H/2+Math.sin(a)*OC_D)); /* keep it off the map edge */const i0=Math.max(4,Math.floor((cx-R*1.4)/CELL)),i1=Math.min(COLS-5,Math.floor((cx+R*1.4)/CELL)),j0=Math.max(4,Math.floor((cy-R*1.4)/CELL)),j1=Math.min(ROWS-5,Math.floor((cy+R*1.4)/CELL));
+      for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i;if(dl[c]<5)continue;const x=(i+.5)*CELL,y=(j+.5)*CELL;
+        const e=fbm(x/430+k*91.7,y/430+k*53.3,4)+.28-Math.pow(Math.hypot(x-cx,y-cy)/R,4)*.85;if(e>=.37)cells.push(c,e)}
+      if(cells.length/2>=main*.53)break;R*=1.06}
+    for(let n=0;n<cells.length;n+=2){const c=cells[n],x=(c%COLS+.5)*CELL,y=(Math.floor(c/COLS)+.5)*CELL;biome[c]=fbm(x/330+71.3,y/330+19.7,3)>.53?3:2;cellH[c]=cells[n+1]}
+    OUTER.push({x:cx,y:cy,r:R})}}
+// new worlds: volcano, snow and magic forest each take a whole outer continent; the swamp is one fifth of the mainland
+function placeBigBiomes(){const kinds=[B_ASH,B_SNOW,B_MAGIC],o=Math.floor(hash(3,4,seed)*3);
+  OUTER.forEach((z,k)=>{const b=kinds[(k+o)%3],mass=landMass(z.x,z.y,30);
+    for(const c of mass){let lava=false;
+      if(b===B_ASH){const i=c%COLS,j=Math.floor(c/COLS);let inland=true;for(let v=-3;v<=3&&inland;v++)for(let u=-3;u<=3;u++)if(!biome[(j+v)*COLS+i+u]){inland=false;break}
+        lava=inland&&fbm((i+.5)*CELL/190+43.9,(j+.5)*CELL/190+71.1,2)>.56}
+      biome[c]=lava?B_LAVA:b}});
+  const main=landMass(W/2,H/2,3),a=hash(8,9,seed)*6.2832,sx=W/2+Math.cos(a)*MR*.55,sy=H/2+Math.sin(a)*MR*.55,k=17;
+  const score=c=>{const x=(c%COLS+.5)*CELL,y=(Math.floor(c/COLS)+.5)*CELL,ang=Math.atan2(y-sy,x-sx);return Math.hypot(x-sx,y-sy)/(.8+.45*fbm(Math.cos(ang)*1.6+k*31.7,Math.sin(ang)*1.6+k*17.3,2))};
+  const pool=main.filter(c=>Math.hypot((c%COLS+.5)*CELL-W/2,(Math.floor(c/COLS)+.5)*CELL-H/2)>600).sort((p,q)=>score(p)-score(q)).slice(0,Math.round(main.length/5));
+  // a coastline can split the pool: keep its biggest connected piece
+  const inPool=new Set(pool),done=new Set();let keep=[];
+  for(const c0 of pool){if(done.has(c0))continue;const part=[c0];done.add(c0);
+    for(let h=0;h<part.length;h++){const p=part[h],i=p%COLS;for(const n of[i>0?p-1:-1,i<COLS-1?p+1:-1,p-COLS,p+COLS])if(inPool.has(n)&&!done.has(n)){done.add(n);part.push(n)}}
+    if(part.length>keep.length)keep=part}
+  for(const c of keep)biome[c]=B_SWAMP}
 function genWorld(){
   const R=mulberry(seed);
   for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){
-    const x=(i+.5)*CELL,y=(j+.5)*CELL,dx=(x-W/2)/(W/2),dy=(y-H/2)/(H/2),d=Math.hypot(dx,dy);
+    const x=(i+.5)*CELL,y=(j+.5)*CELL,dx=(x-W/2)/MR,dy=(y-H/2)/MR,d=Math.hypot(dx,dy);
     let e=fbm(x/430,y/430,4)+.2-Math.pow(d,4)*.85;
     if(d<.1)e=Math.max(e,.55);
     const f=fbm(x/330+71.3,y/330+19.7,3);
     const c=j*COLS+i;cellH[c]=e;
     biome[c]=e<.37?0:(f>.53&&d>.16)?3:2;
   }
-  if(W>OLD_MAP)connectLand();
+  if(W===MID_MAP){connectLand();addIslands(true,5)}
+  if(W>MID_MAP){addContinents();addIslands(false,9)} // outer continents and islands are reached by boat
   const sand=[];
   for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){const c=j*COLS+i;if(biome[c]===0)continue;
     let w=false;for(const[a,b]of[[1,0],[-1,0],[0,1],[0,-1]]){const ii=i+a,jj=j+b;if(ii<0||jj<0||ii>=COLS||jj>=ROWS||biome[jj*COLS+ii]===0)w=true}
     if(w)sand.push(c)}
   for(const c of sand)biome[c]=1;
+  // big maps only: one region each of snow, swamp, volcano (ash with lava pools) and magic forest, away from spawn. Noise and hash only, no R() calls
+  if(W===MID_MAP)placeZones();
+  if(W>MID_MAP)placeBigBiomes();
   for(let c=0;c<COLS*ROWS;c++){const v=hash(c,7,seed),b=biome[c];
     cellCol[c]=b===0?`hsl(${200+v*6},${38+v*6}%,${Math.max(13,26-(.37-cellH[c])*70)+v*2}%)`:
       b===1?`hsl(${40+v*6},${30+v*8}%,${52+v*5}%)`:
-      b===2?`hsl(${84+v*14},${30+v*10}%,${31+v*6}%)`:`hsl(${112+v*14},${22+v*8}%,${18+v*4}%)`;}
+      b===2?`hsl(${84+v*14},${30+v*10}%,${31+v*6}%)`:b===3?`hsl(${112+v*14},${22+v*8}%,${18+v*4}%)`:
+      b===B_SNOW?`hsl(${200+v*12},${18+v*8}%,${84+v*6}%)`:b===B_SWAMP?`hsl(${72+v*16},${24+v*8}%,${21+v*5}%)`:
+      b===B_ASH?`hsl(${14+v*12},${7+v*6}%,${21+v*6}%)`:b===B_LAVA?`hsl(${16+v*14},${92}%,${44+v*8}%)`:`hsl(${258+v*22},${30+v*10}%,${20+v*6}%)`;}
   // altar
-  for(let k=0;k<400&&!altar;k++){const a=R()*Math.PI*2,rr=W*(.27+R()*.08),x=W/2+Math.cos(a)*rr,y=H/2+Math.sin(a)*rr;
+  for(let k=0;k<400&&!altar;k++){const a=R()*Math.PI*2,rr=MR*2*(.27+R()*.08),x=W/2+Math.cos(a)*rr,y=H/2+Math.sin(a)*rr;
     let ok=true;for(let u=-3;u<=3&&ok;u++)for(let v=-3;v<=3;v++)if(isWater(x+u*CELL,y+v*CELL)){ok=false;break}
     if(ok){const c=ci(x,y);altar={k:'altar',x:(c%COLS+.5)*CELL,y:(Math.floor(c/COLS)+.5)*CELL,cell:c}}}
   if(!altar)altar={k:'altar',x:W/2+600,y:H/2,cell:ci(W/2+600,H/2)};
+  // no lava right around the altar (the bosses wake up there)
+  for(let c=0;c<COLS*ROWS;c++)if(biome[c]===B_LAVA&&Math.hypot((c%COLS+.5)*CELL-altar.x,(Math.floor(c/COLS)+.5)*CELL-altar.y)<260){biome[c]=B_ASH;const v=hash(c,7,seed);cellCol[c]=`hsl(${14+v*12},${7+v*6}%,${21+v*6}%)`}
   // resources
   for(let j=1;j<ROWS-1;j++)for(let i=1;i<COLS-1;i++){const c=j*COLS+i,b=biome[c];if(b===0)continue;
     const x=(i+.5)*CELL+(R()-.5)*16,y=(j+.5)*CELL+(R()-.5)*16;
     if(Math.hypot(x-W/2,y-H/2)<70||Math.hypot(x-altar.x,y-altar.y)<150)continue;
     const r=R();let k=null;
-    if(W>OLD_MAP){const g=fbm(x/230+11.3,y/230+47.9,2),tree=b===1?0:g>.58?Math.min(.3,.1+(g-.58)*1.4):.008,s=R();
-      if(r<tree)k=(b===3?s<.8:s<.15)?'pine':'tree';
+    if(W>OLD_MAP){const g=fbm(x/230+11.3,y/230+47.9,2),tree=b===1||b===B_ASH||b===B_LAVA?0:g>.58?Math.min(.3,.1+(g-.58)*1.4):.008,s=R();
+      if(b===B_LAVA)k=null;
+      else if(r<tree)k=b===B_MAGIC?(s<.85?'mtree':'pine'):(b===3||b===B_SNOW?s<.8:s<.15)?'pine':'tree';
+      else if(b===B_SNOW)k=s<.04?'rock':s<.08?'pebble':null;
+      else if(b===B_SWAMP)k=s<.07?'shroom':s<.09?'bush':s<.12?'pebble':null;
+      else if(b===B_ASH)k=s<.05?'rock':s<.075?'coal':s<.12?'flint':s<.16?'pebble':null;
+      else if(b===B_MAGIC)k=s<.04?'crystal':s<.1?'glowshroom':s<.13?'pebble':null;
       else if(b===3)k=s<.05?'rock':s<.11?'shroom':s<.14?'pebble':null;
       else if(b===2)k=s<.04?'bush':s<.085?'pebble':s<.105?'rock':s<.115?'flint':null;
       else k=s<.2?'flint':s<.3?'pebble':null;
@@ -508,8 +604,8 @@ function genWorld(){
     else k=r<.2?'flint':r<.3?'pebble':null;
     if(k)addRes(k,x,y,c);}
   // ore veins: placed with hash/noise only (no R() calls) so the rest of an existing world stays the same; iron only far from spawn
-  for(let j=1;j<ROWS-1;j++)for(let i=1;i<COLS-1;i++){const c=j*COLS+i;if(biome[c]<2||resGrid[c]||c===altar.cell)continue;
-    const x=(i+.5)*CELL,y=(j+.5)*CELL,d=Math.hypot(x-W/2,y-H/2)/(W/2);if(d<.2||Math.hypot(x-altar.x,y-altar.y)<150)continue;
+  for(let j=1;j<ROWS-1;j++)for(let i=1;i<COLS-1;i++){const c=j*COLS+i;if(biome[c]<2||biome[c]===B_LAVA||resGrid[c]||c===altar.cell)continue;
+    const x=(i+.5)*CELL,y=(j+.5)*CELL,d=Math.hypot(x-W/2,y-H/2)/MR;if(d<.2||Math.hypot(x-altar.x,y-altar.y)<150)continue;
     if(vnoise(x/210+33.1,y/210+51.7)<.8||hash(c,11,seed)>.45)continue;
     const t=hash(Math.floor(x/360),Math.floor(y/360),seed+5),k=t<.3?'coal':t<.52?'copper':t<.74?'tin':d>.4?'iron':'coal'; // one ore type per 9×9-cell region
     addRes(k,x+(hash(c,12,seed)-.5)*14,y+(hash(c,13,seed)-.5)*14,c)}
@@ -524,14 +620,15 @@ function genWorld(){
 function addRes(k,x,y,c){const o={k,x,y,cell:c,hp:RES[k].hp,flash:0,dep:0,sz:.85+hash(c,3,seed)*.35};resGrid[c]=o;return o}
 
 /* ---------- mobs ---------- */
-function findSpot(cx,cy,minD,maxD,want){for(let t=0;t<40;t++){const a=Math.random()*6.28,r=rnd(minD,maxD),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r,c=ci(x,y);if(c<0)continue;const b=biome[c];if(b===0||resGrid[c]&&RES[resGrid[c].k].solid||structGrid[c])continue;if(want&&!want.includes(b))continue;return{x,y}}return null}
-function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100},treant:{hp:1400,r:39,spd:42}}[k];
+function findSpot(cx,cy,minD,maxD,want){for(let t=0;t<40;t++){const a=Math.random()*6.28,r=rnd(minD,maxD),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r,c=ci(x,y);if(c<0)continue;const b=biome[c];if(b===0||b===B_LAVA||resGrid[c]&&RES[resGrid[c].k].solid||structGrid[c])continue;if(want&&!want.includes(b))continue;return{x,y}}return null}
+function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100},treant:{hp:1400,r:39,spd:42},frog:{hp:30,r:15,spd:60}}[k];
   return{id:++mobSeq,k,x,y,tx:x,ty:y,hp:base.hp,max:base.hp,r:base.r,spd:base.spd,face:Math.random()*6.28,wt:0,wx:0,wy:0,aggro:0,acd:0,kx:0,ky:0,flash:0,state:'chase',t:0,atkT:2.5,lastAtk:'',howlT:9,cn:0,cph:'',hitDash:false,anim:Math.random()*9}}
 function spawnMob(k,x,y){const m=makeMob(k,x,y);mobs.push(m);return m}
 function populate(){
   const big=W>OLD_MAP,far=big?W*.47:1500,pop=big?3.5:1;
   for(let n=0;n<24*pop;n++){const s=findSpot(W/2,H/2,350,far,[2]);if(s)spawnMob('boar',s.x,s.y)}
   for(let n=0;n<14*pop;n++){const s=findSpot(W/2,H/2,600,far,[3]);if(s)spawnMob('moss',s.x,s.y)}
+  for(let n=0;n<8*pop;n++){const s=findSpot(W/2,H/2,250,far,[1,3]);if(s)spawnMob('frog',s.x,s.y)}
 }
 
 /* ---------- load / save ---------- */
@@ -540,7 +637,7 @@ function populate(){
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
 function worldData(){return{mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))}}
-function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon},hot,hotSel,
+function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 // ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
@@ -561,7 +658,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
-  if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none'}
+  if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none';P.boat=!!s.p.b}
   // older saves have no hotbar: fill it from the bag and select the weapon that was in hand
   if(Array.isArray(s.hot)&&s.hot.length===HOT_N){hot=s.hot.map(k=>typeof k==='string'&&ITEM[k]?k:null);hotSel=Math.min(HOT_N-1,Math.max(0,s.hotSel|0))}
   else{hotDefault();hotSel=Math.max(0,hot.indexOf(P.weapon))}syncHeld();
@@ -587,9 +684,10 @@ function addWall(k,x,y,o){if(o!=='v')o='h';const g=snapWall(o,x,y),grid=o==='v'?
   const s={k,x:g.x,y:g.y,o,cell:g.c,anim:0};structs.push(s);grid[g.c]=s;return s}
 
 /* ---------- collision ---------- */
-const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17},WALL_T=6;
+const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17,lamp:9},WALL_T=6;
 function wallHit(w,x,y,r){const T=WALL_T+r,L=CELL/2+r;return w.o==='v'?Math.abs(x-w.x)<T&&Math.abs(y-w.y)<L:Math.abs(y-w.y)<T&&Math.abs(x-w.x)<L}
-function blocked(x,y,r){
+function blocked(x,y,r,e){
+  if(e&&e.boat)return!(isSea(x,y)&&isSea(x+r*.7,y)&&isSea(x-r*.7,y)&&isSea(x,y+r*.7)&&isSea(x,y-r*.7)); // on a boat: only open sea
   if(isWater(x,y)||isWater(x+r*.7,y)||isWater(x-r*.7,y)||isWater(x,y+r*.7)||isWater(x,y-r*.7))return true;
   const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL),sp=r>20?2:1;
   for(let j=j0-sp;j<=j0+sp;j++)for(let i=i0-sp;i<=i0+sp;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const c=j*COLS+i;
@@ -598,7 +696,8 @@ function blocked(x,y,r){
     if(wallH[c]&&wallHit(wallH[c],x,y,r)||wallV[c]&&wallHit(wallV[c],x,y,r))return true}
   if(Math.hypot(altar.x-x,altar.y-y)<26+r)return true;
   return false}
-function move(e,dx,dy){if(dx&&!blocked(e.x+dx,e.y,e.r))e.x+=dx;if(dy&&!blocked(e.x,e.y+dy,e.r))e.y+=dy}
+function move(e,dx,dy){if(biomeAt(e.x,e.y)===B_SWAMP){dx*=SWAMP_K;dy*=SWAMP_K}
+  if(dx&&!blocked(e.x+dx,e.y,e.r,e))e.x+=dx;if(dy&&!blocked(e.x,e.y+dy,e.r,e))e.y+=dy}
 
 /* ---------- player stats ---------- */
 function foodVal(f,key){const d=FOODS[f.k];return d[key]*Math.min(1,f.t/(d.t*.4))}
@@ -666,7 +765,7 @@ $('panel').addEventListener('pointerdown',e=>{if(e.target.id==='panel')togglePan
 
 /* ---------- actions ---------- */
 function worldMouse(){return{x:(mouse.x-VW/2)/SCALE+cam.x,y:(mouse.y-VH/2)/SCALE+cam.y}}
-function doRoll(){if(P.roll>0||P.st<14||placing||P.rooted>0)return;P.st-=14;P.stDelay=.9;P.roll=.32;
+function doRoll(){const cost=biomeAt(P.x,P.y)===B_SNOW?14*SNOW_ST:14;if(P.roll>0||P.st<cost||placing||P.rooted>0||P.boat)return;P.st-=cost;P.stDelay=.9;P.roll=.32;
   let dx=0,dy=0;if(TOUCH){dx=joy.dx;dy=joy.dy}else{dx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);dy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0)}
   if(!dx&&!dy){dx=Math.cos(P.face);dy=Math.sin(P.face)}const l=Math.hypot(dx,dy);P.rdx=dx/l;P.rdy=dy/l}
 /* ---------- hotbar ---------- */
@@ -728,13 +827,14 @@ function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=dmg;m.flash=.15;const a=Math.atan2
   if(m.hp<=0)killMob(m,from)}
 function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y});
   if(m.k==='boar'){giveTo(from,'生肉',ri(1,2),m.x,m.y);if(Math.random()<.8)giveTo(from,'皮革',ri(1,2),m.x,m.y-14);if(Math.random()<.4)giveTo(from,'獠牙',1,m.x,m.y-28)}
+  if(m.k==='frog'){giveTo(from,'生肉',1,m.x,m.y);if(Math.random()<.35)giveTo(from,'蘑菇',1,m.x,m.y-14)}
   if(m.k==='moss'){giveTo(from,'樹脂',ri(1,2),m.x,m.y);if(Math.random()<.25)giveTo(from,'燧石',1,m.x,m.y-14)}
   if(m.k==='treant'){boss=null;giveAll('堅硬樹皮',ri(3,5),m.x,m.y);giveAll('古老樹枝',ri(2,3),m.x,m.y-14);giveAll('自然精華',ri(2,3),m.x,m.y-28);toAll({t:'tdown',x:m.x,y:m.y});evt({t:'bn',h:'樹精倒下了',s:'第一次打倒樹精會解鎖樹精法杖與樹精裝備，到工作台製作'});writeSave()}
   if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'第一次打倒狼王的人會得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
 function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;const ak=armorKey();if(ak)dmg*=ARMORS[ak].mul;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
-function die(){P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
+function die(){if(P.boat){P.boat=false;act({t:'unboard',x:P.x,y:P.y})}P.burn=0;P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
 $('respawn').addEventListener('click',()=>{P.rooted=0;foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
   for(let k=0;k<20&&blocked(P.x,P.y,P.r);k++){P.x+=rnd(-30,30);P.y+=rnd(-30,30)}
   for(const m of mobs)if(m.k!=='boss'&&m.k!=='treant'&&dist(m,P)<400)m.x+=600;
@@ -743,22 +843,28 @@ function eat(k){if(!FOODS[k]||!has(k))return;if(foods.some(f=>f.k===k)){toast('�
   inv[k]--;foods.push({k,t:FOODS[k].t});P.hp=Math.min(maxHp(),P.hp+8);if(k==='烤肉')ate=true;toast(`吃了${k}：血量上限 +${FOODS[k].hp}，耐力上限 +${FOODS[k].st}`)}
 
 function nearestUse(){let best=null,bd=1e9;
+  if(P.boat){const l=landSpot();return l?{land:l}:null}
   for(const s of [...structs,altar]){const d=dist(s,P),lim=s.k==='altar'?84:62;if(d<lim&&d<bd&&!isWallK(s.k)){best={s};bd=d}}
   if(best)return best;
   for(const l of loots){const d=dist(l,P);if(d<46&&d<bd){bd=d;best={l}}}
-  if(has('莓果'))for(const m of mobs)if(m.k==='boar'&&m.aggro<=0){const d=dist(m,P)-m.r;if(d<40&&d<bd){bd=d;best={m}}}
+  for(const m of mobs)if(TAME_FOOD[m.k]&&has(TAME_FOOD[m.k])&&m.aggro<=0){const d=dist(m,P)-m.r;if(d<40&&d<bd){bd=d;best={m}}}
   if(best)return best;forCells(P.x,P.y,1,o=>{if(RES[o.k].pick&&!(o.k==='bush'&&o.dep>0)){const d=dist(o,P);if(d<46&&d<bd){bd=d;best={o}}}});return best}
-function useLabel(u){if(!u)return null;if(u.o||u.l)return'撿起';if(u.m)return'餵莓果';const s=u.s;
-  if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';
+// from a boat: the closest open ground within reach of the shore
+function landSpot(){let best=null,bd=1e9;for(let r=30;r<=62;r+=16)for(let k=0;k<16;k++){const a=k/16*6.2832,x=P.x+Math.cos(a)*r,y=P.y+Math.sin(a)*r;
+  if(!blocked(x,y,P.r)&&biomeAt(x,y)!==B_LAVA&&r<bd){bd=r;best={x,y}}}return best}
+function useLabel(u){if(!u)return null;if(u.land)return'下船';if(u.o||u.l)return'撿起';if(u.m)return'餵'+TAME_FOOD[u.m.k];const s=u.s;
+  if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';if(s.k==='boat')return'上船';
   if(s.k==='altar')return boss?(boss.k==='treant'?'樹精已醒':'狼王已醒'):has('古樹種子')?'種下古樹種子':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
+  if(u.land){const bx=P.x,by=P.y;P.boat=false;P.x=u.land.x;P.y=u.land.y;act({t:'unboard',x:bx,y:by});toast('下船了');writeSave();return}
   if(u.o){hitRes(u.o);return}
   if(u.l){act({t:'pick',id:u.l.id});return}
-  if(u.m){inv['莓果']--;act({t:'feed',id:u.m.id});return}
+  if(u.m){const food=TAME_FOOD[u.m.k];inv[food]--;act({t:'feed',id:u.m.id,f:food});return}
   const s=u.s;
   if(s.k==='fire'){if(has('生肉')){const n=inv['生肉'];inv['生肉']=0;give('烤肉',n,s.x,s.y);burst(s.x,s.y-10,'#ffb347',12)}else toast('靠近營火一會兒就能獲得「休息」')}
   else if(s.k==='bench')togglePanel(true,'craft');
   else if(s.k==='furnace'){furnaceC=s.cell;togglePanel(true,'furnace')}
+  else if(s.k==='boat')act({t:'board',x:s.x,y:s.y});
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
   else if(s.k==='altar'){if(boss)return;
     if(has('古樹種子')){inv['古樹種子']--;act({t:'summont'});shake=12;return}
@@ -790,9 +896,12 @@ function aimPt(){let x,y;if(!TOUCH&&mouse.on){const w=worldMouse();x=w.x;y=w.y;c
 function ghostPos(){const{x,y}=aimPt();
   if(placing&&isWallK(placing.id))return snapWall(placeRot,x,y);
   const c=ci(x,y);return{x:(c%COLS+.5)*CELL,y:(Math.floor(c/COLS)+.5)*CELL,c}}
-function ghostOk(g){if(g.o){if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c]||wallHit(g,P.x,P.y,P.r))return false;for(const m of mobs)if(wallHit(g,m.x,m.y,m.r))return false;return true}
-  if(g.c<0||biome[g.c]===0||structGrid[g.c]||g.c===altar.cell)return false;const o=resGrid[g.c];if(o&&RES[o.k].solid)return false;
+function ghostOk(g){if(placing&&placing.id==='boat')return boatSpotOk(g.c);if(g.o){if(g.c<0||biome[g.c]===0||biome[g.c]===B_LAVA||(g.o==='v'?wallV:wallH)[g.c]||wallHit(g,P.x,P.y,P.r))return false;for(const m of mobs)if(wallHit(g,m.x,m.y,m.r))return false;return true}
+  if(g.c<0||biome[g.c]===0||biome[g.c]===B_LAVA||structGrid[g.c]||g.c===altar.cell)return false;const o=resGrid[g.c];if(o&&RES[o.k].solid)return false;
   if(Math.abs(g.x-P.x)<22+P.r&&Math.abs(g.y-P.y)<22+P.r)return false;for(const m of mobs)if(Math.hypot(m.x-g.x,m.y-g.y)<20+m.r)return false;return true}
+// a boat goes on an empty sea cell next to land
+function boatSpotOk(c){if(c<0||biome[c]!==0||structGrid[c])return false;const i=c%COLS,j=Math.floor(c/COLS);
+  return[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>{const ii=i+a,jj=j+b;return ii>=0&&jj>=0&&ii<COLS&&jj<ROWS&&biome[jj*COLS+ii]!==0})}
 function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemolish();return}if(!afford(r.cost)){toast('材料不夠了');return}if(r.bench&&!nearBench()){toast('要在工作台附近才能建造');return}
   const g=ghostPos();if(!ghostOk(g)){toast('這裡不能放');return}take(r.cost);act({t:'build',k:r.id,x:g.x,y:g.y,o:g.o,cost:r.cost});
   if(r.id==='bed')spawnPt={x:g.x,y:g.y+34};
@@ -839,11 +948,11 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.querySelectorAll('[data-fin]').forEach(x=>x.addEventListener('click',()=>{const k=x.dataset.fin,n=x.dataset.n==='all'?inv[k]:1;if(!(n>0)||!has(k))return;inv[k]-=n;act({t:'fput',c:furnaceC,k,n});writeSave();renderPanel()}));
     $('fzOut').addEventListener('click',()=>{act({t:'fout',c:furnaceC});setTimeout(renderPanel,150)})}
   else if(panelTab==='pets'){
-    b.innerHTML=pets.length?`<p class="note">一次只能召喚一隻。野豬會幫忙撿東西，狼崽擅長戰鬥。寵物撿到的東西放在牠身上，倒下時會掉在地上。</p><div class="grid">`+pets.map(p=>{const D=PETS[p.k],out=p.id===petOut,n=Object.values(p.bag).reduce((a,b)=>a+b,0);
+    b.innerHTML=pets.length?`<p class="note">一次只能召喚一隻。野豬會幫忙撿東西，狼崽擅長戰鬥，奶蛙最耐打。寵物撿到的東西放在牠身上，倒下時會掉在地上。</p><div class="grid">`+pets.map(p=>{const D=PETS[p.k],out=p.id===petOut,n=Object.values(p.bag).reduce((a,b)=>a+b,0);
       return`<div class="card"><h3>${p.name}<em>${D.name}・${D.role}${out?'・召喚中':''}</em></h3><p>${p.down>0?`倒下了，${Math.ceil(p.down)} 秒後回來`:`血量 ${Math.ceil(p.hp)}/${D.hp}・傷害 ${D.dmg}`}・攜帶 ${n} 件</p>
       <div class="costs">${Object.entries(p.bag).map(([k,v])=>`<span class="cost">${k} ×${v}</span>`).join('')}</div>
       <button class="act ${out?'':'go'}" type="button" data-sum="${p.id}">${out?'收回':'召喚'}</button><button class="act" type="button" data-take="${p.id}" ${n?'':'disabled'}>取出物品</button></div>`}).join('')+`</div>`
-      :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠；第一次打倒狼王時，每個人都會得到一隻狼崽。</p>`;
+      :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠，奶蛙則是餵蘑菇；第一次打倒狼王時，每個人都會得到一隻狼崽。</p>`;
     b.querySelectorAll('[data-sum]').forEach(x=>x.addEventListener('click',()=>{const id=+x.dataset.sum;if(petOut===id)petOut=null;else summonPet(id);writeSave();renderPanel()}));
     b.querySelectorAll('[data-take]').forEach(x=>x.addEventListener('click',()=>{const p=pets.find(q=>q.id===+x.dataset.take);if(!p)return;
       for(const k in p.bag){inv[k]=(inv[k]||0)+p.bag[k];hotAdd(k)}toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
@@ -851,7 +960,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
-    <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
+    <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
     ${MODE==='solo'||netInfo&&netInfo.local?`<button class="danger" id="wipe" type="button">${MODE==='solo'?'開始新世界（刪除存檔）':'開始新世界（目前的世界會改名保留，大家會重新連線）'}</button>`:''}</div>`;
     const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
@@ -949,7 +1058,10 @@ function updateWorld(dt){
   // night spawns
   spawnT-=dt;if(spawnT<=0){spawnT=5;const T=TG[Math.floor(Math.random()*TG.length)],mossN=nearCount('moss',T);
     if(T&&isNight()&&mossN<5+Math.min(day,6)){const s=findSpot(T.x,T.y,480,620);if(s)spawnMob('moss',s.x,s.y)}
+    // the magic forest swarms with moss at night: more of them, spawned inside the forest
+    if(T&&isNight()&&biomeAt(T.x,T.y)===B_MAGIC&&mossN<12+Math.min(day,6))for(let n=0;n<2;n++){const s=findSpot(T.x,T.y,380,620,[B_MAGIC]);if(s)spawnMob('moss',s.x,s.y)}
     if(T&&nearCount('boar',T)<18&&mobs.length<220){const s=findSpot(T.x,T.y,600,1100,[2]);if(s)spawnMob('boar',s.x,s.y)}
+    if(T&&nearCount('frog',T)<4&&mobs.length<220){const s=findSpot(T.x,T.y,600,1100,[1,3]);if(s)spawnMob('frog',s.x,s.y)}
     if(!isNight())for(let i=mobs.length-1;i>=0;i--){const m=mobs[i];if(m.k==='moss'&&TG.every(t=>dist(m,t)>750)&&biome[ci(m.x,m.y)]!==3&&Math.random()<.3)mobs.splice(i,1)}}
   regrowT-=dt;if(regrowT<=0){regrowT=2;for(let i=regrow.length-1;i>=0;i--){const g=regrow[i];if(time>=g.at&&!resGrid[g.cell]&&!structGrid[g.cell]&&TG.every(t=>Math.hypot(g.x-t.x,g.y-t.y)>360)){evt({t:'ra',k:g.k,x:g.x,y:g.y,c:g.cell});regrow.splice(i,1)}}}
   for(const s of structs)s.anim+=dt;
@@ -971,7 +1083,7 @@ function updateLocal(dt){
   const ml=Math.hypot(mx,my);
   if(!TOUCH&&mouse.on){const w=worldMouse();P.face=Math.atan2(w.y-P.y,w.x-P.x)}else if(ml>.15)P.face=Math.atan2(my,mx);
   if(P.roll>0){P.roll-=dt;move(P,P.rdx*360*dt,P.rdy*360*dt)}
-  else if(ml>.1){if(ml>1){mx/=ml;my/=ml}let spd=118;if(sprint&&P.st>1){spd=185;P.st-=11*dt;P.stDelay=.6}P.walk+=dt*(spd/14);move(P,mx*spd*dt,my*spd*dt)}
+  else if(ml>.1){if(ml>1){mx/=ml;my/=ml}let spd=118;if(sprint&&P.st>1){spd=185;P.st-=11*dt*(biomeAt(P.x,P.y)===B_SNOW?SNOW_ST:1);P.stDelay=.6}P.walk+=dt*(spd/14);move(P,mx*spd*dt,my*spd*dt)}
   // stats
   P.cd-=dt;P.swing-=dt;P.inv-=dt;P.hurt-=dt;P.stDelay-=dt;
   if(atkHeld&&!placing)attack();
@@ -980,6 +1092,7 @@ function updateLocal(dt){
   const ak=armorKey();P.hp=Math.min(MH,P.hp+(.35+foods.length*.45+(ak?ARMORS[ak].regen:0))*dt);P.st=Math.min(P.st,MS);
   for(let i=foods.length-1;i>=0;i--){foods[i].t-=dt;if(foods[i].t<=0){toast(foods[i].k+'的效果消退了');foods.splice(i,1)}}
   if(P.rest>0)P.rest-=dt;
+  if(!P.dead){const was=P.burn>0;if(burnTick(P,dt)){if(!was)toast('踩到熔岩，著火了！');P.hp-=BURN_DPS*dt;if(P.hp<=0){P.hp=0;die()}}}
   const nearFire=structs.some(s=>s.k==='fire'&&dist(s,P)<150);
   if(nearFire){P.restT+=dt;if(P.restT>3&&P.rest<240){if(P.rest<=0)toast('獲得「休息」');P.rest=300}}else P.restT=0;
 }
@@ -1005,7 +1118,12 @@ function updateFx(dt){
   toastT-=dt;if(toastT<=0)$('toast').classList.remove('on');
   bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on');
 }
+// a mob that burns to death drops nothing (nobody hit it), but the bosses still go through killMob so their loot and flags work
+function burnMob(m,dt){if(!burnTick(m,dt))return false;m.hp-=BURN_MOB_DPS*dt;if(m.hp>0)return false;
+  if(m.k==='boss'||m.k==='treant'){killMob(m,ME);return true}const i=mobs.indexOf(m);if(i>=0){mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y})}return true}
+const lavaAhead=(m,dx,dy)=>biomeAt(m.x+dx*m.r*2,m.y+dy*m.r*2)===B_LAVA;
 function updateMob(m,dt){
+  if(burnMob(m,dt))return;
   m.anim+=dt;m.acd-=dt;m.flash-=dt;m.aggro-=dt;
   if(m.kx||m.ky){move(m,m.kx*dt,m.ky*dt);m.kx*=.82;m.ky*=.82;if(Math.abs(m.kx)<4)m.kx=0;if(Math.abs(m.ky)<4)m.ky=0}
   let T=null,d=1e9;
@@ -1014,12 +1132,20 @@ function updateMob(m,dt){
   const a=T?Math.atan2(T.y-m.y,T.x-m.x):0;
   if(m.k==='boss'){updateBoss(m,dt,d,a,T);return}
   if(m.k==='treant'){updateTreant(m,dt,d,a,T);return}
+  if(m.k==='frog'){updateFrog(m,dt,d,a,T);return}
   const chase=T&&(m.k==='boar'?m.aggro>0&&d<520:(d<(isNight()?560:340)||m.aggro>0));
   if(chase){m.face=a;const spd=m.k==='boar'?108:m.spd;if(d>m.r+T.r+2)move(m,Math.cos(a)*spd*dt,Math.sin(a)*spd*dt);
     if(d<m.r+T.r+6&&m.acd<=0){hurt(T,m.k==='boar'?7:5,m);m.acd=m.k==='boar'?1.3:1.0}}
   else{m.wt-=dt;if(m.wt<=0){m.wt=rnd(1.5,4);const go=Math.random()<.6;m.wx=go?Math.cos(m.face=Math.random()*6.28):0;m.wy=go?Math.sin(m.face):0}
+    if(lavaAhead(m,m.wx,m.wy)){m.wx=m.wy=0;m.wt=0;return} // wandering mobs keep out of lava; chasing ones don't look
     const bx=m.x,by=m.y;move(m,m.wx*m.spd*.6*dt,m.wy*m.spd*.6*dt);if(m.x===bx&&m.y===by)m.wt=0}
 }
+// nai-frog: gets around in hops, leaves you alone until you hit it
+const HOP_T=.42;
+function updateFrog(m,dt,d,a,T){const chase=T&&m.aggro>0&&d<520;m.t-=dt;
+  if(chase&&d<m.r+T.r+6&&m.acd<=0){hurt(T,6,m);m.acd=1.2}
+  if(m.state==='hop'){const bx=m.x,by=m.y;move(m,m.wx*dt,m.wy*dt);if(m.t<=0||(m.x===bx&&m.y===by)){m.state='idle';m.t=chase?rnd(.12,.3):rnd(.8,2.6)}}
+  else if(m.t<=0){if(chase&&d<m.r+T.r+2){m.t=.2;m.face=a;return}let go=chase?a:Math.random()*6.28;if(!chase&&lavaAhead(m,Math.cos(go)*3,Math.sin(go)*3))go+=Math.PI;const s=chase?170:75;m.face=go;m.wx=Math.cos(go)*s;m.wy=Math.sin(go)*s;m.state='hop';m.t=HOP_T}}
 function hurt(T,dmg,src){
   if(T.isPet){if(T.owner===ME)hurtPet(dmg,src);else sendTo(T.owner,{t:'phurt',dmg,x:src.x,y:src.y});return}
   if(T===P)hitPlayer(dmg,src);else sendTo(T.id,{t:'hurt',dmg,x:src.x,y:src.y})}
@@ -1058,7 +1184,7 @@ function updateBoss(m,dt,d,a,T){
 const TR_SLAM_R=146,TR_SLAM_ARC=.95,TR_SLAM_DMG=20,ROOT_R=57,ROOT_T=1.6,ROOT_DMG=6,ROOT_MARK=.8,SEED_N=5,SEED_SPD=250,SEED_DMG=7,SEED_LIFE=2.2,TR_CAST_R=560;
 function rootPlayer(dur){if(P.roll>0||P.inv>0||P.dead)return;P.rooted=dur;toast('被根鬚纏住了！')}
 // the treant is the forest walking: trees, rocks and walls don't stop it (at its size it could never fit between them); only water does
-function moveTreant(m,dx,dy){if(!isWater(m.x+dx,m.y))m.x+=dx;if(!isWater(m.x,m.y+dy))m.y+=dy}
+function moveTreant(m,dx,dy){if(biomeAt(m.x,m.y)===B_SWAMP){dx*=SWAMP_K;dy*=SWAMP_K}if(!isWater(m.x+dx,m.y))m.x+=dx;if(!isWater(m.x,m.y+dy))m.y+=dy}
 function treantList(T){return T&&!TG.includes(T)?[...TG,T]:TG}
 function updateTreant(m,dt,d,a,T){
   if(Math.hypot(m.x-altar.x,m.y-altar.y)>1100||d>1000){m.state='chase';m.face=Math.atan2(altar.y-m.y,altar.x-m.x);moveTreant(m,Math.cos(m.face)*m.spd*dt,Math.sin(m.face)*m.spd*dt);m.hp=Math.min(m.max,m.hp+30*dt);return}
@@ -1104,9 +1230,11 @@ function updatePet(dt){
   const p=curPet();if(!p)return;const D=PETS[p.k];
   p.anim+=dt;p.cd-=dt;p.gcd-=dt;p.flash-=dt;p.glow-=dt;p.moving=false;
   if(P.dead)return;
+  if(burnTick(p,dt)){p.hp-=BURN_DPS*dt;if(p.hp<=0){petDown(p);return}}
+  if(P.boat)return; // waits on the shore while the owner is at sea
   const od=dist(p,P);if(od>500){placePet(p,false);return}
   // fight: hostile mobs near the owner (wild boars only once they're angry, so taming isn't interrupted)
-  let tgt=null,bd=1e9;for(const m of mobs){if(m.k==='boar'&&m.aggro<=0)continue;const dm=dist(m,P);if(dm<220){const d=dist(m,p);if(d<bd){bd=d;tgt=m}}}
+  let tgt=null,bd=1e9;for(const m of mobs){if((m.k==='boar'||m.k==='frog')&&m.aggro<=0)continue;const dm=dist(m,P);if(dm<220){const d=dist(m,p);if(d<bd){bd=d;tgt=m}}}
   if(tgt){const reach=p.r+tgt.r+4;if(bd>reach)petStep(p,tgt.x,tgt.y,D.spd*1.1,dt);else p.face=Math.atan2(tgt.y-p.y,tgt.x-p.x);
     if(bd<=reach+4&&p.cd<=0){p.cd=D.cd;floats.push({x:tgt.x,y:tgt.y-tgt.r-8,txt:String(D.dmg),t:.7,col:'#d8f0b0'});burst(tgt.x,tgt.y,tgt.k==='moss'?'#9fc069':'#b84a3a',4);
       act({t:'hit',id:tgt.id,dmg:D.dmg,x:p.x,y:p.y,pet:1})}
@@ -1128,18 +1256,19 @@ function toAll(o){onPrivate(o);for(const id of others.keys())sendTo(id,Object.as
 // messages meant for one player only (taming progress, new pets)
 function onPrivate(m){switch(m.t){
   case'love':floats.push({x:m.x,y:m.y-24,txt:`♥ ${m.n}/${TAME_N}`,t:1.2,col:'#ff9fb8'});break;
-  case'tame':addPet('boar');banner('馴服了野豬','打開背包的「寵物」分頁可以召喚或收回');break;
+  case'tame':{const k=m.k||'boar';addPet(k);banner('馴服了'+PETS[k].name,'打開背包的「寵物」分頁可以召喚或收回');break}
   case'tdown':{const first=!treantDown;treantDown=true;if(first||Math.random()<.3)give('樹精核心',1,m.x,m.y-42);if(first)toast('解鎖配方：樹精法杖、樹精裝備');writeSave();if(!$('panel').hidden)renderPanel();break} // the rare core is rolled per player; a first kill always gets one
-  case'pup':if(!pets.some(p=>p.k==='wolf'))addPet('wolf');break; // each player's first Wolf King only; pets can't be released, so owning a pup means this one's used
+  case'pup':if(!pets.some(p=>p.k==='wolf'))addPet('wolf');break;
+  case'board':P.boat=true;P.x=m.x;P.y=m.y;P.roll=0;toast('上船了・靠岸按 E 下船');break; // each player's first Wolf King only; pets can't be released, so owning a pup means this one's used
 }}
 function giveAll(k,n,x,y){giveTo(ME,k,n,x,y);for(const id of others.keys())giveTo(id,k,n,x,y)}
 function refund(from,cost,msg){if(from===ME){for(const k in cost)inv[k]=(inv[k]||0)+cost[k];toast(msg)}else sendTo(from,{t:'refund',cost,msg})}
 function handleAct(m,from){switch(m.t){
   case'hit':{const mob=mobs.find(o=>o.id===m.id);if(mob)hitMob(mob,m.dmg,from,m.x,m.y,m.pet);break}
   case'res':worldRes(m.c,m.dmg,from,m.pet);break;
-  case'feed':{const b=mobs.find(o=>o.id===m.id);if(!b||b.k!=='boar'||b.aggro>0){refund(from,{莓果:1},'牠現在不肯吃');break}
-    b.love=(b.love||0)+1;b.wt=2;b.wx=b.wy=0;
-    if(b.love>=TAME_N){mobs.splice(mobs.indexOf(b),1);evt({t:'tm',id:b.id,x:b.x,y:b.y});toPlayer(from,{t:'tame'})}
+  case'feed':{const b=mobs.find(o=>o.id===m.id);if(!b||!TAME_FOOD[b.k]||b.aggro>0){refund(from,{[m.f||'莓果']:1},'牠現在不肯吃');break}
+    b.love=(b.love||0)+1;b.wt=2;b.wx=b.wy=0;if(b.k==='frog'){b.state='idle';b.t=2}
+    if(b.love>=TAME_N){mobs.splice(mobs.indexOf(b),1);evt({t:'tm',id:b.id,x:b.x,y:b.y});toPlayer(from,{t:'tame',k:b.k})}
     else toPlayer(from,{t:'love',n:b.love,x:b.x,y:b.y});break}
   case'drop':evt({t:'ld',id:++lootSeq,x:m.x,y:m.y,bag:m.bag});break;
   case'fput':{const s=structGrid[m.c],n=Math.floor(m.n);if(!s||s.k!=='furnace'||!(n>0)||m.k!=='煤炭'&&!SMELT[m.k]){if(n>0)refund(from,{[m.k]:n},'熔爐不見了，材料退回');break}
@@ -1147,11 +1276,17 @@ function handleAct(m,from){switch(m.t){
   case'fout':{const s=structGrid[m.c];if(!s||s.k!=='furnace')break;const f=s.fz;for(const k in f.out)giveTo(from,k,f.out[k],s.x,s.y-20);f.out={};evt({t:'fz',c:m.c,f});break}
   case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{if(isWallK(m.k)){const g=snapWall(m.o==='v'?'v':'h',m.x,m.y);if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:g.x,y:g.y,o:g.o});break}
-    const c=ci(m.x,m.y);if(c<0||biome[c]===0||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
+    const c=ci(m.x,m.y);if(m.k==='boat'?!boatSpotOk(c):c<0||biome[c]===0||biome[c]===B_LAVA||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
   case'demo':{const s=isWallK(m.k)?(m.o==='v'?wallV:wallH)[snapWall(m.o==='v'?'v':'h',m.x,m.y).c]:structGrid[ci(m.x,m.y)];if(!s||s.k!==m.k)break;
     evt({t:'sr',k:s.k,x:s.x,y:s.y,o:s.o});const back={},add=(k,n)=>{if(n>0)back[k]=(back[k]||0)+n},r=RECIPES.find(r=>r.id===s.k);
     if(r)for(const k in r.cost)add(k,r.cost[k]);if(s.fz){for(const k in s.fz.q)add(k,s.fz.q[k]);add('煤炭',s.fz.fuel);for(const k in s.fz.out)add(k,s.fz.out[k])}
     let dy=0;for(const k in back){giveTo(from,k,back[k],s.x,s.y-dy);dy+=14}break}
+  case'board':{const s=structGrid[ci(m.x,m.y)];if(!s||s.k!=='boat')break;evt({t:'sr',k:'boat',x:s.x,y:s.y});toPlayer(from,{t:'board',x:s.x,y:s.y});break}
+  // leaving the boat: it stays on the nearest free sea cell; with nowhere to park it, the player gets the materials back
+  case'unboard':{const c0=ci(m.x,m.y),i0=c0%COLS,j0=Math.floor(c0/COLS);let c=-1;
+    for(let r=0;r<=2&&c<0;r++)for(let j=j0-r;j<=j0+r&&c<0;j++)for(let i=i0-r;i<=i0+r;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const k=j*COLS+i;if(biome[k]===0&&!structGrid[k]){c=k;break}}
+    if(c<0){refund(from,RECIPES.find(r=>r.id==='boat').cost,'船沒地方停，拆回材料了');break}
+    evt({t:'sa',k:'boat',x:(c%COLS+.5)*CELL,y:(Math.floor(c/COLS)+.5)*CELL});break}
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
   case'summont':{if(boss){refund(from,{古樹種子:1},'已經有王醒著了');break}
@@ -1180,7 +1315,7 @@ function applyEvt(m){switch(m.t){
   case'tm':burst(m.x,m.y-8,'#ff9fb8',22);floats.push({x:m.x,y:m.y-30,txt:'♥',t:1.4,col:'#ff9fb8'});if(MODE==='client')mobs=mobs.filter(o=>o.id!==m.id);break;
   case'ld':loots.push({id:m.id,x:m.x,y:m.y,bag:m.bag});break;
   case'sr':{const grid=isWallK(m.k)?(m.o==='v'?wallV:wallH):structGrid,c=isWallK(m.k)?snapWall(m.o==='v'?'v':'h',m.x,m.y).c:ci(m.x,m.y),s=grid[c];if(!s||s.k!==m.k)break;
-    grid[c]=null;structs.splice(structs.indexOf(s),1);burst(s.x,s.y-10,m.k==='wall'||m.k==='bench'||m.k==='bed'?'#a0703f':'#9a9d98',14);break}
+    grid[c]=null;structs.splice(structs.indexOf(s),1);burst(s.x,s.y-10,m.k==='wall'||m.k==='bench'||m.k==='bed'||m.k==='boat'?'#a0703f':'#9a9d98',14);break}
   case'fz':{const s=structGrid[m.c];if(s&&s.k==='furnace')s.fz=normFz(m.f);break}
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
@@ -1193,19 +1328,19 @@ function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;co
     if(!m){m=makeMob(k,x,y);m.id=id;mobs.push(m)}
     m.tx=x;m.ty=y;m.face=f;m.hp=hp;m.max=max;if(fl)m.flash=.15;m.state=st;m.aggro=ag}
   mobs=mobs.filter(m=>seen.has(m.id));boss=mobs.find(m=>m.id===s.b)||null}
-function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorKey()==='樹精裝備'?2:armorKey()?1:0,ro:P.rooted>0?1:0,d:P.dead?1:0,...petState()})}
+function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorKey()==='樹精裝備'?2:armorKey()?1:0,ro:P.rooted>0?1:0,d:P.dead?1:0,b:P.boat?1:0,...petState()})}
 function petState(){const p=curPet();return p?{pk:p.k,px:Math.round(p.x),py:Math.round(p.y),pf:Math.round(p.face*100)/100,ph:Math.ceil(p.hp),pg:p.glow>0?1:0,pw:p.moving?1:0}:{}}
 function updateOther(m){let o=others.get(m.from);if(!o){o={id:m.from,x:m.x,y:m.y,r:12,walk:0,inv:0,swing:0};others.set(m.from,o)}
-  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=m.a|0;o.rooted=m.ro?.1:0;o.dead=!!m.d;
+  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=m.a|0;o.rooted=m.ro?.1:0;o.dead=!!m.d;o.boat=!!m.b;
   if(PETS[m.pk]){if(!o.pet||o.pet.k!==m.pk)o.pet={isPet:true,owner:m.from,k:m.pk,x:m.px,y:m.py,r:PETS[m.pk].r,anim:0,flash:0,glow:0};
     Object.assign(o.pet,{tx:m.px,ty:m.py,face:m.pf,hp:m.ph,moving:!!m.pw});if(m.pg)o.pet.glow=Math.max(o.pet.glow,.3)}
   else o.pet=null}
 function tickOthers(dt){for(const o of others.values()){const dx=o.tx-o.x,dy=o.ty-o.y,l=Math.hypot(dx,dy),k=Math.min(1,dt*15);
   if(l>300){o.x=o.tx;o.y=o.ty}else{o.x+=dx*k;o.y+=dy*k}if(l>1)o.walk+=dt*9;o.swing-=dt;
-  const p=o.pet;if(p){if(Math.hypot(p.tx-p.x,p.ty-p.y)>300){p.x=p.tx;p.y=p.ty}else{p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k}p.anim+=dt;p.flash-=dt;p.glow-=dt}}}
+  burnTick(o,dt);const p=o.pet;if(p){burnTick(p,dt);if(Math.hypot(p.tx-p.x,p.ty-p.y)>300){p.x=p.tx;p.y=p.ty}else{p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k}p.anim+=dt;p.flash-=dt;p.glow-=dt}}}
 function tickClient(dt){time+=dt;dayT=Math.min(.9999,dayT+dt/DAY_LEN);
   for(const s of structs)if(s.fz&&s.fz.burn>0){s.fz.burn=Math.max(0,s.fz.burn-dt);if(Object.keys(s.fz.q).length)s.fz.prog=Math.min(SMELT_T,s.fz.prog+dt)}
-  for(const m of mobs){m.anim+=dt;m.flash-=dt;const k=Math.min(1,dt*12);m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k}
+  for(const m of mobs){m.anim+=dt;m.flash-=dt;burnTick(m,dt);const k=Math.min(1,dt*12);m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k}
   for(const s of structs)s.anim+=dt}
 let netT=0,snapT=0,bushT=0;
 function netTick(dt){
@@ -1235,7 +1370,7 @@ function onNet(m){
   case'refund':for(const k in m.cost)inv[k]=(inv[k]||0)+m.cost[k];toast(m.msg);break;
   case'hurt':if(started)hitPlayer(m.dmg,m);break;
   case'phurt':if(started)hurtPet(m.dmg,m);break;
-  case'love':case'tame':case'pup':case'tdown':if(started)onPrivate(m);break;
+  case'love':case'tame':case'pup':case'tdown':case'board':if(started)onPrivate(m);break;
   case'root':if(started)rootPlayer(m.d);break;
   default:applyEvt(m)}}
 function connect(){
@@ -1261,7 +1396,12 @@ function render(){
     if(b===0){const s=Math.sin(time*1.6+h*12);if(s>.6){ctx.strokeStyle=`rgba(190,225,240,${(s-.6)*.5})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x+h*24,y+10+h*18);ctx.lineTo(x+h*24+10,y+10+h*18);ctx.stroke()}}
     else if(b===2&&h>.45){ctx.strokeStyle='rgba(30,45,18,.45)';ctx.lineWidth=1.2;ctx.beginPath();const gx=x+h*30,gy=y+(h*97%1)*30+6;ctx.moveTo(gx,gy);ctx.lineTo(gx-2,gy-6);ctx.moveTo(gx+3,gy);ctx.lineTo(gx+4,gy-7);ctx.stroke()}
     else if(b===3&&h>.6){ctx.fillStyle='rgba(10,20,10,.35)';ctx.beginPath();ctx.arc(x+h*34,y+(h*53%1)*34,3+h*3,0,6.28);ctx.fill()}
-    else if(b===1&&h>.7){ctx.fillStyle='rgba(120,100,70,.35)';ctx.fillRect(x+h*30,y+(h*71%1)*30,2,2)}}
+    else if(b===1&&h>.7){ctx.fillStyle='rgba(120,100,70,.35)';ctx.fillRect(x+h*30,y+(h*71%1)*30,2,2)}
+    else if(b===B_SNOW&&h>.55){ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillRect(x+h*32,y+(h*61%1)*32,2,2);ctx.fillStyle='rgba(150,170,190,.25)';ctx.beginPath();ctx.ellipse(x+(h*37%1)*30+5,y+(h*13%1)*30+5,6,2.5,0,0,6.28);ctx.fill()}
+    else if(b===B_SWAMP&&h>.5){const px=x+(h*41%1)*24+8,py=y+(h*29%1)*24+8;ctx.fillStyle='rgba(40,60,45,.55)';ctx.beginPath();ctx.ellipse(px,py,9,4.5,0,0,6.28);ctx.fill();const s=(time*.6+h*5)%1;ctx.strokeStyle=`rgba(170,200,150,${.35*(1-s)})`;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(px,py,2+s*7,1+s*3.5,0,0,6.28);ctx.stroke()}
+    else if(b===B_ASH&&h>.5){ctx.fillStyle='rgba(15,10,8,.4)';ctx.beginPath();ctx.arc(x+h*30+4,y+(h*47%1)*30+4,2+h*2,0,6.28);ctx.fill()}
+    else if(b===B_LAVA){const s=Math.sin(time*1.3+h*9);ctx.fillStyle=`rgba(255,220,110,${.25+s*.2})`;ctx.beginPath();ctx.ellipse(x+h*24+8,y+(h*57%1)*24+8,7+s*2,4+s,0,0,6.28);ctx.fill();if(h>.8&&Math.random()<.02)parts.push({x:x+h*40,y:y+(h*31%1)*40,vx:rnd(-6,6),vy:-28,t:.9,col:'#ffb347',s:1.8})}
+    else if(b===B_MAGIC&&h>.55){const tw=.5+Math.sin(time*2.2+h*20)*.5;ctx.fillStyle=`rgba(150,240,255,${.55*tw})`;ctx.fillRect(x+h*34,y+(h*53%1)*34,2,2);ctx.fillStyle=`rgba(200,160,255,${.45*(1-tw)})`;ctx.fillRect(x+(h*17%1)*34,y+(h*89%1)*34,2,2)}}
   sea.draw(cx,cy,hw,hh);
   for(const r of rootTrail)drawRootTrail(r);
   for(const x of tfx)if(x.k==='mark')drawRootMark(x);
@@ -1275,7 +1415,8 @@ function render(){
   const cp=curPet();if(cp)list.push([cp.y,4,cp]);
   for(const l of loots)if(Math.abs(l.x-cx)<hw+40&&Math.abs(l.y-cy)<hh+40)list.push([l.y,5,l]);
   list.sort((a,b)=>a[0]-b[0]);
-  for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else if(t===3)drawPlayer(o);else if(t===4)drawPet(o);else drawLoot(o)}
+  for(const[,t,o]of list){if(t===0)drawRes(o);else if(t===1)drawStruct(o);else if(t===2)drawMob(o);else if(t===3){if(o.boat)drawBoat(o.x,o.y+4,o.face,time*1.7);drawPlayer(o)}else if(t===4)drawPet(o);else drawLoot(o);
+    if(o.burn>0&&t>=2&&t<=4)drawBurn(o)}
   // ghost
   if(placing===DEMOLISH){const t=demoTarget(),a=aimPt();ctx.strokeStyle='#ff6a5a';ctx.lineWidth=2;ctx.setLineDash([5,4]);
     if(t){if(t.o==='v')ctx.strokeRect(t.x-WALL_T-2,t.y-22,WALL_T*2+4,44);else if(t.o)ctx.strokeRect(t.x-22,t.y-WALL_T-2,44,WALL_T*2+4);else ctx.strokeRect(t.x-22,t.y-22,44,44)}
@@ -1300,16 +1441,18 @@ function render(){
     dctx.globalCompositeOperation='destination-out';const k=SCALE/2;
     const light=(x,y,r,f)=>{const X=(x-cx)*k+dark.width/2,Y=(y-cy)*k+dark.height/2,R=r*k;if(X<-R||Y<-R||X>dark.width+R||Y>dark.height+R)return;const g=dctx.createRadialGradient(X,Y,0,X,Y,R);g.addColorStop(0,`rgba(0,0,0,${f})`);g.addColorStop(1,'rgba(0,0,0,0)');dctx.fillStyle=g;dctx.fillRect(X-R,Y-R,R*2,R*2)};
     light(P.x,P.y,190,.75);for(const o of others.values())if(!o.dead)light(o.x,o.y,190,.75);for(const s of structs)if(s.k==='furnace'&&s.fz.burn>0)light(s.x,s.y,140,.6);for(const s of structs)if(s.k==='fire')light(s.x,s.y,300+Math.sin(time*9+s.anim)*8,1);
-    light(altar.x,altar.y,120,.6);
+    light(altar.x,altar.y,120,.6);for(const s of structs)if(s.k==='lamp')light(s.x,s.y-30,260,.95);
+    for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i;if(biome[c]===B_LAVA&&(i+j)%2===0)light((i+.5)*CELL,(j+.5)*CELL,75,.55);const o=resGrid[c];if(o&&(o.k==='mtree'||o.k==='crystal'||o.k==='glowshroom'))light(o.x,o.y-(o.k==='mtree'?24:8),o.k==='glowshroom'?50:80,.5)}
     ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(dark,0,0,cv.width,cv.height);
     // warm glow
     ctx.globalCompositeOperation='lighter';ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
+    for(const s of structs)if(s.k==='lamp'&&Math.abs(s.x-cx)<hw+200&&Math.abs(s.y-cy)<hh+200){const g=ctx.createRadialGradient(s.x,s.y-30,0,s.x,s.y-30,160);g.addColorStop(0,`rgba(150,120,255,${.2*dk})`);g.addColorStop(1,'rgba(120,100,255,0)');ctx.fillStyle=g;ctx.fillRect(s.x-160,s.y-190,320,320)}
     for(const s of structs)if(s.k==='fire'&&Math.abs(s.x-cx)<hw+200&&Math.abs(s.y-cy)<hh+200){const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,180);g.addColorStop(0,`rgba(255,150,60,${.22*dk})`);g.addColorStop(1,'rgba(255,120,40,0)');ctx.fillStyle=g;ctx.fillRect(s.x-180,s.y-180,360,360)}
     ctx.globalCompositeOperation='source-over'}
   const dusk=dayT>.5&&dayT<.7?Math.sin((dayT-.5)/.2*Math.PI)*.16:0;if(dusk>0){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=`rgba(255,120,50,${dusk})`;ctx.fillRect(0,0,cv.width,cv.height)}
   // overlay in world: eyes at night, floats, hint, compass
   ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
-  if(dk>.3)for(const m of mobs)if(m.k==='treant'){const fl=Math.cos(m.face)<0?-1:1;ctx.fillStyle='#b6ffc4';ctx.fillRect(m.x+fl*.6-2,m.y-80,4,3);ctx.fillRect(m.x+fl*15.6-2,m.y-80,4,3)}else if(m.k!=='boar'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
+  if(dk>.3)for(const m of mobs)if(m.k==='treant'){const fl=Math.cos(m.face)<0?-1:1;ctx.fillStyle='#b6ffc4';ctx.fillRect(m.x+fl*.6-2,m.y-80,4,3);ctx.fillRect(m.x+fl*15.6-2,m.y-80,4,3)}else if(m.k!=='boar'&&m.k!=='frog'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
       ctx.fillRect(m.x+ex*o-ey*s*2-s/2,m.y+ey*o-8+ex*s*2-s/2,s,s);ctx.fillRect(m.x+ex*o+ey*s*2-s/2,m.y+ey*o-8-ex*s*2-s/2,s,s)}
   ctx.textAlign='center';ctx.font='600 11px system-ui,sans-serif';
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.t*2);ctx.fillStyle='#000a';ctx.fillText(f.txt,f.x+1,f.y+1);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,f.y)}ctx.globalAlpha=1;
@@ -1321,6 +1464,16 @@ function render(){
   if(gi>=4&&!flags.boss){const d=dist(altar,P);if(d>260){const a=Math.atan2(altar.y-P.y,altar.x-P.x),R=44;ctx.save();ctx.translate(P.x+Math.cos(a)*R,P.y+Math.sin(a)*R);ctx.rotate(a);ctx.fillStyle='#e0a646';ctx.beginPath();ctx.moveTo(9,0);ctx.lineTo(-5,-6);ctx.lineTo(-2,0);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();ctx.restore();
     ctx.fillStyle='#e0a646';ctx.font='600 10px system-ui,sans-serif';ctx.fillText(`祭壇 ${Math.round(d/10)}m`,P.x+Math.cos(a)*64,P.y+Math.sin(a)*64+3)}}
 }
+// boat, bow toward a; bob is the wave phase. Drawn under a sailing player too
+function drawBoat(x,y,a,bob){ctx.save();ctx.translate(x,y+Math.sin(bob)*1.2);ctx.rotate(a);
+  ctx.fillStyle='rgba(190,225,240,.35)';ctx.beginPath();ctx.ellipse(-2,3,27,11,0,0,6.28);ctx.fill();
+  ctx.fillStyle='#5a3d22';ctx.beginPath();ctx.moveTo(24,0);ctx.quadraticCurveTo(14,-12,-20,-10);ctx.lineTo(-22,10);ctx.quadraticCurveTo(14,12,24,0);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#8a6236';ctx.beginPath();ctx.moveTo(19,0);ctx.quadraticCurveTo(11,-8,-17,-7);ctx.lineTo(-18,7);ctx.quadraticCurveTo(11,8,19,0);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#6b4a2b';ctx.fillRect(-6,-7,3,14);ctx.fillRect(6,-6,3,12);ctx.restore()}
+// flames on anything that touched lava
+function drawBurn(e){const h=e.k==='treant'?60:e.k==='boss'?26:14;for(let k=0;k<3;k++){const t=time*11+k*2.1+(e.id||0),fx=e.x+Math.sin(t*.7)*6+(k-1)*6,fy=e.y-h*.5,fh=10+Math.sin(t)*4;
+  ctx.fillStyle=['rgba(255,110,40,.85)','rgba(255,170,60,.85)','rgba(255,230,140,.9)'][k];ctx.beginPath();ctx.moveTo(fx-4,fy);ctx.quadraticCurveTo(fx-2,fy-fh*.6,fx,fy-fh);ctx.quadraticCurveTo(fx+2,fy-fh*.6,fx+4,fy);ctx.fill()}
+  if(Math.random()<.2)parts.push({x:e.x+rnd(-6,6),y:e.y-h*.5-8,vx:rnd(-8,8),vy:-34,t:.6,col:'#ffb347',s:1.6})}
 function shadow(x,y,rx,ry){ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,6.28);ctx.fill()}
 function drawRes(o){const s=o.sz,f=o.flash>0;o.flash-=1/60;const wob=f?Math.sin(time*60)*1.5:0;
   if(o.dep>0&&MODE==='solo')o.dep-=1/60;
@@ -1338,6 +1491,14 @@ function drawRes(o){const s=o.sz,f=o.flash>0;o.flash-=1/60;const wob=f?Math.sin(
   case'flint':ctx.fillStyle='#3d4d5c';ctx.beginPath();ctx.moveTo(o.x-5,o.y+2);ctx.lineTo(o.x-1,o.y-5);ctx.lineTo(o.x+5,o.y-1);ctx.lineTo(o.x+2,o.y+3);ctx.closePath();ctx.fill();ctx.fillStyle='#7d93a8';ctx.fillRect(o.x-1,o.y-3,2,2);break;
   case'bush':shadow(o.x+2,o.y+3,13,5);ctx.fillStyle='#3f6a2c';ctx.beginPath();ctx.arc(o.x-5,o.y-6,8,0,6.28);ctx.arc(o.x+5,o.y-6,8,0,6.28);ctx.arc(o.x,o.y-11,8,0,6.28);ctx.fill();
     if(o.dep<=0){ctx.fillStyle='#d23a52';for(const[dx,dy]of[[-6,-8],[4,-11],[6,-4],[-1,-4],[0,-14]]){ctx.beginPath();ctx.arc(o.x+dx,o.y+dy,1.8,0,6.28);ctx.fill()}}break;
+  case'mtree':{shadow(o.x+4,o.y+4,16*s,7*s);ctx.fillStyle='#cfc6e8';ctx.fillRect(o.x-2.5*s+wob,o.y-14*s,5*s,16*s);const tw=.75+Math.sin(time*2+o.cell)*.25;
+    for(const[dx,dy,r,c]of[[0,-26,16,'#5a3f9a'],[-9,-20,11,'#6a4cb0'],[9,-21,11,'#4e3788'],[2,-31,10,'#7d5fd0']]){ctx.fillStyle=f?'#e0d4ff':c;ctx.beginPath();ctx.arc(o.x+dx*s+wob,o.y+dy*s,r*s,0,6.28);ctx.fill()}
+    ctx.fillStyle=`rgba(150,240,255,${tw})`;for(const[dx,dy]of[[-8,-24],[6,-30],[9,-18],[-2,-20]])ctx.fillRect(o.x+dx*s-1,o.y+dy*s-1,2.4,2.4);break}
+  case'crystal':{shadow(o.x+3,o.y+5,15*s,6*s);const tw=.8+Math.sin(time*2.4+o.cell)*.2;
+    for(const[dx,h,w,c]of[[-8,20,6,'#6c4fd6'],[7,16,6,'#7f63e6'],[0,30,8,'#a58bff']]){ctx.fillStyle=f?'#fff':c;ctx.beginPath();ctx.moveTo(o.x+(dx-w)*s+wob,o.y+2);ctx.lineTo(o.x+dx*s+wob,o.y-h*s);ctx.lineTo(o.x+(dx+w)*s+wob,o.y+2);ctx.closePath();ctx.fill()}
+    ctx.fillStyle=`rgba(225,215,255,${tw})`;ctx.beginPath();ctx.moveTo(o.x-2*s,o.y-4);ctx.lineTo(o.x,o.y-26*s);ctx.lineTo(o.x+1.5*s,o.y-6);ctx.closePath();ctx.fill();break}
+  case'glowshroom':{const tw=.6+Math.sin(time*3+o.cell)*.4;ctx.fillStyle=`rgba(110,224,255,${.18*tw})`;ctx.beginPath();ctx.arc(o.x,o.y-5,10,0,6.28);ctx.fill();
+    ctx.fillStyle='#d8f4ff';ctx.fillRect(o.x-1.5,o.y-5,3,5);ctx.fillStyle='#4fc8ef';ctx.beginPath();ctx.arc(o.x,o.y-5,5,Math.PI,0);ctx.fill();ctx.fillStyle='#e8fdff';ctx.fillRect(o.x-2,o.y-8,1.5,1.5);ctx.fillRect(o.x+1.5,o.y-7,1.2,1.2);break}
   case'shroom':ctx.fillStyle='#e8dcc0';ctx.fillRect(o.x-1.5,o.y-5,3,5);ctx.fillStyle='#d9782f';ctx.beginPath();ctx.arc(o.x,o.y-5,5,Math.PI,0);ctx.fill();ctx.fillStyle='#f3e4c8';ctx.fillRect(o.x-2,o.y-8,1.5,1.5);break;
   }}
 function drawStruct(s){const x=s.x,y=s.y;
@@ -1362,6 +1523,10 @@ function drawStruct(s){const x=s.x,y=s.y;
   case'fire':{ctx.fillStyle='#6f6f6a';for(let k=0;k<7;k++){const a=k/7*6.28;ctx.beginPath();ctx.arc(x+Math.cos(a)*11,y+Math.sin(a)*6,3.5,0,6.28);ctx.fill()}ctx.fillStyle='#4a3020';ctx.fillRect(x-7,y-2,14,3);
     const t=time*10+s.anim;for(let k=0;k<3;k++){const h=12+Math.sin(t+k*2)*4;ctx.fillStyle=['#ff7a2a','#ffb347','#ffe08a'][k];ctx.beginPath();ctx.moveTo(x-6+k*2,y);ctx.quadraticCurveTo(x-3+Math.sin(t*.7+k)*3,y-h,x+Math.sin(t+k)*2,y-h-4+k*3);ctx.quadraticCurveTo(x+4,y-h*.6,x+6-k*2,y);ctx.fill()}
     if(Math.random()<.15)parts.push({x:x+rnd(-4,4),y:y-14,vx:rnd(-8,8),vy:-30,t:.8,col:'#ffb347',s:1.6});break}
+  case'boat':drawBoat(x,y,0,time*1.7+s.anim);break;
+  case'lamp':{shadow(x+2,y+5,10,4);ctx.fillStyle='#6d716b';ctx.fillRect(x-7,y-4,14,6);ctx.fillStyle='#8a8e88';ctx.fillRect(x-2.5,y-24,5,21);
+    const tw=.8+Math.sin(time*3+s.anim)*.2,g=ctx.createRadialGradient(x,y-32,0,x,y-32,20);g.addColorStop(0,`rgba(190,170,255,${.6*tw})`);g.addColorStop(1,'rgba(150,120,255,0)');ctx.fillStyle=g;ctx.fillRect(x-20,y-52,40,40);
+    ctx.fillStyle='#a58bff';ctx.beginPath();ctx.moveTo(x-6,y-26);ctx.lineTo(x,y-42);ctx.lineTo(x+6,y-26);ctx.lineTo(x,y-22);ctx.closePath();ctx.fill();ctx.fillStyle='#e6deff';ctx.fillRect(x-1.2,y-37,2.4,9);break}
   case'bed':shadow(x+2,y+8,18,6);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-16,y-18,32,26);ctx.fillStyle='#e6dcc4';ctx.fillRect(x-13,y-15,26,7);ctx.fillStyle='#7a3b33';ctx.fillRect(x-13,y-8,26,13);ctx.fillStyle='#9a5a3e';ctx.fillRect(x-13,y-8,26,2);break;
   case'altar':{shadow(x+3,y+8,32,10);ctx.fillStyle='#55605c';ctx.fillRect(x-30,y-8,60,16);ctx.fillStyle='#6d7873';ctx.fillRect(x-30,y-8,60,4);
     ctx.fillStyle='#5f6a66';ctx.beginPath();ctx.moveTo(x-14,y-6);ctx.lineTo(x-12,y-54);ctx.lineTo(x,y-62);ctx.lineTo(x+12,y-54);ctx.lineTo(x+14,y-6);ctx.closePath();ctx.fill();
@@ -1401,6 +1566,7 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
   if(m.k==='boar')drawBoar(m,f);
   else if(m.k==='moss')drawMoss(m,f,c,sn);
   else if(m.k==='treant')drawTreant(m,f);
+  else if(m.k==='frog')drawFrog(m,f);
   else{const rw=m.state==='rwind';if(rw){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(120,255,140,${.14+p*.12})`;ctx.strokeStyle=`rgba(170,255,175,${.65+p*.35})`;ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.beginPath();ctx.ellipse(m.x,m.y,ROAR_R,ROAR_R*.75,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([])}
     shadow(m.x,m.y+10,34,11);const wind=m.state==='wind',cw=m.state==='cwind';ctx.save();ctx.translate(m.x,m.y-14);ctx.rotate(a);
     if(wind){ctx.fillStyle=`rgba(255,80,60,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(6,0,46,26,0,0,6.28);ctx.fill()}
@@ -1408,7 +1574,7 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
     if(cw){ctx.fillStyle=`rgba(255,180,70,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(18,0,42,30,0,0,6.28);ctx.fill();
       ctx.strokeStyle='#ffe3a8';ctx.lineWidth=2;for(const sy of[-1,1])for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(22,sy*(14+j*3));ctx.lineTo(32,sy*(18+j*3));ctx.stroke()}}
     drawWolf(m,f,wind,cw,rw);ctx.restore()}
-  if(m.hp<m.max&&m.k!=='boss'&&m.k!=='treant'){const w=m.r*2;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,m.y-m.r*2-12,w*m.hp/m.max,3)}}
+  if(m.hp<m.max&&m.k!=='boss'&&m.k!=='treant'){const w=m.r*2,by=m.k==='frog'?m.y-58:m.y-m.r*2-12;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,by,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,by,w*m.hp/m.max,3)}}
 // moss sprite: lumpy body, sprouting leaf and toadstool, drawn around its own centre
 const MOSS_DARK=(()=>{const p=new Path2D();for(const[x,y,r]of[[-5,-5,3.6],[5,2,3.2],[-6,5,2.6],[6,-6,2.2],[0,7,2]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
 const MOSS_LIGHT=(()=>{const p=new Path2D();for(const[x,y,r]of[[-2,-9,2.8],[3,-8.5,2],[-8,-3,1.8],[8,-2,1.6],[-3,0,1.2],[2,4,1.1]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
@@ -1517,13 +1683,59 @@ function drawRootMark(x){const p=1-x.t/x.T,a=.35+p*.5;ctx.fillStyle=`rgba(120,23
   ctx.strokeStyle='#5a4028';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();for(let i=0;i<6;i++){const t=i/6*6.28,bx=x.x+Math.cos(t)*ROOT_R*.7,by=x.y+Math.sin(t)*ROOT_R*.5;ctx.moveTo(bx,by);ctx.lineTo(bx,by-3-p*5)}ctx.stroke()}
 function drawRootBurst(x){const p=1-x.t/x.T,h=Math.sin(Math.min(1,p*2.2)*1.57)*(1-p*.45)*44;ctx.lineCap='round';for(let i=0;i<7;i++){const t=i/7*6.28+.3,bx=x.x+Math.cos(t)*ROOT_R*.55,by=x.y+Math.sin(t)*ROOT_R*.34,tx=x.x+Math.cos(t)*9,ty=by-h;for(const[w,q]of[[6.5,'#1f1712'],[4,'#5f452e']]){ctx.strokeStyle=q;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx,by-h*.6,tx,ty);ctx.stroke()}}}
 function drawSlamFx(x){const p=x.t/x.T;ctx.fillStyle=`rgba(255,210,150,${.32*p})`;ctx.beginPath();ctx.moveTo(x.x,x.y);ctx.arc(x.x,x.y,TR_SLAM_R,x.a-TR_SLAM_ARC,x.a+TR_SLAM_ARC);ctx.closePath();ctx.fill();ctx.strokeStyle=`rgba(255,230,190,${.8*p})`;ctx.lineWidth=4*p+1;ctx.beginPath();ctx.arc(x.x,x.y,TR_SLAM_R-3,x.a-TR_SLAM_ARC,x.a+TR_SLAM_ARC);ctx.stroke()}
+// nai-frog: one big pear of shaggy moss with no neck, a huge cream belly, wide-set bead eyes and a smile right across its face. All the fur is built once as paths
+const frogRnd=(i,n)=>{const v=Math.sin(i*12.9898+n*78.233)*43758.5453;return v-Math.floor(v)};
+const frogW=y=>{const P=[[-41,1],[-40,6],[-37,11],[-32,14.5],[-26,16.5],[-18,19],[-10,20],[-5,17.5],[-3,13]];for(let i=1;i<P.length;i++)if(y<=P[i][0]){const[a,b]=P[i-1],[c,d]=P[i];return b+(d-b)*(y-a)/(c-a)}return 13};
+const frogPoly=L=>{const p=new Path2D();L.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));p.closePath();return p};
+const frogLocks=(n,y0,y1,st,wf,o)=>{const L=[];let i=0;for(let y=y0;y<y1-.1;y+=st,i++){const r=frogRnd(i,n),a=wf(y),b=wf(y+st);L.push({y,a,b,st,cx:a+1.2+r*.9,cy:y+st*.5,tx:b+.9+r*1.1,ty:y+st+.5+r*.5})}return L};
+const FROG_BODY=(()=>{const p=new Path2D();p.moveTo(0,-41.2);for(let y=-40.5;y<=-37.5;y+=.5)p.lineTo(frogW(y),y);for(const l of frogLocks(1,-37.5,-4.5,2.75,frogW)){p.quadraticCurveTo(l.cx,l.cy,l.tx,l.ty);p.lineTo(l.b-.2,l.y+l.st)}for(let x=13,i=0;x>-13;x-=2.6,i++){p.quadraticCurveTo(x-.5,-1.6-frogRnd(i,3),x-1.3,-1.7-frogRnd(i,4)*.8);p.lineTo(x-2.6,-3.4)}for(const l of frogLocks(2,-37.5,-4.5,2.75,frogW).reverse()){p.lineTo(-l.tx,l.ty);p.quadraticCurveTo(-l.cx,l.cy,-l.a,l.y)}for(let y=-37.5;y>=-40.5;y-=.5)p.lineTo(-frogW(y),y);p.closePath();return p})();
+const frogFlicks=(n,seed,len)=>{const p=new Path2D();for(let i=0;i<n;i++){const y=-38+frogRnd(i,seed)*34,s=i%2?1:-1,w=frogW(y),x=s*(w*.45+frogRnd(i,seed+1)*w*.52),l=len*(.7+frogRnd(i,seed+2)*.6);p.moveTo(x,y);p.lineTo(x+s*l*.32,y+l)}return p};
+const FROG_FUR_D=frogFlicks(46,11,2.9),FROG_FUR_L=frogFlicks(38,17,2.4);
+const frogBlobs=L=>{const p=new Path2D();for(const[x,y,r]of L)for(const s of[-1,1]){const X=s*x+(s<0?.7:0);p.moveTo(X+r,y);p.arc(X,y,r,0,6.28)}return p};
+const FROG_MOSS_D=frogBlobs([[15,-23,2.5],[16.5,-14,2.8],[15,-7,2],[10,-38,1.8],[13,-29,1.6]]);
+const FROG_MOSS_L=frogBlobs([[13,-19,1.7],[14,-10.5,1.5],[6,-39,1.4],[12.5,-33,1.1]]);
+const FROG_BELLY=(()=>{const o=[];for(let i=0;i<30;i++){const t=i/30*6.2832,r=i%2?1:.955,x=Math.cos(t)*15*r,y=-14.3+Math.sin(t)*12.9*r;o.push([x,Math.max(-26.6,y)])}return frogPoly(o)})();
+const FROG_BELLY_FUR=(()=>{const p=new Path2D();for(const[x,y,s]of[[-1,-24,1],[5,-21.5,-1],[-6,-19,1],[3,-15,1],[-3,-12,-1],[7,-10,-1],[-8,-11,1],[-7,-6.5,1],[1,-6.5,1],[9,-16,-1],[-10,-17,1]]){p.moveTo(x,y);p.quadraticCurveTo(x+s*.5,y+1.4,x+s*1.8,y+2.1);p.moveTo(x+s*2.2,y-.4);p.lineTo(x+s*3,y+1)}return p})();
+const FROG_LEG=frogPoly([[-5.2,-8],[5.6,-8],[6.8,-5],[6,-3],[4.6,-1.7],[3.2,-3],[1.6,-1.4],[0,-3],[-1.6,-1.4],[-3.2,-3],[-4.6,-1.7],[-6,-3.2],[-6.6,-5]]);
+const FROG_ARM=(()=>{const w=y=>2.6+(y+8)*.13,p=new Path2D();p.moveTo(-2.4,-8);p.quadraticCurveTo(0,-9.2,w(-8),-8);for(const l of frogLocks(7,-8,6,3.5,w)){p.quadraticCurveTo(l.cx,l.cy,l.tx,l.ty);p.lineTo(l.b-.2,l.y+l.st)}p.lineTo(-3,6.5);p.quadraticCurveTo(-3.8,0,-2.4,-8);p.closePath();return p})();
+const FROG_ARM_FUR=(()=>{const p=new Path2D();for(const[x,y]of[[0,-5],[1.8,-2],[-1.2,-1],[.8,2],[-1.5,3.5]]){p.moveTo(x,y);p.lineTo(x+.6,y+2)}return p})();
+function drawFrog(m,f){const k=q=>f?'#fff':q,INK='#44471f',flip=Math.cos(m.face)<0?-1:1,el=(x,y,rx,ry,q,r=0)=>{ctx.fillStyle=k(q);ctx.beginPath();ctx.ellipse(x,y,rx,ry,r,0,6.28);ctx.fill()};
+  // hop: a jump arc while the state is 'hop', a squash on landing. Timed from the state change so clients see it from snapshots alone; pets just bounce while moving
+  if(m.state!==m.fs){m.fs=m.state;m.ft=time}const since=time-(m.ft||0);let lift=0,sq=0;
+  if(m.pet){if(m.aggro>0)lift=Math.abs(Math.sin(m.anim*7))*7}
+  else if(m.state==='hop'){lift=Math.sin(Math.min(1,since/HOP_T)*3.14)*15}
+  else if(m.state==='idle'&&since<.14)sq=1-since/.14;
+  const br=Math.sin(m.anim*2.2)*.014;
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(m.x,m.y+1,20*(1-lift*.018),6*(1-lift*.018),0,0,6.28);ctx.fill();
+  ctx.save();ctx.translate(m.x,m.y-lift);ctx.scale(flip*(1+sq*.14-br),1-sq*.16+br);ctx.lineCap='round';ctx.lineJoin='round';
+  // stubby antlers, then the leaf on its little stem
+  const horns=()=>{ctx.beginPath();for(const q of[-1,1]){ctx.moveTo(q*7.5,-38);ctx.lineTo(q*11,-46.5);ctx.moveTo(q*9.3,-43);ctx.lineTo(q*5.2,-47)}ctx.stroke()};ctx.strokeStyle=k(INK);ctx.lineWidth=4.8;horns();ctx.strokeStyle=k('#94704a');ctx.lineWidth=3.5;horns();
+  const sway=Math.sin(m.anim*2.6)*.16;ctx.strokeStyle=k('#3f5a22');ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(0,-40);ctx.lineTo(0,-44);ctx.stroke();ctx.save();ctx.translate(0,-43.5);ctx.rotate(-1.37+sway);ctx.fillStyle=k(INK);ctx.beginPath();ctx.moveTo(-.5,0);ctx.quadraticCurveTo(6,-6.2,13.5,0);ctx.quadraticCurveTo(6,6.2,-.5,0);ctx.fill();ctx.fillStyle=k('#6aa84a');ctx.beginPath();ctx.moveTo(.7,0);ctx.quadraticCurveTo(6,-5,12,0);ctx.quadraticCurveTo(6,5,.7,0);ctx.fill();ctx.strokeStyle=k('#467a30');ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(1,0);ctx.lineTo(11,0);ctx.stroke();ctx.restore();
+  // big toed feet, with shaggy legs falling over them
+  for(const q of[-1,1]){el(q*10,-.8,8,4,INK);el(q*10,-1,7.1,3.2,'#6e4a2e');ctx.strokeStyle=k('#3f2a18');ctx.lineWidth=.9;ctx.beginPath();for(const d of[2.4,5.6]){ctx.moveTo(q*(9.5+d),-.3);ctx.lineTo(q*(9.5+d),-2)}ctx.stroke();
+    ctx.save();ctx.translate(q*9.5,0);ctx.fillStyle=k('#5f7530');ctx.fill(FROG_LEG);ctx.strokeStyle=k(INK);ctx.lineWidth=.9;ctx.stroke(FROG_LEG);ctx.restore()}
+  // the shaggy pear itself: moss patches and layered fur, kept inside the outline
+  ctx.fillStyle=k('#6e8438');ctx.fill(FROG_BODY);
+  if(!f){ctx.save();ctx.clip(FROG_BODY);ctx.fillStyle='#596e2c';ctx.fill(FROG_MOSS_D);ctx.fillStyle='#90a656';ctx.fill(FROG_MOSS_L);ctx.lineWidth=1;ctx.strokeStyle='#54682a';ctx.stroke(FROG_FUR_D);ctx.lineWidth=.8;ctx.strokeStyle='#9bb163';ctx.stroke(FROG_FUR_L);ctx.restore()}
+  ctx.strokeStyle=k(INK);ctx.lineWidth=1.05;ctx.stroke(FROG_BODY);
+  // the big cream belly with a soft furry edge
+  ctx.fillStyle=k('#f3ebd2');ctx.fill(FROG_BELLY);
+  if(!f){ctx.save();ctx.clip(FROG_BELLY);ctx.fillStyle='rgba(190,165,115,.22)';ctx.beginPath();ctx.ellipse(0,-5,14,5.5,0,0,6.28);ctx.fill();ctx.restore();ctx.strokeStyle='#d8c9a2';ctx.lineWidth=.8;ctx.stroke(FROG_BELLY_FUR)}
+  // face: paler muzzle, round eyes set far apart, and a smile that reaches both cheeks
+  const fx=.5;el(fx,-29.5,11.5,4.2,'#8ca050');for(const q of[-1,1]){const ex=fx+q*8.8;el(ex,-34.2,2.1,2.3,'#16140b');if(!f){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex+.6,-35,.65,0,6.28);ctx.fill()}}
+  ctx.strokeStyle=k(INK);ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(fx-12.2,-31);ctx.quadraticCurveTo(fx-6,-25.8,fx,-26.8);ctx.quadraticCurveTo(fx+6,-25.8,fx+12.2,-31);ctx.stroke();
+  el(fx-2,-31,.6,.45,'#3f4a1e');el(fx+2,-31,.6,.45,'#3f4a1e');
+  // shaggy arms at the sides, brown paws
+  const ay=lift>2?-3:0;for(const q of[-1,1]){ctx.save();ctx.translate(q*16.8,-15.5+ay);ctx.scale(q,1);ctx.rotate(-.16);ctx.fillStyle=k('#647a33');ctx.fill(FROG_ARM);ctx.strokeStyle=k(INK);ctx.lineWidth=1;ctx.stroke(FROG_ARM);if(!f){ctx.strokeStyle='#4f6327';ctx.lineWidth=.8;ctx.stroke(FROG_ARM_FUR)}ctx.restore();
+    el(q*16.3,-9.2+ay,3.8,3.1,INK);el(q*16.3,-9.3+ay,3.1,2.4,'#6e4a2e');ctx.strokeStyle=k('#3f2a18');ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(q*15.3,-8+ay);ctx.lineTo(q*15.5,-9.6+ay);ctx.moveTo(q*17.3,-7.9+ay);ctx.lineTo(q*17.4,-9.5+ay);ctx.stroke()}
+  ctx.restore()}
 const CAPES=['#7a3b33','#2f5d7a','#4f6b2a','#8a6a2a','#5f3a7a','#2a6b62'];
 // pets reuse the boar / Wolf King art (pup = shrunken wolf), plus a heart in the owner's cape colour and a green hp bar
 function drawPet(p){const D=PETS[p.k],wolf=p.k==='wolf';
   if(p.glow>0){const g=ctx.createRadialGradient(p.x,p.y-8,0,p.x,p.y-8,46);g.addColorStop(0,`rgba(255,230,140,${Math.min(1,p.glow)*.75})`);g.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=g;ctx.fillRect(p.x-46,p.y-54,92,92)}
-  const m={x:p.x,y:p.y,face:p.face,anim:p.anim,flash:p.flash,aggro:p.moving?1:0,hp:1,max:1,r:p.r,k:wolf?'boss':'boar',state:'chase'};
+  const m={x:p.x,y:p.y,face:p.face,anim:p.anim,flash:p.flash,aggro:p.moving?1:0,hp:1,max:1,r:p.r,k:wolf?'boss':p.k,state:'chase',pet:1};
   if(wolf){ctx.save();ctx.translate(p.x,p.y);ctx.scale(.42,.42);ctx.translate(-p.x,-p.y);drawMob(m);ctx.restore()}else drawMob(m);
-  const top=p.y-(wolf?24:30),w=24;
+  const top=p.y-(wolf?24:p.k==='frog'?58:30),w=24;
   ctx.fillStyle='#000a';ctx.fillRect(p.x-w/2,top,w,3);ctx.fillStyle='#7fb069';ctx.fillRect(p.x-w/2,top,w*Math.max(0,p.hp)/D.hp,3);
   ctx.textAlign='center';ctx.font='700 11px system-ui,sans-serif';ctx.fillStyle='#000a';ctx.fillText('♥',p.x+1,top-3);ctx.fillStyle=CAPES[(p.owner===ME?myId:p.owner)%CAPES.length];ctx.fillText('♥',p.x,top-4)}
 function drawLoot(l){shadow(l.x+1,l.y+3,9,4);ctx.fillStyle='#8a6236';ctx.beginPath();ctx.ellipse(l.x,l.y-4,8,7,0,0,6.28);ctx.fill();
@@ -1611,7 +1823,7 @@ function hud(){const MH=maxHp(),MS=maxSt();
 
 /* ---------- maps ---------- */
 // minimap = MINI_SPAN world units around you (top-left); big map = whole world (M key or click the minimap)
-const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a'};
+const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a',boat:'#e0c08a',lamp:'#b49cff'};
 function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=S/span,u=big?S/260:S/140;
   g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b1a22';g.fillRect(0,0,S,S);
   g.imageSmoothingEnabled=false;g.setTransform(k,0,0,k,S/2-cx*k,S/2-cy*k);g.drawImage(mapImg,0,0,W,H);
