@@ -182,6 +182,10 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .bs.held{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .bs.over{border-color:#9fe07a;background:#9fe07a22}
 .bs.empty{cursor:default;background:#00000033}
+.photh b{font-weight:600;font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}.photh b.full{color:var(--bad)}
+.photh .act{margin:0 0 0 auto;padding:3px 10px;font-size:12px}
+.chestwrap .bagsec{flex:1 1 0}.chestwrap .bs{cursor:pointer}
+#chMsg{margin:0;min-height:16px;font-size:12px;color:var(--bad)}
 .phot{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 .phot .bs kbd{position:absolute;left:4px;top:2px;border:0;padding:0;font-size:9px}
 .photh{margin:0 0 6px;font-size:12px;font-weight:700;color:var(--ink);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
@@ -283,7 +287,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
     <header><h2>地圖</h2><div class="subtabs"><button type="button" class="subtab on" data-mm="pin">標記</button><button type="button" class="subtab" data-mm="ping">信號</button></div><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
     <canvas id="bigCv" width="640" height="640"></canvas>
     <div id="pinEdit" hidden><input id="pinName" maxlength="12" aria-label="標記名稱"><button type="button" id="pinOk">確定</button><button type="button" id="pinDel">刪除</button></div>
-    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><i style="background:#ffd23f"></i>標記</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span><span id="mapHint"></span></div>
+    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#a87d4a"></i>箱子</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><i style="background:#ffd23f"></i>標記</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span><span id="mapHint"></span></div>
   </div>
 </div>
 
@@ -342,6 +346,8 @@ function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1
 
 /* ---------- data ---------- */
 const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a',魔力水晶:'#9b7bff',發光蘑菇:'#6fe0ff'};
+// 背包與箱子都算格子：材料一格疊 50、食物 20，武器、工具、護甲一格一個
+const BAG_SLOTS=32,CHEST_SLOTS=24;
 /* ---------- icons ---------- */
 // 24×24 SVG icons for items (by name) and buildings (by recipe id); anything without one falls back to a colour swatch
 const meat=(c,l)=>`<rect x="4.5" y="13" width="9" height="3" rx="1.5" transform="rotate(-45 9 14.5)" fill="#eee4d0"/><circle cx="4.6" cy="17.6" r="2" fill="#eee4d0"/><circle cx="6.4" cy="19.4" r="2" fill="#eee4d0"/><ellipse cx="15" cy="9" rx="6.5" ry="5" transform="rotate(-45 15 9)" fill="${c}"/><ellipse cx="13.6" cy="7.6" rx="2.2" ry="1.2" transform="rotate(-45 13.6 7.6)" fill="${l}"/>`;
@@ -387,6 +393,7 @@ const ICON={
   wall:'<path d="M2.5 21V8l2-3 2 3v13zM7.5 21V8l2-3 2 3v13zM12.5 21V8l2-3 2 3v13zM17.5 21V8l2-3 2 3v13z" fill="#8a6236"/><rect x="2.5" y="11" width="19" height="2" fill="#3d2a17"/>',
   swall:'<rect x="2" y="5" width="20" height="16" rx="1" fill="#6d716b"/><path d="M3 6h8v4H3zM12 6h9v4h-9zM3 11h4v4H3zM8 11h8v4H8zM17 11h4v4h-4zM3 16h8v4H3zM12 16h9v4h-9z" fill="#9a9e98"/>',
   furnace:'<path d="M4 21V12a8 8 0 0 1 16 0v9z" fill="#6d716b"/><rect x="14.5" y="2" width="3.5" height="6" fill="#5a5e58"/><path d="M8 21v-5a4 4 0 0 1 8 0v5z" fill="#1b1512"/><path d="M9 21c0-2 1.5-3 3-5 1.5 2 3 3 3 5z" fill="#ff8a3a"/>',
+  chest:'<rect x="3" y="9" width="18" height="11" rx="1.5" fill="#6b4a2b"/><path d="M3 10a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v2H3z" fill="#8f6a3e"/><rect x="3" y="12" width="18" height="1.6" fill="#3d2a17"/><rect x="10.5" y="11" width="3" height="4" rx=".6" fill="#d9b85a"/><rect x="3" y="7" width="2" height="13" fill="#4a3020"/><rect x="19" y="7" width="2" height="13" fill="#4a3020"/>',
   bed:'<rect x="2" y="12" width="20" height="5" rx="1" fill="#8f6a3e"/><rect x="2" y="8" width="4" height="12" rx="1" fill="#6b4a2b"/><rect x="18.5" y="13" width="3.5" height="7" rx="1" fill="#6b4a2b"/><rect x="6.5" y="9.5" width="15" height="4" rx="1.5" fill="#c95b5b"/><rect x="6.5" y="9.5" width="4.5" height="3" rx="1" fill="#f0e6d2"/>',
   demolish:'<path d="M5 20L13.5 11.5" stroke="#7b5634" stroke-width="2.6" stroke-linecap="round"/><path d="M10.5 5.5l4-2.5 6 6-2.5 4-3-3-2 .5z" fill="#8d918c"/><circle cx="18" cy="18" r="4.5" fill="#c95b5b"/><path d="M16 16l4 4M20 16l-4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>'
 };
@@ -434,6 +441,7 @@ const RECIPES=[
   {id:'swall',name:'石牆',cost:{石頭:4},build:true,bench:true,desc:'石頭砌的牆，跟木牆一樣貼著格子邊。按 R 轉向，可以連續放置。'},
   {id:'furnace',name:'熔爐',cost:{石頭:12,煤炭:3,木頭:6},build:true,bench:true,desc:'放入礦石和煤炭，把銅、錫、鐵礦燒成金屬錠。煤炭會隨時間燒完。'},
   {id:'bed',name:'床',cost:{木頭:8,皮革:2},build:true,bench:true,desc:'重生點。夜裡睡覺直接到天亮。'},
+  {id:'chest',name:'箱子',cost:{木頭:10},build:true,bench:true,desc:`存放東西用，可以放 ${CHEST_SLOTS} 格。拆掉時裡面的東西會退回給你。`},
   {id:'boat',name:'船',cost:{木頭:20,樹脂:4},build:true,bench:true,desc:'放在岸邊的水面上。按 E 上船就能出海，靠岸再按 E 下船，船會停在原地。'},
   {id:'lamp',name:'水晶燈',cost:{魔力水晶:3,石頭:4},build:true,bench:true,desc:'用魔法森林的魔力水晶做的燈，整夜照亮周圍。'},
   {id:'木棒',name:'木棒',cost:{木頭:5},desc:'比拳頭有力的第一把武器。'},
@@ -665,7 +673,7 @@ function populate(){
 // the host sends the world (wsave), every player sends their own bag (psave) after logging in with name + PIN.
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
-function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))};if(MODE!=='solo')w.seen=packSeen();return w}
+function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box}))};if(MODE!=='solo')w.seen=packSeen();return w}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
@@ -682,7 +690,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
   // 舊存檔的木牆在格子中央、沒有方向：上下有鄰居的在左緣放直牆，左右有鄰居（或沒鄰居）的在下緣放橫牆，轉角兩種都放，圍起來的地方才不會漏
   const old=new Set((s.structs||[]).filter(st=>st.k==='wall'&&!st.o).map(st=>ci(st.x,st.y)));
   for(const st of s.structs||[]){
-    if(st.k!=='wall'||st.o){addStruct(st.k,st.x,st.y,st.o,st.fz);continue}
+    if(st.k!=='wall'||st.o){addStruct(st.k,st.x,st.y,st.o,st.fz||st.b);continue}
     const c=ci(st.x,st.y);if(c<0)continue;const v=old.has(c-COLS)||old.has(c+COLS),h=old.has(c-1)||old.has(c+1);
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(MODE!=='solo'&&s.seen)unpackSeen(s.seen);
@@ -705,8 +713,10 @@ function bootClient(m){if(wrongMapSize(m.mapW||OLD_MAP))return;seed=m.seed;genWo
   loots=(m.loots||[]).map(([id,x,y,bag])=>({id,x,y,bag}));
   if(m.seen)unpackSeen(m.seen);seeCells(fogPend);fogPend=[];
   day=m.day;dayT=m.dt;flags.summoned=m.fs;flags.boss=m.fb;ready=true;setupIntro()}
-function addStruct(k,x,y,o,fz){if(isWallK(k))return addWall(k,x,y,o);const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};
-  if(k==='furnace')s.fz=normFz(fz);structs.push(s);structGrid[c]=s;return s}
+// data: a furnace's contents (fz) or a chest's (box)
+function addStruct(k,x,y,o,data){if(isWallK(k))return addWall(k,x,y,o);const c=ci(x,y);if(c<0)return;if(resGrid[c])resGrid[c]=null;const s={k,x,y,cell:c,anim:Math.random()*9};
+  if(k==='furnace')s.fz=normFz(data);if(k==='chest')s.box=normBox(data);structs.push(s);structGrid[c]=s;return s}
+function normBox(b){const o={};for(const k in b||{}){const n=Math.floor(b[k]);if(ITEM[k]&&n>0)o[k]=n}return o}
 // furnace contents: q = ore waiting, fuel = coal waiting, out = ingots ready, burn = seconds left on the lit coal, prog = seconds into the current ore
 function normFz(f){f=f||{};return{q:Object.assign({},f.q),fuel:f.fuel||0,out:Object.assign({},f.out),burn:f.burn||0,prog:f.prog||0}}
 // 牆（木牆、石牆）貼在格子的邊上：o='h' 在格子的上緣，o='v' 在格子的左緣，記在 wallH/wallV[該格]
@@ -716,7 +726,7 @@ function addWall(k,x,y,o){if(o!=='v')o='h';const g=snapWall(o,x,y),grid=o==='v'?
   const s={k,x:g.x,y:g.y,o,cell:g.c,anim:0};structs.push(s);grid[g.c]=s;return s}
 
 /* ---------- collision ---------- */
-const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17,lamp:9},WALL_T=6;
+const SOLID_S={wall:21,swall:21,bench:17,bed:16,fire:11,furnace:17,lamp:9,chest:13},WALL_T=6;
 function wallHit(w,x,y,r){const T=WALL_T+r,L=CELL/2+r;return w.o==='v'?Math.abs(x-w.x)<T&&Math.abs(y-w.y)<L:Math.abs(y-w.y)<T&&Math.abs(x-w.x)<L}
 function blocked(x,y,r,e){
   if(e&&e.boat)return!(isSea(x,y)&&isSea(x+r*.7,y)&&isSea(x-r*.7,y)&&isSea(x,y+r*.7)&&isSea(x,y-r*.7)); // on a boat: only open sea
@@ -736,9 +746,18 @@ function foodVal(f,key){const d=FOODS[f.k];return d[key]*Math.min(1,f.t/(d.t*.4)
 function maxHp(){return 25+foods.reduce((s,f)=>s+foodVal(f,'hp'),0)}
 function maxSt(){return 50+foods.reduce((s,f)=>s+foodVal(f,'st'),0)}
 const has=k=>(inv[k]||0)>0;
-function give(k,n,x,y,toPet){if(n<=0)return;const cp=toPet&&curPet();
+const stackOf=k=>WEAPONS[k]||ARMORS[k]?1:FOODS[k]?20:50;
+// a bag (yours, a chest's) as stacks: [[item, count], ...]; how many slots it takes; how many more of k still fit in cap slots
+function stacks(b){const o=[];for(const k in b){let n=b[k];const s=stackOf(k);while(n>0){o.push([k,Math.min(n,s)]);n-=s}}return o}
+function slotsOf(b){let n=0;for(const k in b)if(b[k]>0)n+=Math.ceil(b[k]/stackOf(k));return n}
+function roomFor(b,k,cap){const s=stackOf(k),have=b[k]||0;return Math.max(0,(have%s?s-have%s:0)+(cap-slotsOf(b))*s)}
+const bagFull=()=>slotsOf(inv)>=BAG_SLOTS;
+// what doesn't fit in the bag falls on the ground as a sack (the server-run world has no bag of its own)
+function give(k,n,x,y,toPet){if(n<=0||MODE==='host')return;const cp=toPet&&curPet();
   if(cp){cp.bag[k]=(cp.bag[k]||0)+n;floats.push({x:x??cp.x,y:(y??cp.y)-18,txt:`+${n} ${k}`,t:1.2,col:'#bfe3a0'});return}
-  inv[k]=(inv[k]||0)+n;hotAdd(k);floats.push({x:x??P.x,y:(y??P.y)-18,txt:`+${n} ${k}`,t:1.4,col:ITEM[k]||'#fff'})}
+  const fit=Math.min(n,roomFor(inv,k,BAG_SLOTS));
+  if(fit>0){inv[k]=(inv[k]||0)+fit;hotAdd(k);floats.push({x:x??P.x,y:(y??P.y)-18,txt:`+${fit} ${k}`,t:1.4,col:ITEM[k]||'#fff'})}
+  if(n>fit){act({t:'drop',x:P.x+rnd(-14,14),y:P.y+rnd(6,18),bag:{[k]:n-fit}});toast(`背包滿了，${k} ×${n-fit} 掉在腳邊`)}}
 function take(cost){for(const k in cost)inv[k]-=cost[k]}
 function afford(cost){for(const k in cost)if((inv[k]||0)<cost[k])return false;return true}
 function nearBench(){return structs.some(s=>s.k==='bench'&&dist(s,P)<240)}
@@ -866,7 +885,7 @@ function forCells(x,y,sp,fn){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);f
 function bestTool(table){let b=0,k=null;for(const n in table){if((n==='none'||has(n))&&table[n]>b){b=table[n];k=n}}return[b,k]}
 // local intent: tool checks use this player's bag, the world change itself goes through act()
 function hitRes(o){const d=RES[o.k];let dmg=0;
-  if(d.pick){if(o.k==='bush'&&o.dep>0){toast('莓果還沒長回來');return}}
+  if(d.pick){if(o.k==='bush'&&o.dep>0){toast('莓果還沒長回來');return}if(!d.drop.some(([k])=>roomFor(inv,k,BAG_SLOTS)>0)){toast('背包滿了');return}}
   else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need)m=Math.max(m,MINE[n]);
     if(!m){toast(need>1?`需要銅鎬才能挖${d.name}`:`需要燧石鎬才能挖${d.name}`);o.flash=.15;return}dmg=m;shake=Math.max(shake,2)}
   else{dmg=bestTool(CHOP)[0];shake=Math.max(shake,2)}
@@ -910,17 +929,18 @@ function nearestUse(){let best=null,bd=1e9;
 function landSpot(){let best=null,bd=1e9;for(let r=30;r<=62;r+=16)for(let k=0;k<16;k++){const a=k/16*6.2832,x=P.x+Math.cos(a)*r,y=P.y+Math.sin(a)*r;
   if(!blocked(x,y,P.r)&&biomeAt(x,y)!==B_LAVA&&r<bd){bd=r;best={x,y}}}return best}
 function useLabel(u){if(!u)return null;if(u.land)return'下船';if(u.o||u.l)return'撿起';if(u.m)return'餵'+TAME_FOOD[u.m.k];const s=u.s;
-  if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';if(s.k==='boat')return'上船';
+  if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';if(s.k==='chest')return'開箱子';if(s.k==='boat')return'上船';
   if(s.k==='altar')return boss?(boss.k==='treant'?'樹精已醒':'狼王已醒'):has('古樹種子')?'種下古樹種子':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
   if(u.land){const bx=P.x,by=P.y;P.boat=false;P.x=u.land.x;P.y=u.land.y;act({t:'unboard',x:bx,y:by});toast('下船了');writeSave();return}
   if(u.o){hitRes(u.o);return}
-  if(u.l){act({t:'pick',id:u.l.id});return}
+  if(u.l){if(!Object.keys(u.l.bag).some(k=>roomFor(inv,k,BAG_SLOTS)>0)){toast('背包滿了');return}act({t:'pick',id:u.l.id});return}
   if(u.m){const food=TAME_FOOD[u.m.k];inv[food]--;act({t:'feed',id:u.m.id,f:food});return}
   const s=u.s;
   if(s.k==='fire'){if(has('生肉')){const n=inv['生肉'];inv['生肉']=0;give('烤肉',n,s.x,s.y);burst(s.x,s.y-10,'#ffb347',12)}else toast('靠近營火一會兒就能獲得「休息」')}
   else if(s.k==='bench')togglePanel(true,'craft');
   else if(s.k==='furnace'){furnaceC=s.cell;togglePanel(true,'furnace')}
+  else if(s.k==='chest'){chestC=s.cell;chMsg='';togglePanel(true,'chest')}
   else if(s.k==='boat')act({t:'board',x:s.x,y:s.y});
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.rest=300;act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
   else if(s.k==='altar'){if(boss)return;
@@ -967,7 +987,7 @@ function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemoli
 /* ---------- panel ---------- */
 function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;syncPaused();if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
-function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
+function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':panelTab==='chest'?'箱子':'行囊';const b=$('panelBody');
   // recipes are split into equipment and buildings; pick one on the left, the right side shows it and crafts it
   if(panelTab==='craft'){const nb=nearBench(),shown=RECIPES.filter(r=>r.id==='狼牙劍'?has('狼王之牙')||has('狼牙劍'):r.id==='古樹種子'?has('狼王之牙')||has('古樹種子')||treantDown:!r.lock||treantDown),canMake=r=>afford(r.cost)&&(!r.bench||nb);
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
@@ -989,11 +1009,19 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     b.querySelectorAll('[data-q]').forEach(x=>x.addEventListener('click',()=>{const v=x.dataset.q;craftQty=v==='max'?Math.max(1,max):Math.max(1,Math.min(Math.max(1,max),q+(+v)));renderPanel()}));
     const qi=$('craftQ');if(qi)qi.addEventListener('change',()=>{craftQty=Math.max(1,Math.floor(+qi.value)||1);renderPanel()});
     b.querySelector('[data-make]').addEventListener('click',()=>craft(r,q))}
-  else if(panelTab==='inv'){const ks=Object.keys(inv).filter(k=>inv[k]>0);
-    // bag on top (padded with empty slots to fill its box), hotbar pinned at the bottom, each in its own frame
-    b.innerHTML=`<div class="bagwrap"><section class="bagsec"><p class="photh">背包<span>${ks.length?(TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出')+'；拖出視窗就丟在地上':'背包是空的，去砍棵樹吧'}</span></p><div class="bag">`+ks.map(bagSlot).join('')+'</div></section>'+
-      `<section class="hotsec"><p class="photh">快捷欄<span>拖進來放、拖出去拿掉、拖到別格交換</span></p><div class="phot">`+hot.map((k,i)=>`<div class="bs${i===hotSel?' held':''}${k?'':' empty'}" data-hk="${i}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</div>`).join('')+'</div></section></div>';
-    padBag()}
+  else if(panelTab==='inv'){const st=stacks(inv),used=slotsOf(inv);
+    // bag on top (one slot per stack, BAG_SLOTS in all), hotbar pinned at the bottom, each in its own frame
+    b.innerHTML=`<div class="bagwrap"><section class="bagsec"><p class="photh">背包<b class="${used>=BAG_SLOTS?'full':''}">${used} / ${BAG_SLOTS} 格</b><span>${st.length?(TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出')+'；拖出視窗就丟在地上':'背包是空的，去砍棵樹吧'}</span></p><div class="bag">`+st.map(([k,n])=>bagSlot(k,n)).join('')+'<div class="bs empty"></div>'.repeat(Math.max(0,BAG_SLOTS-st.length))+'</div></section>'+
+      `<section class="hotsec"><p class="photh">快捷欄<span>拖進來放、拖出去拿掉、拖到別格交換</span></p><div class="phot">`+hot.map((k,i)=>`<div class="bs${i===hotSel?' held':''}${k?'':' empty'}" data-hk="${i}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</div>`).join('')+'</div></section></div>'}
+  else if(panelTab==='chest'){const s=structGrid[chestC];if(!s||s.k!=='chest'){togglePanel(false);return}chSig=chestSig(s);
+    const cs=stacks(s.box),ps=stacks(inv),cu=slotsOf(s.box),pu=slotsOf(inv),slot=(k,n,a)=>`<div class="bs" data-${a}="${k}" data-n="${n}" title="${k} ×${n}">${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}</div>`,pad=n=>'<div class="bs empty"></div>'.repeat(Math.max(0,n));
+    b.innerHTML=`<div class="bagwrap chestwrap"><p id="chMsg">${chMsg}</p>
+      <section class="bagsec"><p class="photh">箱子<b class="${cu>=CHEST_SLOTS?'full':''}">${cu} / ${CHEST_SLOTS} 格</b><span>點一下拿回背包</span><button class="act" type="button" id="chTake" ${cs.length?'':'disabled'}>全部拿出來</button></p><div class="bag">${cs.map(([k,n])=>slot(k,n,'ck')).join('')+pad(CHEST_SLOTS-cs.length)}</div></section>
+      <section class="bagsec"><p class="photh">背包<b class="${pu>=BAG_SLOTS?'full':''}">${pu} / ${BAG_SLOTS} 格</b><span>點一下放進箱子</span><button class="act" type="button" id="chPut" ${ps.length?'':'disabled'}>全部放進去</button></p><div class="bag">${ps.map(([k,n])=>slot(k,n,'pk')).join('')+pad(BAG_SLOTS-ps.length)}</div></section></div>`;
+    b.querySelectorAll('[data-ck]').forEach(x=>x.addEventListener('click',()=>chestMove('cget',{[x.dataset.ck]:+x.dataset.n})));
+    b.querySelectorAll('[data-pk]').forEach(x=>x.addEventListener('click',()=>chestMove('cput',{[x.dataset.pk]:+x.dataset.n})));
+    $('chTake').addEventListener('click',()=>chestMove('cget',Object.assign({},s.box)));
+    $('chPut').addEventListener('click',()=>chestMove('cput',Object.assign({},inv)))}
   else if(panelTab==='furnace'){const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}const f=s.fz;fzSig=furnaceSig(f);
     const ks=['煤炭',...Object.keys(SMELT)].filter(k=>has(k)),outN=Object.values(f.out).reduce((a,b)=>a+b,0);
     b.innerHTML=`<p class="note">放入礦石和煤炭就會開始燒。每 ${SMELT_T} 秒燒好一塊金屬錠，一塊煤炭燒 ${COAL_T} 秒，點著了就會一直燒到完。</p>
@@ -1012,28 +1040,34 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       :`<p class="note">還沒有寵物。拿莓果餵沒在生氣的野豬 ${TAME_N} 次就能馴服牠，奶蛙則是餵蘑菇；第一次打倒狼王時，每個人都會得到一隻狼崽。</p>`;
     b.querySelectorAll('[data-sum]').forEach(x=>x.addEventListener('click',()=>{const id=+x.dataset.sum;if(petOut===id)petOut=null;else summonPet(id);writeSave();renderPanel()}));
     b.querySelectorAll('[data-take]').forEach(x=>x.addEventListener('click',()=>{const p=pets.find(q=>q.id===+x.dataset.take);if(!p)return;
-      for(const k in p.bag){inv[k]=(inv[k]||0)+p.bag[k];hotAdd(k)}toast(`從${p.name}身上取出 ${Object.values(p.bag).reduce((a,b)=>a+b,0)} 件物品`);p.bag={};writeSave();renderPanel()}))}
+      let got=0;for(const k in p.bag){const n=Math.min(p.bag[k],roomFor(inv,k,BAG_SLOTS));if(n>0){inv[k]=(inv[k]||0)+n;hotAdd(k);got+=n;if(!(p.bag[k]-=n))delete p.bag[k]}}
+      toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
     </div>`}}
 const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear',craftQty=1;const craftSel={};
-let furnaceC=-1,fzSig='';
+let furnaceC=-1,fzSig='',chestC=-1,chSig='',chMsg='';
+const chestSig=s=>JSON.stringify([s.box,inv]);
+// move items between your bag and the open chest: only what fits is sent; the host checks again (cput / cget)
+function chestMove(t,want){const s=structGrid[chestC];if(!s||s.k!=='chest')return;const to=t==='cput'?Object.assign({},s.box):Object.assign({},inv),from=t==='cput'?inv:s.box,cap=t==='cput'?CHEST_SLOTS:BAG_SLOTS,bag={};let left=false;
+  for(const k in want){const n=Math.min(Math.floor(want[k]),from[k]||0,roomFor(to,k,cap));if(n<Math.min(want[k],from[k]||0))left=true;if(n>0){bag[k]=n;to[k]=(to[k]||0)+n}}
+  chMsg=left?(t==='cput'?'箱子滿了，有些放不進去':'背包滿了，有些拿不出來'):'';
+  if(!Object.keys(bag).length){renderPanel();return}
+  if(t==='cput'){for(const k in bag)inv[k]-=bag[k];syncHeld()}
+  act({t,c:chestC,bag});writeSave();renderPanel()}
 function furnaceSig(f){return JSON.stringify([f.q,f.fuel,f.out])}
 function furnaceStat(f){const lit=f.burn>0,busy=Object.keys(f.q).length>0;
   return`<p class="note">${lit?`🔥 燃燒中，這塊煤炭還剩 ${Math.ceil(f.burn)} 秒`:busy?'熄火了，放煤炭進去就會點著':'熄火'}</p>${busy?`<div class="fbar"><i style="width:${Math.round(f.prog/SMELT_T*100)}%"></i></div>`:''}`}
 // called from hud(): refresh the progress line every tick, rebuild the panel only when the furnace contents change
-function refreshFurnacePanel(){if($('panel').hidden||panelTab!=='furnace')return;const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}
+function refreshFurnacePanel(){if($('panel').hidden)return;
+  if(panelTab==='chest'){const c=structGrid[chestC];if(!c||c.k!=='chest')togglePanel(false);else if(chestSig(c)!==chSig)renderPanel();return}
+  if(panelTab!=='furnace')return;const s=structGrid[furnaceC];if(!s||s.k!=='furnace'){togglePanel(false);return}
   if(furnaceSig(s.fz)!==fzSig)renderPanel();else{const e=$('fzStat');if(e)e.innerHTML=furnaceStat(s.fz)}}
 /* ---------- bag ---------- */
-// fill the bag box with empty slots: whole rows, at least enough to reach the bottom of the box
-function padBag(){const g=document.querySelector('.bag');if(!g)return;const sec=g.closest('.bagsec'),cols=8,n=g.children.length;
-  g.insertAdjacentHTML('beforeend','<div class="bs empty"></div>');const cell=g.lastElementChild.offsetHeight+6;g.lastElementChild.remove();
-  const room=sec.clientHeight-(g.offsetTop-sec.offsetTop)-8,rows=Math.max(Math.ceil(n/cols),Math.floor((room+6)/cell),1);
-  g.insertAdjacentHTML('beforeend','<div class="bs empty"></div>'.repeat(rows*cols-n))}
 // numbers for weapons, tools and armour: [label, value]
 function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&!ARMORS[k])return o;
   if(w)o.push(['傷害',w.dmg],['距離',w.range],['範圍',w.proj?'遠程單體':Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
@@ -1043,8 +1077,8 @@ function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&!ARMORS[k])return o;
 const statsText=k=>equipStats(k).map(([a,b])=>`${a} ${b}`).join('・');
 function statsHtml(k){const o=equipStats(k);return o.length?`<div class="stats">${o.map(([a,b])=>`<span>${a}<b>${b}</b></span>`).join('')}</div>`:''}
 function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:statsText(k)}
-function bagSlot(k){const hi=hot.indexOf(k),sub=itemSub(k);
-  return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${inv[k]}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}${icon(k)}<span class="hn">${k}</span><small>${inv[k]}</small></div>`}
+function bagSlot(k,n){const hi=hot.indexOf(k),sub=itemSub(k);
+  return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${n}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}</div>`}
 // right-click (or tap) menu for one bag item
 function closeBagMenu(){const m=$('bagMenu');if(m)m.remove()}
 function openBagMenu(k,x,y){closeBagMenu();if(!has(k))return;const n=inv[k],sub=itemSub(k),m=document.createElement('div');m.id='bagMenu';
@@ -1081,7 +1115,9 @@ function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){renderPanel();return
   act({t:'drop',x:P.x+Math.cos(P.face)*26,y:P.y+Math.sin(P.face)*26,bag:{[k]:n}});
   toast(`丟出 ${k} ×${n}`);writeSave();renderPanel()}
 function craft(r,n=1){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&!nearBench())return;let made=0;
-  while(made<n&&afford(r.cost)){take(r.cost);inv[r.id]=(inv[r.id]||0)+1;made++}hotAdd(r.id);
+  // the materials used free their slots first, so check for room after taking them
+  while(made<n&&afford(r.cost)){take(r.cost);if(roomFor(inv,r.id,BAG_SLOTS)<1){for(const k in r.cost)inv[k]+=r.cost[k];break}inv[r.id]=(inv[r.id]||0)+1;made++}
+  if(!made){toast('背包滿了，空出位置才能做');renderPanel();return}hotAdd(r.id);
   if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg&&hot.includes(r.id))hotSelect(hot.indexOf(r.id),true);toast(`做好了：${r.name}${made>1?' ×'+made:''}`);writeSave();renderPanel()}
 
 /* ---------- goals ---------- */
@@ -1331,12 +1367,18 @@ function handleAct(m,from){switch(m.t){
   case'fput':{const s=structGrid[m.c],n=Math.floor(m.n);if(!s||s.k!=='furnace'||!(n>0)||m.k!=='煤炭'&&!SMELT[m.k]){if(n>0)refund(from,{[m.k]:n},'熔爐不見了，材料退回');break}
     const f=s.fz;if(m.k==='煤炭')f.fuel+=n;else f.q[m.k]=(f.q[m.k]||0)+n;evt({t:'fz',c:m.c,f});break}
   case'fout':{const s=structGrid[m.c];if(!s||s.k!=='furnace')break;const f=s.fz;for(const k in f.out)giveTo(from,k,f.out[k],s.x,s.y-20);f.out={};evt({t:'fz',c:m.c,f});break}
+  // chests: cput = a player puts items in (already taken from their bag), cget = takes them out. What doesn't fit goes back
+  case'cput':{const s=structGrid[m.c],bag=normBox(m.bag);if(!s||s.k!=='chest'){if(Object.keys(bag).length)refund(from,bag,'箱子不見了，東西退回');break}
+    const back={};for(const k in bag){const n=Math.min(bag[k],roomFor(s.box,k,CHEST_SLOTS));if(n>0)s.box[k]=(s.box[k]||0)+n;if(bag[k]>n)back[k]=bag[k]-n}
+    evt({t:'cb',c:m.c,b:s.box});if(Object.keys(back).length)refund(from,back,'箱子滿了，放不下的退回');break}
+  case'cget':{const s=structGrid[m.c],bag=normBox(m.bag);if(!s||s.k!=='chest')break;let dy=0;
+    for(const k in bag){const n=Math.min(bag[k],s.box[k]||0);if(!(n>0))continue;if(!(s.box[k]-=n))delete s.box[k];giveTo(from,k,n,s.x,s.y-20-dy);dy+=14}evt({t:'cb',c:m.c,b:s.box});break}
   case'pick':{const l=loots.find(o=>o.id===m.id);if(!l)break;evt({t:'lr',id:l.id});for(const k in l.bag)giveTo(from,k,l.bag[k],l.x,l.y);break}
   case'build':{if(isWallK(m.k)){const g=snapWall(m.o==='v'?'v':'h',m.x,m.y);if(g.c<0||biome[g.c]===0||(g.o==='v'?wallV:wallH)[g.c])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:g.x,y:g.y,o:g.o});break}
     const c=ci(m.x,m.y);if(m.k==='boat'?!boatSpotOk(c):c<0||biome[c]===0||biome[c]===B_LAVA||structGrid[c]||c===altar.cell||!SOLID_S[m.k])refund(from,m.cost,'那個位置被別人佔走了，材料退回');else evt({t:'sa',k:m.k,x:m.x,y:m.y});break}
   case'demo':{const s=isWallK(m.k)?(m.o==='v'?wallV:wallH)[snapWall(m.o==='v'?'v':'h',m.x,m.y).c]:structGrid[ci(m.x,m.y)];if(!s||s.k!==m.k)break;
     evt({t:'sr',k:s.k,x:s.x,y:s.y,o:s.o});const back={},add=(k,n)=>{if(n>0)back[k]=(back[k]||0)+n},r=RECIPES.find(r=>r.id===s.k);
-    if(r)for(const k in r.cost)add(k,r.cost[k]);if(s.fz){for(const k in s.fz.q)add(k,s.fz.q[k]);add('煤炭',s.fz.fuel);for(const k in s.fz.out)add(k,s.fz.out[k])}
+    if(r)for(const k in r.cost)add(k,r.cost[k]);if(s.box)for(const k in s.box)add(k,s.box[k]);if(s.fz){for(const k in s.fz.q)add(k,s.fz.q[k]);add('煤炭',s.fz.fuel);for(const k in s.fz.out)add(k,s.fz.out[k])}
     let dy=0;for(const k in back){giveTo(from,k,back[k],s.x,s.y-dy);dy+=14}break}
   case'board':{const s=structGrid[ci(m.x,m.y)];if(!s||s.k!=='boat')break;evt({t:'sr',k:'boat',x:s.x,y:s.y});toPlayer(from,{t:'board',x:s.x,y:s.y});break}
   // leaving the boat: it stays on the nearest free sea cell; with nowhere to park it, the player gets the materials back
@@ -1374,10 +1416,11 @@ function applyEvt(m){switch(m.t){
   case'sr':{const grid=isWallK(m.k)?(m.o==='v'?wallV:wallH):structGrid,c=isWallK(m.k)?snapWall(m.o==='v'?'v':'h',m.x,m.y).c:ci(m.x,m.y),s=grid[c];if(!s||s.k!==m.k)break;
     grid[c]=null;structs.splice(structs.indexOf(s),1);burst(s.x,s.y-10,m.k==='wall'||m.k==='bench'||m.k==='bed'||m.k==='boat'?'#a0703f':'#9a9d98',14);break}
   case'fz':{const s=structGrid[m.c];if(s&&s.k==='furnace')s.fz=normFz(m.f);break}
+  case'cb':{const s=structGrid[m.c];if(s&&s.k==='chest')s.box=normBox(m.b);break}
   case'lr':{const l=loots.find(o=>o.id===m.id);if(l){loots.splice(loots.indexOf(l),1);burst(l.x,l.y,'#a0703f',8)}break}
 }}
 function sendWorld(id){const RK=Object.keys(RES),res=[];for(const o of resGrid)if(o)res.push([o.cell,RK.indexOf(o.k),o.x,o.y,o.hp,Math.max(0,o.dep)]);
-  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag]),seen:packSeen()})}
+  sendTo(id,{t:'world',mapW:W,seed,day,dt:dayT,fs:flags.summoned,fb:flags.boss,structs:structs.map(s=>s.fz?[s.k,s.x,s.y,0,s.fz]:s.box?[s.k,s.x,s.y,0,s.box]:s.o?[s.k,s.x,s.y,s.o]:[s.k,s.x,s.y]),res,loots:loots.map(l=>[l.id,l.x,l.y,l.bag]),seen:packSeen()})}
 function sendSnap(){net({t:'snap',day,dt:dayT,fs:flags.summoned,fb:flags.boss,b:boss?boss.id:0,
   m:mobs.map(m=>[m.id,m.k,Math.round(m.x),Math.round(m.y),Math.round(m.face*100)/100,Math.max(0,Math.round(m.hp)),m.max,m.flash>0?1:0,m.state,m.aggro>0?1:0])})}
 function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;const seen=new Set();
@@ -1585,6 +1628,8 @@ function drawStruct(s){const x=s.x,y=s.y;
     const t=time*10+s.anim;for(let k=0;k<3;k++){const h=12+Math.sin(t+k*2)*4;ctx.fillStyle=['#ff7a2a','#ffb347','#ffe08a'][k];ctx.beginPath();ctx.moveTo(x-6+k*2,y);ctx.quadraticCurveTo(x-3+Math.sin(t*.7+k)*3,y-h,x+Math.sin(t+k)*2,y-h-4+k*3);ctx.quadraticCurveTo(x+4,y-h*.6,x+6-k*2,y);ctx.fill()}
     if(Math.random()<.15)parts.push({x:x+rnd(-4,4),y:y-14,vx:rnd(-8,8),vy:-30,t:.8,col:'#ffb347',s:1.6});break}
   case'boat':drawBoat(x,y,0,time*1.7+s.anim);break;
+  case'chest':shadow(x+2,y+6,17,5);ctx.fillStyle='#6b4a2b';ctx.fillRect(x-15,y-14,30,20);ctx.fillStyle='#8f6a3e';ctx.fillRect(x-15,y-21,30,9);ctx.fillStyle='#a87d4a';ctx.fillRect(x-15,y-21,30,2);
+    ctx.fillStyle='#3d2a17';ctx.fillRect(x-15,y-12,30,2);ctx.fillStyle='#4a3020';ctx.fillRect(x-15,y-21,3,27);ctx.fillRect(x+12,y-21,3,27);ctx.fillStyle='#d9b85a';ctx.fillRect(x-2.5,y-14,5,6);break;
   case'lamp':{shadow(x+2,y+5,10,4);ctx.fillStyle='#6d716b';ctx.fillRect(x-7,y-4,14,6);ctx.fillStyle='#8a8e88';ctx.fillRect(x-2.5,y-24,5,21);
     const tw=.8+Math.sin(time*3+s.anim)*.2,g=ctx.createRadialGradient(x,y-32,0,x,y-32,20);g.addColorStop(0,`rgba(190,170,255,${.6*tw})`);g.addColorStop(1,'rgba(150,120,255,0)');ctx.fillStyle=g;ctx.fillRect(x-20,y-52,40,40);
     ctx.fillStyle='#a58bff';ctx.beginPath();ctx.moveTo(x-6,y-26);ctx.lineTo(x,y-42);ctx.lineTo(x+6,y-26);ctx.lineTo(x,y-22);ctx.closePath();ctx.fill();ctx.fillStyle='#e6deff';ctx.fillRect(x-1.2,y-37,2.4,9);break}
@@ -1877,14 +1922,14 @@ function hud(){const MH=maxHp(),MS=maxSt();
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   syncHeld();renderHot();const hk=held();
-  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorKey()?'・穿著'+armorKey():''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
+  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorKey()?'・穿著'+armorKey():''}${bagFull()?'・<b style="color:var(--bad)">背包滿了</b>':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
   $('bossBar').hidden=!boss;if(boss)$('bossName').textContent=boss.k==='treant'?'樹精':'灰鬃狼王';if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
 
 /* ---------- maps ---------- */
 // minimap = MINI_SPAN world units around you (top-left); big map = whole world (M key or click the minimap)
-const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a',boat:'#e0c08a',lamp:'#b49cff'};
+const MINI_SPAN=1200,MAPCOL={fire:'#ff8a3a',bench:'#c9a26a',bed:'#c95b5b',wall:'#3d2a17',swall:'#b8bcb6',furnace:'#d0603a',boat:'#e0c08a',lamp:'#b49cff',chest:'#a87d4a'};
 function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=S/span,u=big?S/260:S/140;
   g.setTransform(1,0,0,1,0,0);g.fillStyle='#0b1a22';g.fillRect(0,0,S,S);
   g.imageSmoothingEnabled=false;g.setTransform(k,0,0,k,S/2-cx*k,S/2-cy*k);g.drawImage(mapImg,0,0,W,H);
