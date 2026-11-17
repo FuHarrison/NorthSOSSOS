@@ -56,7 +56,12 @@ html.gray{filter:grayscale(1)}
 #mini{display:block;width:140px;height:140px;border-radius:8px;border:1px solid #ffffff2a;box-shadow:0 2px 8px #0008;pointer-events:auto;cursor:pointer;margin-top:2px}
 #bigmap .sheet{width:min(640px,100%);max-height:none;padding:0}
 #bigmap header{padding:10px 10px 8px 16px}
-#bigCv{display:block;width:100%;aspect-ratio:1;background:#0b1a22}
+#bigCv{display:block;width:100%;aspect-ratio:1;background:#0b1a22;cursor:crosshair;touch-action:none}
+#bigmap .sheet{position:relative}#bigmap header .subtabs{margin:0 0 8px}
+#pinEdit{position:absolute;z-index:2;display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px;box-shadow:0 6px 18px #000a}
+#pinEdit input{width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px;color:var(--ink)}
+#pinEdit button{border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:5px 9px;font-size:12px}#pinEdit #pinOk{background:var(--accent);color:#1b1407;border-color:var(--accent);font-weight:700}
+#mapHint{flex-basis:100%;color:var(--ink)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 16px 12px;font-size:12px;color:var(--mute)}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 #banner{top:34%;left:50%;transform:translate(-50%,-50%);font-family:var(--display);font-weight:900;font-size:clamp(26px,6vw,46px);letter-spacing:.12em;color:var(--accent);text-shadow:0 2px 14px #000,0 0 30px #e0a64655;opacity:0;transition:opacity .6s;text-align:center;white-space:nowrap}
@@ -275,9 +280,10 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 
 <div class="modal" id="bigmap" hidden>
   <div class="sheet" role="dialog" aria-label="地圖">
-    <header><h2>地圖</h2><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
+    <header><h2>地圖</h2><div class="subtabs"><button type="button" class="subtab on" data-mm="pin">標記</button><button type="button" class="subtab" data-mm="ping">信號</button></div><button class="x" id="mapX" type="button" aria-label="關閉">×</button></header>
     <canvas id="bigCv" width="640" height="640"></canvas>
-    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span></div>
+    <div id="pinEdit" hidden><input id="pinName" maxlength="12" aria-label="標記名稱"><button type="button" id="pinOk">確定</button><button type="button" id="pinDel">刪除</button></div>
+    <div class="legend"><span><i style="background:#ffe08a"></i>你</span><span><i style="background:#5a8ab0"></i>其他玩家</span><span><i style="background:#e0a646;transform:rotate(45deg)"></i>石祭壇</span><span><i style="background:#ff8a3a"></i>營火</span><span><i style="background:#c9a26a"></i>工作台</span><span><i style="background:#c95b5b"></i>床</span><span><i style="background:#3d2a17"></i>木牆</span><span><i style="background:#b8bcb6"></i>石牆</span><span><i style="background:#d0603a"></i>熔爐</span><span><i style="background:#0b1a22;outline:1px solid #ffffff40"></i>還沒去過</span><span><i style="background:#ffd23f"></i>標記</span><span><kbd>M</kbd> 或 <kbd>Esc</kbd> 關閉</span><span id="mapHint"></span></div>
   </div>
 </div>
 
@@ -661,7 +667,7 @@ function populate(){
 let noSave=false,loggingIn=false,kicked=false;
 function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz}))};if(MODE!=='solo')w.seen=packSeen();return w}
 function personal(){return{inv,foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
-  pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown}}
+  pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 // ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
 function writeSave(ack){if(!ready||noSave)return;
@@ -688,7 +694,8 @@ function applyPersonal(s){inv=s.inv||{};foods=(s.foods||[]).filter(f=>FOODS[f.k]
   else{hotDefault();hotSel=Math.max(0,hot.indexOf(P.weapon))}syncHeld();
   pets=(s.pets||[]).filter(p=>PETS[p.k]).map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp>0?p.hp:PETS[p.k].hp,bag:p.bag||{},down:p.down||0}));
   petOut=pets.some(p=>p.id===s.petOut)?s.petOut:null;const cp=curPet();if(cp)placePet(cp,false);
-  treantDown=!!s.treant;if(s.seen)unpackSeen(s.seen,MODE!=='solo')}
+  treantDown=!!s.treant;if(s.seen)unpackSeen(s.seen,MODE!=='solo');
+  pins=(Array.isArray(s.pins)?s.pins:[]).filter(p=>p&&isFinite(p.x)&&isFinite(p.y)).slice(0,PIN_MAX).map(p=>({x:+p.x,y:+p.y,t:String(p.t||'標記').slice(0,12)}))}
 function bootSolo(){MODE='solo';save=loadKey(SKEY);if(wrongMapSize(mapWOf(save)))return;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save){applyWorld(save);applyPersonal(save)}populate();ready=true;setupIntro()}
 function bootHost(w){const old=w?null:loadKey(WKEY);save=w||old;if(wrongMapSize(mapWOf(save)))return;seed=save&&save.seed||((Math.random()*2e9)|0);genWorld();if(save)applyWorld(save);populate();ready=true;
   if(old)writeSave('w');setupIntro()}
@@ -754,6 +761,7 @@ addEventListener('keydown',e=>{
   if(paused)return;
   if(e.code==='KeyR'&&placing){rotPlace();return}
   if(e.code==='KeyB'){toggleBuild();return}
+  if(e.code==='KeyT'){const w=!TOUCH&&mouse.on?worldMouse():{x:P.x+Math.cos(P.face)*80,y:P.y+Math.sin(P.face)*80};sendPing(w.x,w.y);return}
   keys[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doRoll()}
   if(e.code==='KeyE')doUse();
@@ -766,6 +774,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{
   if(paused)return;
   if(e.pointerType==='mouse'){mouse.on=true;mouse.x=e.clientX;mouse.y=e.clientY;
+    if(e.button===1){e.preventDefault();const w=worldMouse();sendPing(w.x,w.y);return}
     if(e.button===2){if(placing)doDemolish();else doRoll();return}
     if(placing){tryPlace();return}
     if(useHeld())return;atkHeld=true;return}
@@ -790,7 +799,7 @@ applySet();
 function setOpt(k){SET[k]=!SET[k];try{localStorage.setItem('northland-settings',JSON.stringify(SET))}catch(e){}applySet();if(!$('settings').hidden)renderSettings()}
 const toggleGray=()=>setOpt('gray');
 const SET_OPTS=[['gray','黑白畫面',TOUCH?'整個畫面變黑白':'整個畫面變黑白，按 G 也能切換'],['shake','畫面震動','打到東西、被打的時候畫面會晃']];
-const KEY_HELP=[['WASD／方向鍵','移動'],['Shift','衝刺'],['左鍵','攻擊・吃手上的食物'],['右鍵／空白鍵','翻滾'],['E','互動'],['1～8／滾輪／Q','切換快捷欄'],['Tab','背包・製作'],['B','建造模式（R 轉向）'],['M','大地圖'],['G','黑白畫面'],['Esc','設定・關閉視窗']];
+const KEY_HELP=[['WASD／方向鍵','移動'],['Shift','衝刺'],['左鍵','攻擊・吃手上的食物'],['右鍵／空白鍵','翻滾'],['E','互動'],['1～8／滾輪／Q','切換快捷欄'],['Tab','背包・製作'],['B','建造模式（R 轉向）'],['M','大地圖（加標記、發信號）'],['T／滑鼠中鍵','對準游標發信號給大家'],['G','黑白畫面'],['Esc','設定・關閉視窗']];
 function renderSettings(){const wipe=MODE==='solo'||netInfo&&netInfo.local;
   $('setBody').innerHTML=`<div class="sets"><section><h4>畫面</h4>${SET_OPTS.map(([k,t,d])=>`<div class="setrow"><span>${t}<small>${d}</small></span><button type="button" class="sw2" role="switch" aria-checked="${!!SET[k]}" aria-label="${t}" data-set="${k}"></button></div>`).join('')}</section>`+
     (TOUCH?'':`<section><h4>按鍵</h4><div class="keys">${KEY_HELP.map(([a,b])=>`<kbd>${a}</kbd><b>${b}</b>`).join('')}</div></section>`)+
@@ -1148,6 +1157,7 @@ function updateFx(dt){
   // particles
   for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.9;p.vy*=.9;if(p.t<=0)parts.splice(i,1)}
   for(let i=floats.length-1;i>=0;i--){const f=floats[i];f.t-=dt;f.y-=22*dt;if(f.t<=0)floats.splice(i,1)}
+  pingCd-=dt;for(let i=pings.length-1;i>=0;i--)if((pings[i].t-=dt)<=0)pings.splice(i,1);
   for(let i=slashes.length-1;i>=0;i--)if((slashes[i].t-=dt)<=0)slashes.splice(i,1);
   for(let i=rings.length-1;i>=0;i--)if((rings[i].t-=dt)<=0)rings.splice(i,1);
   for(let i=tfx.length-1;i>=0;i--)if((tfx[i].t-=dt)<=0)tfx.splice(i,1);
@@ -1412,6 +1422,7 @@ function onNet(m){
   if(m.t==='fog'){if(Array.isArray(m.c))ready?seeCells(m.c):fogPend.push(...m.c);return}
   if(!ready)return;
   if(m.t==='st'){updateOther(m);return}
+  if(m.t==='ping'){addPing(m);return}
   if(MODE==='host'){handleAct(m,m.from);return}
   switch(m.t){
   case'snap':applySnap(m);break;
@@ -1506,6 +1517,7 @@ function render(){
   ctx.textAlign='center';ctx.font='600 11px system-ui,sans-serif';
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.t*2);ctx.fillStyle='#000a';ctx.fillText(f.txt,f.x+1,f.y+1);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,f.y)}ctx.globalAlpha=1;
   for(const o of others.values())if(!o.dead&&o.n){ctx.fillStyle='#000a';ctx.fillText(o.n,o.x+1,o.y-33);ctx.fillStyle='#ebe5d3';ctx.fillText(o.n,o.x,o.y-34)}
+  drawPings(cx,cy,hw,hh);
   const u=!placing&&nearestUse(),lab=useLabel(u);
   if(lab){const t=(TOUCH?'':'E  ')+lab;ctx.font='600 11px system-ui,sans-serif';const w=ctx.measureText(t).width+12;ctx.fillStyle='#0d130fcc';ctx.fillRect(P.x-w/2,P.y-46,w,17);ctx.fillStyle='#e0a646';ctx.fillText(t,P.x,P.y-34)}
   if(TOUCH)$('bUse').textContent=lab&&lab.length<=5?lab:'互動';
@@ -1881,14 +1893,59 @@ function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=
   for(const s of structs){if(!seen[s.cell])continue;const[x,y]=at(s.x,s.y);g.fillStyle=MAPCOL[s.k];
     if(s.o){const L=CELL/2*k,t=.8*u;if(s.o==='v')g.fillRect(x-t,y-L,t*2,L*2);else g.fillRect(x-L,y-t,L*2,t*2)}else{const r=2.6*u;g.fillRect(x-r,y-r,r*2,r*2)}}
   if(seen[altar.cell]){const[x,y]=at(altar.x,altar.y);g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle='#e0a646';g.strokeStyle='#000';g.lineWidth=u;g.fillRect(-3.5*u,-3.5*u,7*u,7*u);g.strokeRect(-3.5*u,-3.5*u,7*u,7*u);g.restore()}
+  for(const p of pins){const[x,y]=at(p.x,p.y);g.strokeStyle='#000';g.lineWidth=u*.9;g.beginPath();g.moveTo(x,y);g.lineTo(x,y-7*u);g.stroke();
+    g.fillStyle='#ffd23f';g.beginPath();g.moveTo(x,y-7*u);g.lineTo(x+5*u,y-5.2*u);g.lineTo(x,y-3.4*u);g.closePath();g.fill();g.stroke();
+    if(big){g.font=`600 ${Math.round(4.6*u)}px system-ui,sans-serif`;g.textAlign='center';g.lineWidth=u*1.2;g.strokeText(p.t,x,y+5*u);g.fillStyle='#ffe9a8';g.fillText(p.t,x,y+5*u)}}
+  for(const p of pings){let[x,y]=at(p.x,p.y);const m=5*u;x=Math.max(m,Math.min(S-m,x));y=Math.max(m,Math.min(S-m,y));const k2=(PING_T-p.t)%1;
+    g.strokeStyle=`rgba(255,210,63,${1-k2})`;g.lineWidth=1.4*u;g.beginPath();g.arc(x,y,(2+k2*7)*u,0,6.28);g.stroke();g.fillStyle='#ffd23f';g.beginPath();g.arc(x,y,1.6*u,0,6.28);g.fill();
+    if(big){g.font=`600 ${Math.round(4.2*u)}px system-ui,sans-serif`;g.textAlign='center';g.strokeStyle='#000';g.lineWidth=u;g.strokeText(p.n,x,y-4*u);g.fillStyle='#ffd23f';g.fillText(p.n,x,y-4*u)}}
   for(const o of others.values())if(!o.dead){const[x,y]=at(o.x,o.y);g.fillStyle=CAPES[o.id%CAPES.length];g.strokeStyle='#fff';g.lineWidth=u;g.beginPath();g.arc(x,y,3.2*u,0,6.28);g.fill();g.stroke()}
   {const[x,y]=at(P.x,P.y);g.save();g.translate(x,y);g.rotate(P.face);g.fillStyle='#ffe08a';g.strokeStyle='#000';g.lineWidth=u;g.beginPath();g.moveTo(6*u,0);g.lineTo(-4*u,-4*u);g.lineTo(-2*u,0);g.lineTo(-4*u,4*u);g.closePath();g.fill();g.stroke();g.restore()}}
-function toggleMap(on){const m=$('bigmap');on=on===undefined?m.hidden:on;if(on&&(!$('intro').hidden||!$('dead').hidden))return;
+function toggleMap(on){const m=$('bigmap');on=on===undefined?m.hidden:on;if(on&&(!$('intro').hidden||!$('dead').hidden))return;if(!on)closePinEdit(false);
   if(on)$('panel').hidden=true;m.hidden=!on;syncPaused();
   if(on){atkHeld=false;drawMap($('bigCv'),W/2,H/2,W,true)}}
 $('mini').addEventListener('click',()=>toggleMap(true));
 $('mapX').addEventListener('click',()=>toggleMap(false));
 $('bigmap').addEventListener('pointerdown',e=>{if(e.target.id==='bigmap')toggleMap(false)});
+
+/* ---------- map pins & pings ---------- */
+// pins: your own markers on the map, saved with your bag. pings: a signal everyone sees for PING_T seconds (t:'ping', all:1)
+let pins=[],pings=[],mapMode='pin',pinEditI=-1,pinNew=false,pingCd=0;
+const PIN_MAX=40,PING_T=8;
+function sendPing(x,y){if(pingCd>0)return;pingCd=1.5;const m={t:'ping',x:Math.round(Math.max(0,Math.min(W,x))),y:Math.round(Math.max(0,Math.min(H,y))),n:myName};
+  addPing(m);if(MODE!=='solo')net(Object.assign({all:1},m))}
+function addPing(m){if(!isFinite(m.x)||!isFinite(m.y))return;const n=String(m.n||'').slice(0,10);pings=pings.filter(p=>p.n!==n);pings.push({x:+m.x,y:+m.y,n,t:PING_T})}
+function drawPings(cx,cy,hw,hh){ctx.textAlign='center';ctx.font='600 11px system-ui,sans-serif';
+  for(const p of pings){const k2=(PING_T-p.t)%1,fade=Math.min(1,p.t);
+    if(Math.abs(p.x-cx)<hw-16&&Math.abs(p.y-cy)<hh-16){ctx.strokeStyle=`rgba(255,210,63,${(1-k2)*fade})`;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(p.x,p.y,10+k2*44,(10+k2*44)*.6,0,0,6.28);ctx.stroke();
+      ctx.fillStyle=`rgba(255,210,63,${fade})`;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-6,p.y-16);ctx.lineTo(p.x+6,p.y-16);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#000a';ctx.fillText(p.n,p.x+1,p.y-21);ctx.fillStyle='#ffd23f';ctx.fillText(p.n,p.x,p.y-22);continue}
+    // off screen: an arrow on the screen edge pointing at it, with the distance
+    const a=Math.atan2(p.y-cy,p.x-cx),c=Math.cos(a),s=Math.sin(a),r=Math.min((hw-34)/Math.abs(c||1e-6),(hh-34)/Math.abs(s||1e-6)),x=cx+c*r,y=cy+s*r;
+    ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.globalAlpha=fade;ctx.fillStyle='#ffd23f';ctx.strokeStyle='#000';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-6,-8);ctx.lineTo(-2,0);ctx.lineTo(-6,8);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+    const t=`${p.n} ${Math.round(Math.hypot(p.x-P.x,p.y-P.y)/10)}m`;ctx.globalAlpha=fade;ctx.fillStyle='#000a';ctx.fillText(t,x-c*22+1,y-s*22+4);ctx.fillStyle='#ffd23f';ctx.fillText(t,x-c*22,y-s*22+3);ctx.globalAlpha=1}}
+function mapPt(e){const r=$('bigCv').getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H,cx:e.clientX-r.left,cy:e.clientY-r.top,w:r.width}}
+// a pin's flag sits above its point, so a click a little above the point still hits it
+function pinAt(p){let best=-1,bd=14/p.w*W;pins.forEach((q,i)=>{const d=Math.hypot(q.x-p.x,q.y-(p.y+5/p.w*W));if(d<bd){bd=d;best=i}});return best}
+function mapHint(t){$('mapHint').textContent=t||(TOUCH?'標記模式：點地圖加標記，點標記改名或刪除・信號模式：點地圖發信號給大家':'左鍵：加標記，點標記可改名或刪除・右鍵：發信號給大家・遊戲中按 T 或滑鼠中鍵也能發信號')}
+mapHint();
+function openPinEdit(i,cx,cy,isNew){pinEditI=i;pinNew=isNew;const f=$('pinEdit'),cv2=$('bigCv');f.hidden=false;$('pinDel').hidden=isNew;$('pinName').value=pins[i].t;
+  f.style.left=Math.max(4,Math.min(cv2.offsetLeft+cx-60,cv2.offsetLeft+cv2.offsetWidth-f.offsetWidth-4))+'px';f.style.top=(cv2.offsetTop+Math.min(cy+12,cv2.offsetHeight-44))+'px';
+  $('pinName').focus();$('pinName').select()}
+// ok: keep the name typed; cancelling a pin that was just added removes it
+function closePinEdit(ok){if(pinEditI<0)return;const i=pinEditI;pinEditI=-1;$('pinEdit').hidden=true;
+  if(ok){const t=$('pinName').value.trim().slice(0,12);if(t)pins[i].t=t}else if(pinNew)pins.splice(i,1);writeSave()}
+$('pinOk').addEventListener('click',()=>closePinEdit(true));
+$('pinDel').addEventListener('click',()=>{if(pinEditI<0)return;pins.splice(pinEditI,1);pinEditI=-1;$('pinEdit').hidden=true;writeSave()});
+$('pinName').addEventListener('keydown',e=>{if(e.key==='Enter')closePinEdit(true);else if(e.key==='Escape')closePinEdit(false)});
+document.querySelectorAll('[data-mm]').forEach(b=>b.addEventListener('click',()=>{mapMode=b.dataset.mm;document.querySelectorAll('[data-mm]').forEach(x=>x.classList.toggle('on',x===b));closePinEdit(false)}));
+$('bigCv').addEventListener('contextmenu',e=>e.preventDefault());
+$('bigCv').addEventListener('pointerdown',e=>{if(e.button===1)return;e.preventDefault();const p=mapPt(e);
+  if(e.button===2||mapMode==='ping'){sendPing(p.x,p.y);mapHint('信號已送出，大家的畫面上都看得到');return}
+  if(pinEditI>=0){closePinEdit(true);return}
+  const i=pinAt(p);if(i>=0){openPinEdit(i,p.cx,p.cy,false);return}
+  if(pins.length>=PIN_MAX){mapHint(`標記最多 ${PIN_MAX} 個，先刪掉一些吧`);return}
+  pins.push({x:Math.round(p.x),y:Math.round(p.y),t:`標記 ${pins.length+1}`});openPinEdit(pins.length-1,p.cx,p.cy,true)});
 
 /* ---------- sea life ---------- */
 // 海裡的魚群與鯊魚：純視覺，不影響玩法也不同步，每位玩家各自模擬自己鏡頭附近的海。
