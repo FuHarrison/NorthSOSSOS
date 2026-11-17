@@ -81,6 +81,10 @@ html.gray{filter:grayscale(1)}
 #bSwap{right:78px;bottom:78px;width:50px;height:50px;font-size:12px}
 #bBlock{right:150px;bottom:66px;width:50px;height:50px;font-size:12px}
 
+#emoteMenu{position:fixed;z-index:8;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 72px);display:grid;grid-template-columns:repeat(4,64px);gap:6px;background:#0d130fe6;border:1px solid var(--line);border-radius:12px;padding:8px}
+#emoteMenu button{position:relative;border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:6px 2px 4px;display:grid;justify-items:center;gap:2px;font-size:11px;color:var(--ink)}
+#emoteMenu button:hover{border-color:var(--accent)}#emoteMenu .em{font-size:22px;line-height:1}#emoteMenu kbd{position:absolute;left:3px;top:1px;border:0;padding:0;font-size:9px}
+body.touch #emoteMenu{bottom:calc(env(safe-area-inset-bottom,0px) + 130px)}
 #placeBar{position:fixed;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 76px);display:flex;gap:8px;align-items:center;background:#0d130fe6;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
 #placeBar button{border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:7px 14px}
 #placeOk{background:var(--accent)!important;color:#1b1407;border-color:var(--accent)!important;font-weight:700}
@@ -249,7 +253,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
   <canvas id="mini" width="280" height="280" aria-label="小地圖（點一下或按 M 開大地圖）"></canvas>
 </div>
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
-<div class="hud" id="topr"><button class="chip-btn" id="btnSet" type="button">設定 <kbd>Esc</kbd></button><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
+<div class="hud" id="topr"><button class="chip-btn" id="btnEmote" type="button">表情 <kbd>Z</kbd></button><button class="chip-btn" id="btnSet" type="button">設定 <kbd>Esc</kbd></button><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
 <div class="hud" id="weaponTag"></div>
 <div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
@@ -266,6 +270,8 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
     <button class="tb" id="bBlock" type="button">格擋</button>
   </div>
 </div>
+
+<div id="emoteMenu" hidden aria-label="表情動作"></div>
 
 <div id="placeBar" hidden><span id="placeName"></span><span id="placeCost" class="costs"></span><small id="placeHint"></small><button id="placeRot" type="button" hidden>轉向</button><button id="placeOk" type="button">放置</button><button id="placeCancel" type="button">完成</button></div>
 
@@ -577,7 +583,7 @@ let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],roo
 let inv={},dur={},q={},sk={},eq=noEq(),known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
-const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
+const P={em:-1,emT:0,x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
 let shake=0,time=0,paused=true,placing=null,placeRot='h',panelTab='craft';
 /* multiplayer: solo when opened as a file; over http the first localhost tab is host (simulates the world), others are clients that send intents */
 let MODE=location.protocol.startsWith('http')?'pending':'solo',ws=null,myId=0,netInfo=null,ready=false,started=false,mobSeq=0;
@@ -895,6 +901,7 @@ const keys={};let mouse={x:0,y:0,on:false},atkHeld=false,blockHeld=false,joy={id
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
   if(e.key==='Tab'||e.key==='i'||e.key==='I'){e.preventDefault();if(!$('intro').hidden)return;togglePanel();return}
+  if(e.key==='Escape'&&!$('emoteMenu').hidden){toggleEmotes(false);return}
   if(e.key==='Escape'){if(!$('settings').hidden)toggleSettings(false);else if(!$('bigmap').hidden)toggleMap(false);else if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();else if($('intro').hidden)toggleSettings(true);return}
   if(e.code==='KeyM'){toggleMap();return}
   if(e.code==='KeyG'){toggleGray();return}
@@ -906,6 +913,8 @@ addEventListener('keydown',e=>{
   if(e.code==='Space'){e.preventDefault();doRoll()}
   if(e.code==='KeyE')doUse();
   if(e.code==='KeyQ'){if(placing)selectBuild(buildSel+1);else hotNext()}
+  if(e.code==='KeyZ'&&!placing){toggleEmotes();return}
+  if(/^Digit[1-8]$/.test(e.code)&&!$('emoteMenu').hidden){setEmote(+e.code[5]-1);return}
   if(/^Digit[1-8]$/.test(e.code)){if(placing)selectBuild(+e.code[5]-1);else hotSelect(+e.code[5]-1)}
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
@@ -957,7 +966,7 @@ const SFX={swing:()=>noise(.12,.1,2400,.8),hit:()=>{noise(.08,.3,900);tone(160,.
   break:()=>{noise(.2,.3,2500,1);tone(400,.2,'square',.05,100)},die:()=>tone(330,.8,'sawtooth',.1,80)};
 function sfx(k){if(SET.sound&&!HEADLESS&&SFX[k])try{SFX[k]()}catch(e){}}
 const SET_OPTS=[['gray','黑白畫面',TOUCH?'整個畫面變黑白':'整個畫面變黑白，按 G 也能切換'],['shake','畫面震動','打到東西、被打的時候畫面會晃']];
-const KEY_HELP=[['WASD／方向鍵','移動'],['Shift','衝刺'],['左鍵','攻擊・吃手上的食物'],['右鍵（按住）','格擋；剛舉起時被打中＝招架'],['空白鍵','翻滾'],['E','互動'],['1～8／滾輪／Q','切換快捷欄'],['Tab','背包・製作'],['B','建造模式（R 轉向）'],['M','大地圖（加標記、發信號）'],['T／滑鼠中鍵','對準游標發信號給大家'],['G','黑白畫面'],['Esc','設定・關閉視窗']];
+const KEY_HELP=[['WASD／方向鍵','移動'],['Shift','衝刺'],['左鍵','攻擊・吃手上的食物'],['右鍵（按住）','格擋；剛舉起時被打中＝招架'],['空白鍵','翻滾'],['E','互動'],['1～8／滾輪／Q','切換快捷欄'],['Tab','背包・製作'],['B','建造模式（R 轉向）'],['M','大地圖（加標記、發信號）'],['T／滑鼠中鍵','對準游標發信號給大家'],['G','黑白畫面'],['Z','表情動作（再按 1～8）'],['Esc','設定・關閉視窗']];
 function renderSettings(){const wipe=MODE==='solo'||netInfo&&netInfo.local;
   const sw=([k,t,d])=>`<div class="setrow"><span>${t}<small>${d}</small></span><button type="button" class="sw2" role="switch" aria-checked="${!!SET[k]}" aria-label="${t}" data-set="${k}"></button></div>`;
   $('setBody').innerHTML=`<div class="sets"><section><h4>畫面</h4>${SET_OPTS.map(sw).join('')}</section>`+
@@ -1374,6 +1383,7 @@ function updateLocal(dt){
   if(P.stag>0){P.stag-=dt;mx=my=0;sprint=false} // guard broken
   P.blocking=P.block=blockHeld&&!(P.roll>0)&&!P.boat&&!(P.stag>0)&&!placing;P.blockT=P.blocking?(P.blockT||0)+dt:0;
   const ml=Math.hypot(mx,my);
+  if(P.emT>0){P.emT-=dt;if(P.emT<=0||P.em===DANCE&&ml>.1){P.em=-1;P.emT=0}}
   if(!TOUCH&&mouse.on){const w=worldMouse();P.face=Math.atan2(w.y-P.y,w.x-P.x)}else if(ml>.15)P.face=Math.atan2(my,mx);
   if(P.roll>0){P.roll-=dt;move(P,P.rdx*360*dt,P.rdy*360*dt)}
   else if(ml>.1){if(ml>1){mx/=ml;my/=ml}let spd=P.blocking?60:118;if(sprint&&!P.blocking&&P.st>1){spd=185;P.st-=11*dt*(biomeAt(P.x,P.y)===B_SNOW?SNOW_ST:1)*skCut('run',.006);P.stDelay=.6;if((P.runT=(P.runT||0)+dt)>=2){P.runT=0;skXP('run')}}P.walk+=dt*(spd/14);move(P,mx*spd*dt,my*spd*dt)}
@@ -1641,10 +1651,10 @@ function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;co
     if(!m){m=makeMob(k,x,y);m.id=id;mobs.push(m)}
     m.tx=x;m.ty=y;m.face=f;m.hp=hp;m.max=max;if(fl)m.flash=.15;m.state=st;m.aggro=ag;m.stun=sn?.2:0}
   mobs=mobs.filter(m=>seen.has(m.id));boss=mobs.find(m=>m.id===s.b)||null}
-function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorLook(),bl:P.blocking?1:0,sh:eq.off||0,ro:P.rooted>0?1:0,d:P.dead?1:0,b:P.boat?1:0,...petState()})}
+function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorLook(),em:P.em,bl:P.blocking?1:0,sh:eq.off||0,ro:P.rooted>0?1:0,d:P.dead?1:0,b:P.boat?1:0,...petState()})}
 function petState(){const p=curPet();return p?{pk:p.k,px:Math.round(p.x),py:Math.round(p.y),pf:Math.round(p.face*100)/100,ph:Math.ceil(p.hp),pg:p.glow>0?1:0,pw:p.moving?1:0}:{}}
 function updateOther(m){let o=others.get(m.from);if(!o){o={id:m.from,x:m.x,y:m.y,r:12,walk:0,inv:0,swing:0};others.set(m.from,o)}
-  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=m.a|0;o.rooted=m.ro?.1:0;o.dead=!!m.d;o.boat=!!m.b;o.block=!!m.bl;o.sh=ARMOR[m.sh]?m.sh:null;
+  o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=m.a|0;o.rooted=m.ro?.1:0;o.dead=!!m.d;o.boat=!!m.b;o.block=!!m.bl;o.em=Number.isInteger(m.em)&&EMOTES[m.em]?m.em:-1;o.sh=ARMOR[m.sh]?m.sh:null;
   if(PETS[m.pk]){if(!o.pet||o.pet.k!==m.pk)o.pet={isPet:true,owner:m.from,k:m.pk,x:m.px,y:m.py,r:PETS[m.pk].r,anim:0,flash:0,glow:0};
     Object.assign(o.pet,{tx:m.px,ty:m.py,face:m.pf,hp:m.ph,moving:!!m.pw});if(m.pg)o.pet.glow=Math.max(o.pet.glow,.3)}
   else o.pet=null}
@@ -1773,6 +1783,8 @@ function render(){
       ctx.fillRect(m.x+ex*o-ey*s*2-s/2,m.y+ey*o-8+ex*s*2-s/2,s,s);ctx.fillRect(m.x+ex*o+ey*s*2-s/2,m.y+ey*o-8-ex*s*2-s/2,s,s)}
   ctx.textAlign='center';ctx.font='600 11px system-ui,sans-serif';
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.t*2);ctx.fillStyle='#000a';ctx.fillText(f.txt,f.x+1,f.y+1);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,f.y)}ctx.globalAlpha=1;
+  if(MODE==='solo'||started)drawEmote(P);for(const o of others.values())if(!o.dead)drawEmote(o);
+  ctx.font='600 11px system-ui,sans-serif';ctx.textAlign='center';
   for(const o of others.values())if(!o.dead&&o.n){ctx.fillStyle='#000a';ctx.fillText(o.n,o.x+1,o.y-33);ctx.fillStyle='#ebe5d3';ctx.fillText(o.n,o.x,o.y-34)}
   for(const m of mobs)if(m.stun>0){const h=m.k==='treant'?150:m.k==='boss'?62:m.r*2+10;for(let k=0;k<3;k++){const t=time*5+k*2.09;ctx.fillStyle='#ffe08a';ctx.font='600 11px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText('★',m.x+Math.cos(t)*12,m.y-h+Math.sin(t)*4)}}
   drawPings(cx,cy,hw,hh);
@@ -2100,7 +2112,7 @@ for(const[x,y,n]of[[-.4,-4.8,4],[-.2,-1.6,4.6],[-.2,1.6,4.6],[-.4,4.8,4],[-3,-3.
 for(const[x,y,n]of[[.4,-3.2,4],[.4,0,4.6],[.4,3.2,4]])wolfLock(PL_HAIR_L,x,y,n,.8,Math.PI-y*.05);
 const PL_CAPE=plPoly([[5,-9],[1,-10.4],[-5,-10],[-9,-8],[-11.4,-6],[-10,-4.4],[-12.4,-2.2],[-10.6,-.6],[-12.6,1.4],[-10.6,3],[-12,5.4],[-9.6,6.4],[-8.5,8.6],[-4,10],[1,10.4],[5,9]]);
 const PL_CAPE_S=plPoly([[-3,-10],[-5,-10],[-9,-8],[-11.4,-6],[-10,-4.4],[-12.4,-2.2],[-10.6,-.6],[-12.6,1.4],[-10.6,3],[-12,5.4],[-9.6,6.4],[-8.5,8.6],[-4,10],[-3,10],[-7,5],[-8,0],[-7,-5]]);
-function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a);
+function drawPlayer(pl){const dance=pl.em===DANCE,x=pl.x,y=pl.y-(dance?Math.abs(Math.sin(time*9))*5:0),a=dance?time*7:pl.face,c=Math.cos(a),s=Math.sin(a);
   if(pl.inv>0&&pl.roll<=0&&Math.floor(time*20)%2)ctx.globalAlpha=.55;
   shadow(x,y+5,12,5);
   const bob=pl.roll>0?0:Math.sin(pl.walk)*1.5;
@@ -2200,6 +2212,19 @@ function toggleMap(on){const m=$('bigmap');on=on===undefined?m.hidden:on;if(on&&
 $('mini').addEventListener('click',()=>toggleMap(true));
 $('mapX').addEventListener('click',()=>toggleMap(false));
 $('bigmap').addEventListener('pointerdown',e=>{if(e.target.id==='bigmap')toggleMap(false)});
+
+/* ---------- emotes ---------- */
+// Z opens the menu, 1..8 (or a click) picks one: a bubble over your head for a few seconds, everyone sees it (em in sendState). Dancing stops when you move
+const EMOTES=[['👋','揮手'],['👍','讚'],['😂','大笑'],['😢','哭哭'],['❤️','愛心'],['❓','疑問'],['❗','注意'],['💃','跳舞']],DANCE=7;
+$('emoteMenu').innerHTML=EMOTES.map(([e,n],i)=>`<button type="button" data-em="${i}"><kbd>${i+1}</kbd><span class="em">${e}</span>${n}</button>`).join('');
+function toggleEmotes(on){const m=$('emoteMenu');m.hidden=on===undefined?!m.hidden:!on}
+function setEmote(i){if(!EMOTES[i]||P.dead)return;P.em=i;P.emT=i===DANCE?4:3;toggleEmotes(false)}
+$('emoteMenu').addEventListener('click',e=>{const b=e.target.closest('[data-em]');if(b)setEmote(+b.dataset.em)});
+$('btnEmote').addEventListener('click',()=>{if(!paused)toggleEmotes()});
+function drawEmote(pl){if(!(pl.em>=0)||!EMOTES[pl.em]||pl.em===DANCE)return;const x=pl.x,y=pl.y-54,t=(pl===P?P.emT:1),pop=Math.min(1,(3-t)*6+.4);
+  ctx.save();ctx.translate(x,y);ctx.scale(pop,pop);ctx.fillStyle='#f4efe2';ctx.strokeStyle='#1f1712';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,0,15,13,0,0,6.28);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-4,11);ctx.lineTo(0,19);ctx.lineTo(4,11);ctx.fill();ctx.font='17px system-ui,"Segoe UI Emoji","Apple Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const wob=pl.em===0?Math.sin(time*12)*.35:0;ctx.rotate(wob);ctx.fillText(EMOTES[pl.em][0],0,1);ctx.restore();ctx.textBaseline='alphabetic'}
 
 /* ---------- map pins & pings ---------- */
 // pins: your own markers on the map, saved with your bag. pings: a signal everyone sees for PING_T seconds (t:'ping', all:1)
@@ -2533,7 +2558,7 @@ requestAnimationFrame(frame);
 /* ---------- intro ---------- */
 function setupIntro(){
   cam.x=P.x;cam.y=P.y;
-  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵格擋・空白翻滾・E 互動・1～8／滾輪／Q 快捷欄・Tab 背包・M 地圖・Esc 設定';
+  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵格擋・空白翻滾・E 互動・1～8／滾輪／Q 快捷欄・Tab 背包・M 地圖・Z 表情・Esc 設定';
   if(MODE==='solo')$('introBtns').innerHTML=save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`;
   else{const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     $('introBtns').innerHTML=`<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">`+
