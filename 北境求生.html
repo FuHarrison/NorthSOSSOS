@@ -190,6 +190,16 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .help h4{margin:0 0 4px;font-family:var(--display);font-size:14px;color:var(--accent);letter-spacing:.05em}
 .help ul{margin:0;padding-left:18px;color:var(--ink)}
 .help li{margin:2px 0}
+/* settings: one row per option, a switch on the right */
+#settings .sheet{max-width:440px}
+.sets{display:grid;gap:16px}
+.sets h4{margin:0 0 6px;font-family:var(--display);font-size:14px;color:var(--accent);letter-spacing:.05em}
+.setrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--panel2);margin-bottom:6px}
+.setrow span{flex:1;font-size:13px}.setrow small{display:block;font-size:11px;color:var(--mute)}
+.sw2{flex:none;width:42px;height:24px;border-radius:12px;border:1px solid var(--line);background:#00000055;position:relative;padding:0}
+.sw2::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--mute);transition:left .15s}
+.sw2[aria-checked=true]{background:var(--accent);border-color:var(--accent)}.sw2[aria-checked=true]::after{left:20px;background:#1b1407}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;color:var(--mute);align-items:center}.keys b{font-weight:400;color:var(--ink)}
 .danger{border:1px solid #6b3a33;background:#2a1714;color:#f0b4a8;border-radius:7px;padding:7px 12px;font-size:13px;justify-self:start}
 
 #intro .sheet{padding:26px 24px 22px;gap:14px;max-width:460px;background:radial-gradient(120% 80% at 50% 0%,#2a2416 0%,var(--panel) 60%)}
@@ -219,7 +229,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
   <canvas id="mini" width="280" height="280" aria-label="小地圖（點一下或按 M 開大地圖）"></canvas>
 </div>
 <div class="hud" id="top"><div id="clock"></div><div id="goal"></div></div>
-<div class="hud" id="topr"><button class="chip-btn" id="btnGray" type="button">黑白 <kbd>G</kbd></button><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
+<div class="hud" id="topr"><button class="chip-btn" id="btnSet" type="button">設定 <kbd>Esc</kbd></button><button class="chip-btn" id="btnBuild" type="button">建造 <kbd>B</kbd></button><button class="chip-btn" id="btnPanel" type="button">背包・製作 <kbd>Tab</kbd></button></div>
 <div class="hud" id="weaponTag"></div>
 <div id="hotbar" aria-label="快捷欄"></div>
 <div class="hud" id="toast"></div>
@@ -276,6 +286,13 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
     <h2 style="font-family:var(--display);font-size:28px;margin:0;letter-spacing:.1em">你倒下了</h2>
     <p class="note" style="margin:0">食物效果消失，背包物品保留。你會在床邊（或出生點）醒來。</p>
     <button class="act go" id="respawn" type="button">重新站起</button>
+  </div>
+</div>
+
+<div class="modal" id="settings" hidden>
+  <div class="sheet" role="dialog" aria-label="設定">
+    <header><h2>設定</h2><button class="x" id="setX" type="button" aria-label="關閉">×</button></header>
+    <div class="body" id="setBody"></div>
   </div>
 </div>
 
@@ -731,7 +748,7 @@ const keys={};let mouse={x:0,y:0,on:false},atkHeld=false,joy={id:null,ox:0,oy:0,
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
   if(e.key==='Tab'||e.key==='i'||e.key==='I'){e.preventDefault();if(!$('intro').hidden)return;togglePanel();return}
-  if(e.key==='Escape'){if(!$('bigmap').hidden)toggleMap(false);else if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();return}
+  if(e.key==='Escape'){if(!$('settings').hidden)toggleSettings(false);else if(!$('bigmap').hidden)toggleMap(false);else if(!$('panel').hidden)togglePanel(false);else if(placing)stopPlace();else if($('intro').hidden)toggleSettings(true);return}
   if(e.code==='KeyM'){toggleMap();return}
   if(e.code==='KeyG'){toggleGray();return}
   if(paused)return;
@@ -765,10 +782,28 @@ tbtn('bAtk',()=>{if(placing)tryPlace();else if(!useHeld())atkHeld=true},()=>{atk
 tbtn('bRoll',doRoll);tbtn('bUse',doUse);tbtn('bSwap',hotNext);
 cv.addEventListener('wheel',e=>{if(paused)return;e.preventDefault();const d=e.deltaY>0?1:-1;if(placing)selectBuild(buildSel+d);else hotSelect(hotSel+d)},{passive:false});
 $('hotbar').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-hs]');if(!b)return;e.preventDefault();e.stopPropagation();if(paused)return;if(placing)selectBuild(+b.dataset.hs);else hotSelect(+b.dataset.hs)});
-// 黑白濾鏡：整頁 grayscale，記在 localStorage
-function toggleGray(on){on=document.documentElement.classList.toggle('gray',on);try{localStorage.setItem('northland-gray',on?'1':'')}catch(e){}}
-try{if(localStorage.getItem('northland-gray'))toggleGray(true)}catch(e){}
-$('btnGray').addEventListener('click',()=>toggleGray());
+/* ---------- settings ---------- */
+// 每台電腦各自一份，存在 localStorage（northland-settings）；舊版只有黑白濾鏡，存在 northland-gray
+const SET=(()=>{const d={gray:false,shake:true};try{const s=JSON.parse(localStorage.getItem('northland-settings'));if(s)Object.assign(d,s);else if(localStorage.getItem('northland-gray'))d.gray=true}catch(e){}return d})();
+function applySet(){document.documentElement.classList.toggle('gray',!!SET.gray)}
+applySet();
+function setOpt(k){SET[k]=!SET[k];try{localStorage.setItem('northland-settings',JSON.stringify(SET))}catch(e){}applySet();if(!$('settings').hidden)renderSettings()}
+const toggleGray=()=>setOpt('gray');
+const SET_OPTS=[['gray','黑白畫面',TOUCH?'整個畫面變黑白':'整個畫面變黑白，按 G 也能切換'],['shake','畫面震動','打到東西、被打的時候畫面會晃']];
+const KEY_HELP=[['WASD／方向鍵','移動'],['Shift','衝刺'],['左鍵','攻擊・吃手上的食物'],['右鍵／空白鍵','翻滾'],['E','互動'],['1～8／滾輪／Q','切換快捷欄'],['Tab','背包・製作'],['B','建造模式（R 轉向）'],['M','大地圖'],['G','黑白畫面'],['Esc','設定・關閉視窗']];
+function renderSettings(){const wipe=MODE==='solo'||netInfo&&netInfo.local;
+  $('setBody').innerHTML=`<div class="sets"><section><h4>畫面</h4>${SET_OPTS.map(([k,t,d])=>`<div class="setrow"><span>${t}<small>${d}</small></span><button type="button" class="sw2" role="switch" aria-checked="${!!SET[k]}" aria-label="${t}" data-set="${k}"></button></div>`).join('')}</section>`+
+    (TOUCH?'':`<section><h4>按鍵</h4><div class="keys">${KEY_HELP.map(([a,b])=>`<kbd>${a}</kbd><b>${b}</b>`).join('')}</div></section>`)+
+    (wipe?`<section><h4>世界</h4><button class="danger" id="wipe" type="button">${MODE==='solo'?'開始新世界（刪除存檔）':'開始新世界（目前的世界會改名保留，大家會重新連線）'}</button></section>`:'')+'</div>';
+  $('setBody').querySelectorAll('[data-set]').forEach(x=>x.addEventListener('click',()=>setOpt(x.dataset.set)));
+  const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}
+function toggleSettings(on){const m=$('settings');on=on===undefined?m.hidden:on;
+  if(on){closeBagMenu();$('panel').hidden=true;$('bigmap').hidden=true;atkHeld=false;renderSettings()}m.hidden=!on;syncPaused();if(!on)writeSave()}
+// any open window pauses your own input (and the whole world in solo)
+function syncPaused(){paused=['intro','dead','panel','bigmap','settings'].some(id=>!$(id).hidden)}
+$('btnSet').addEventListener('click',()=>toggleSettings());
+$('setX').addEventListener('click',()=>toggleSettings(false));
+$('settings').addEventListener('pointerdown',e=>{if(e.target.id==='settings')toggleSettings(false)});
 $('btnBuild').addEventListener('click',()=>{if(!paused)toggleBuild()});
 $('btnPanel').addEventListener('click',()=>togglePanel());
 $('placeOk').addEventListener('click',tryPlace);$('placeRot').addEventListener('click',rotPlace);$('placeCancel').addEventListener('click',stopPlace);
@@ -851,7 +886,7 @@ function die(){if(P.boat){P.boat=false;act({t:'unboard',x:P.x,y:P.y})}P.burn=0;P
 $('respawn').addEventListener('click',()=>{P.rooted=0;foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
   for(let k=0;k<20&&blocked(P.x,P.y,P.r);k++){P.x+=rnd(-30,30);P.y+=rnd(-30,30)}
   for(const m of mobs)if(m.k!=='boss'&&m.k!=='treant'&&dist(m,P)<400)m.x+=600;
-  $('dead').hidden=true;paused=false;writeSave()});
+  $('dead').hidden=true;syncPaused();writeSave()});
 function eat(k){if(!FOODS[k]||!has(k))return;if(foods.some(f=>f.k===k)){toast('同一種食物還在消化中');return}if(foods.length>=3){toast('肚子已經裝不下了');return}
   inv[k]--;foods.push({k,t:FOODS[k].t});P.hp=Math.min(maxHp(),P.hp+8);if(k==='烤肉')ate=true;toast(`吃了${k}：血量上限 +${FOODS[k].hp}，耐力上限 +${FOODS[k].st}`)}
 
@@ -921,7 +956,7 @@ function tryPlace(){if(!placing)return;const r=placing;if(r===DEMOLISH){doDemoli
   if(!afford(r.cost))toast(`${Object.keys(r.cost).find(k=>(inv[k]||0)<r.cost[k])}用完了`);writeSave()}
 
 /* ---------- panel ---------- */
-function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;paused=on||!$('dead').hidden||!$('intro').hidden;if(on){atkHeld=false;renderPanel()}else writeSave()}
+function togglePanel(on,tab){closeBagMenu();const p=$('panel');on=on===undefined?p.hidden:on;if(tab)panelTab=tab;p.hidden=!on;if(on)$('bigmap').hidden=true;syncPaused();if(on){atkHeld=false;renderPanel()}else writeSave()}
 function costHtml(c){return Object.entries(c).map(([k,n])=>`<span class="cost ${(inv[k]||0)>=n?'ok':'no'}">${k} ${inv[k]||0}/${n}</span>`).join('')}
 function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===panelTab));$('panelTitle').textContent=panelTab==='furnace'?'熔爐':'行囊';const b=$('panelBody');
   // recipes are split into equipment and buildings; pick one on the left, the right side shows it and crafts it
@@ -975,8 +1010,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
-    ${MODE==='solo'||netInfo&&netInfo.local?`<button class="danger" id="wipe" type="button">${MODE==='solo'?'開始新世界（刪除存檔）':'開始新世界（目前的世界會改名保留，大家會重新連線）'}</button>`:''}</div>`;
-    const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}}
+    </div>`}}
 const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear',craftQty=1;const craftSel={};
 let furnaceC=-1,fzSig='';
 function furnaceSig(f){return JSON.stringify([f.q,f.fuel,f.out])}
@@ -1399,7 +1433,7 @@ function burst(x,y,col,n){for(let i=0;i<n;i++){const a=Math.random()*6.28,s=rnd(
 
 /* ---------- render ---------- */
 function render(){
-  const sx=shake?rnd(-shake,shake):0,sy=shake?rnd(-shake,shake):0;
+  const sk=SET.shake?shake:0,sx=sk?rnd(-sk,sk):0,sy=sk?rnd(-sk,sk):0;
   const cx=cam.x+sx/SCALE,cy=cam.y+sy/SCALE;
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0b1a22';ctx.fillRect(0,0,cv.width,cv.height);
   ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
@@ -1850,7 +1884,7 @@ function drawMap(cvs,cx,cy,span,big){const g=cvs.getContext('2d'),S=cvs.width,k=
   for(const o of others.values())if(!o.dead){const[x,y]=at(o.x,o.y);g.fillStyle=CAPES[o.id%CAPES.length];g.strokeStyle='#fff';g.lineWidth=u;g.beginPath();g.arc(x,y,3.2*u,0,6.28);g.fill();g.stroke()}
   {const[x,y]=at(P.x,P.y);g.save();g.translate(x,y);g.rotate(P.face);g.fillStyle='#ffe08a';g.strokeStyle='#000';g.lineWidth=u;g.beginPath();g.moveTo(6*u,0);g.lineTo(-4*u,-4*u);g.lineTo(-2*u,0);g.lineTo(-4*u,4*u);g.closePath();g.fill();g.stroke();g.restore()}}
 function toggleMap(on){const m=$('bigmap');on=on===undefined?m.hidden:on;if(on&&(!$('intro').hidden||!$('dead').hidden))return;
-  if(on)$('panel').hidden=true;m.hidden=!on;paused=on||!$('panel').hidden||!$('dead').hidden||!$('intro').hidden;
+  if(on)$('panel').hidden=true;m.hidden=!on;syncPaused();
   if(on){atkHeld=false;drawMap($('bigCv'),W/2,H/2,W,true)}}
 $('mini').addEventListener('click',()=>toggleMap(true));
 $('mapX').addEventListener('click',()=>toggleMap(false));
@@ -2149,7 +2183,7 @@ requestAnimationFrame(frame);
 /* ---------- intro ---------- */
 function setupIntro(){
   cam.x=P.x;cam.y=P.y;
-  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵／空白翻滾・E 互動・1～8／滾輪／Q 快捷欄・Tab 背包・M 地圖';
+  $('introCtl').innerHTML=TOUCH?'左半邊拖曳移動（推到底衝刺）・右下按鈕攻擊、翻滾、互動・右上開背包製作':'WASD 移動・Shift 衝刺・左鍵攻擊・右鍵／空白翻滾・E 互動・1～8／滾輪／Q 快捷欄・Tab 背包・M 地圖・Esc 設定';
   if(MODE==='solo')$('introBtns').innerHTML=save?`<button class="act go" id="go" type="button">繼續（第 ${day} 天）</button><button class="act" id="fresh" type="button">新世界</button>`:`<button class="act go" id="go" type="button">開始</button>`;
   else{const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     $('introBtns').innerHTML=`<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">`+
@@ -2168,7 +2202,7 @@ function setupIntro(){
     net({t:'login',n:myName,pin:$('pinIn').value.trim(),tok:loadTok()[myName]||'',seed})});
   if($('fresh'))$('fresh').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.c)resetSave();else{b.dataset.c='1';b.textContent='確認刪除存檔？'}});
 }
-function begin(fresh){started=true;$('intro').hidden=true;paused=false;if(fresh)banner(`第 ${day} 天`,'先砍幾棵樹吧')}
+function begin(fresh){started=true;$('intro').hidden=true;syncPaused();if(fresh)banner(`第 ${day} 天`,'先砍幾棵樹吧')}
 // 登入：名字 + PIN。server 驗證後回傳記號（這台電腦記住，下次免輸入 PIN）和這個人在這個世界的存檔
 function loadTok(){try{return JSON.parse(localStorage.getItem('northland-tok'))||{}}catch(e){return{}}}
 function loginMsg(t,err){const e=$('loginMsg');if(!e)return;e.textContent=t;e.classList.toggle('err',!!err)}

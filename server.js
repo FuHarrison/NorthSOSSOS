@@ -101,7 +101,7 @@ function startSim(){
   // 每秒 30 次；某一幀出錯就記下來、下一幀照跑，世界不會因為一個錯誤整個停住
   const raf=cb=>{setTimeout(()=>{if(!me.alive)return;try{cb(performance.now())}catch(e){if(me.errs++%300===0)console.error('世界模擬出錯：',e);raf(cb)}},1000/SIM_FPS)};
   const g={__NORTH_HEADLESS__:true,console,setTimeout,clearTimeout,performance,btoa,atob,
-    document:{getElementById:()=>stub,createElement:()=>stub,querySelector:()=>null,querySelectorAll:()=>[],elementFromPoint:()=>null,body:stub,
+    document:{getElementById:()=>stub,createElement:()=>stub,querySelector:()=>null,querySelectorAll:()=>[],elementFromPoint:()=>null,body:stub,documentElement:stub,
       addEventListener:(t,f)=>{if(t==='visibilitychange')me.vis.push(f)},get hidden(){return me.hidden}},
     addEventListener:noop,matchMedia:()=>({matches:false}),innerWidth:1280,innerHeight:720,devicePixelRatio:1,
     // 遊戲程式一開始從 localStorage 的世界存檔決定地圖大小，所以把 world.json 放進去
