@@ -96,3 +96,4 @@ In multiplayer the world keeps running while the panel is open or the player is 
 - In multiplayer, bush regrowth (`o.dep`) counts down in `netTick` for every bush. In solo it counts down in `drawRes`, so only visible bushes regrow.
 - Sleeping skips the night for everyone.
 - The boss's loot goes to every player.
+- The fog of war is shared. Newly seen cells go to everyone as `t:'fog', all:1` (batched in `netTick`). The host holds the union, sends it with `world`, and saves it as `seen` in `world.json`; a player's personal `seen` is merged in on login and shared on.
