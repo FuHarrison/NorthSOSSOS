@@ -1523,7 +1523,7 @@ function render(){
     ctx.setTransform(1,0,0,1,0,0);const g=ctx.createRadialGradient(X,Y,R*.45,X,Y,R);g.addColorStop(0,'rgba(8,4,14,0)');g.addColorStop(1,`rgba(8,4,14,${.97*P.blindK})`);ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height)}
   // overlay in world: eyes at night, floats, hint, compass
   ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
-  if(dk>.3)for(const m of mobs)if(m.k==='treant'){const fl=Math.cos(m.face)<0?-1:1;ctx.fillStyle='#b6ffc4';ctx.fillRect(m.x+fl*.6-2,m.y-80,4,3);ctx.fillRect(m.x+fl*15.6-2,m.y-80,4,3)}else if(m.k!=='boar'&&m.k!=='frog'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
+  if(dk>.3)for(const m of mobs)if(m.eyes){ctx.fillStyle=m.eyeCol;for(const e of m.eyes)ctx.fillRect(e[0]-2,e[1]-1.5,4,3)}else if(m.k!=='boar'&&m.k!=='frog'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
       ctx.fillRect(m.x+ex*o-ey*s*2-s/2,m.y+ey*o-8+ex*s*2-s/2,s,s);ctx.fillRect(m.x+ex*o+ey*s*2-s/2,m.y+ey*o-8-ex*s*2-s/2,s,s)}
   ctx.textAlign='center';ctx.font='600 11px system-ui,sans-serif';
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.t*2);ctx.fillStyle='#000a';ctx.fillText(f.txt,f.x+1,f.y+1);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,f.y)}ctx.globalAlpha=1;
@@ -1743,47 +1743,90 @@ function drawWolf(m,f,wind,cw,rw){const k=q=>f?'#fff':q,LINE='#1e2226',el=(x,y,r
   ctx.strokeStyle=k(LINE);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(38,0);ctx.lineTo(46.6,0);ctx.stroke();
   const eye=wind?'#ff5a3a':cw?'#ffb347':rw?'#9dff9a':'#bfe8ff';ctx.lineWidth=1.3;
   for(const s of[-1,1]){ctx.fillStyle=k(LINE);ctx.beginPath();ctx.moveTo(29.8,s*6.4);ctx.lineTo(36.8,s*2.2);ctx.lineTo(33,s*2);ctx.lineTo(29.8,s*3.2);ctx.closePath();ctx.fill();ctx.fillStyle=eye;ctx.beginPath();ctx.moveTo(31,s*5);ctx.lineTo(35.2,s*2.7);ctx.lineTo(32.4,s*2.7);ctx.lineTo(31,s*3.4);ctx.closePath();ctx.fill()}}
-// Treant: an upright walking tree, about twice the player's height. Bark, moss and branches are built once as paths
-const trPoly=pts=>{const p=new Path2D();pts.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));p.closePath();return p};
-const trBlobs=L=>{const p=new Path2D();for(const[x,y,r]of L){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p};
-const TR_TRUNK=trPoly([[-23,-5],[-20,-26],[-17,-44],[-23,-59],[-25,-70],[-17,-82],[-7,-88],[7,-88],[17,-82],[25,-70],[23,-59],[17,-44],[20,-26],[23,-5],[11,-1],[0,-6],[-11,-1]]);
-const TR_BARK_D=(()=>{const p=new Path2D();for(const[x,a,b,c]of[[-13,-8,-36,-13],[-5,-4,-46,-1],[5,-4,-42,9],[14,-8,-34,10],[-16,-48,-72,-14],[17,-48,-70,16]]){p.moveTo(x,a);p.quadraticCurveTo(x+(c-x)*.2+2,(a+b)/2,c,b)}return p})();
-const TR_BARK_L=(()=>{const p=new Path2D();for(const[x,a,b,c]of[[-9,-6,-30,-8],[1,-8,-34,3],[10,-6,-28,7],[-11,-46,-68,-9],[11,-46,-66,11]]){p.moveTo(x,a);p.quadraticCurveTo(x+1.5,(a+b)/2,c,b)}return p})();
-const TR_BRANCH=(()=>{const p=new Path2D();for(const L of[[[-10,-84],[-21,-102],[-35,-110]],[[-21,-102],[-17,-117]],[[-14,-92],[-26,-92]],[[9,-84],[20,-104],[35,-112]],[[20,-104],[14,-120]],[[15,-94],[28,-93]],[[0,-86],[1,-108]],[[1,-100],[-6,-112]]])L.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));return p})();
-const TR_MOSS_D=trBlobs([[-17,-73,8.5],[-7,-82,7.5],[14,-78,8.5],[21,-66,5.5],[-21,-60,5],[-9,-43,6.5],[10,-36,7],[-13,-20,5],[13,-14,4.5]]);
-const TR_MOSS_L=trBlobs([[-18,-76,4.8],[-8,-85,4],[13,-81,4.8],[21,-68,2.8],[-10,-45,3.2],[10,-38,3.5],[-14,-21,2.4]]);
-const TR_VINE=(()=>{const p=new Path2D();p.moveTo(-15,-76);p.bezierCurveTo(-23,-54,-6,-42,-14,-18);p.moveTo(17,-74);p.bezierCurveTo(10,-52,24,-36,14,-12);return p})();
-const TR_LEAF=(()=>{const p=new Path2D();for(const[x,y,a]of[[-16,-58,.6],[-10,-34,-.5],[17,-58,2.4],[16,-32,2.8],[-35,-110,.2],[-17,-117,1.2],[35,-112,2.9],[14,-120,1.9],[1,-108,-1.5],[-6,-112,-2.2],[-26,-92,.4],[28,-93,2.8]]){const c=Math.cos(a),s=Math.sin(a);p.moveTo(x,y);p.quadraticCurveTo(x+c*4-s*3,y+s*4+c*3,x+c*8,y+s*8);p.quadraticCurveTo(x+c*4+s*3,y+s*4-c*3,x,y)}return p})();
-function drawTreant(m,f){const k=q=>f?'#fff':q,INK='#1f1712',st=m.state,w=Math.sin(m.anim*3.2),flip=Math.cos(m.face)<0?-1:1;
+// Treant Elder: a jointed rig in 3D (x = its right, y = down, z = its forward), seen from one of 8 facings.
+// Hips, a three-part trunk, a head with three jointed antler branches, arms (shoulder, elbow, wrist, palm, two-knuckle fingers)
+// and legs (hip, knee, ankle, root toes). Each limb is one tapering shape through its joints, so a bend reads as a stretch, not a seam
+const TE_INK='#1f1712',TE_EYE='#b6ffc4',TE_LEAF='#8fb257',TE_MOSS='#7ea64a',TE_MOSS_D='#476d2c',TE_BARK='#5f452e',TE_BACK='#4a3424',TE_SC=1.15;
+let teC=1,teS=0,tePhi=0,teFl=false,teT=0;
+const teAd=(p,v,l)=>[p[0]+v[0]*l,p[1]+v[1]*l,p[2]+v[2]*l],teNz=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]};
+const tePr=p=>[-p[0]*teC+p[2]*teS,p[1]],teDep=p=>p[0]*teS+p[2]*teC,teCol=c=>teFl?'#fff':c;
+const teSwing=(s,a,b)=>[s*Math.sin(b),Math.cos(b)*Math.cos(a),Math.cos(b)*Math.sin(a)]; // from hanging down: a toward the front/up, b out to the side
+function teTube(P,Wd,col,ink=true){const n=P.length,N=P.map((p,i)=>{const a=P[Math.max(0,i-1)],b=P[Math.min(n-1,i+1)],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;return[-dy/l,dx/l]});
+  const L=P.map((p,i)=>[p[0]+N[i][0]*Wd[i]/2,p[1]+N[i][1]*Wd[i]/2]),R=P.map((p,i)=>[p[0]-N[i][0]*Wd[i]/2,p[1]-N[i][1]*Wd[i]/2]),md=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  // open = no outline across the root, so the limb melts into whatever it grows from
+  const build=open=>{const q=new Path2D();q.moveTo(...(open?md(L[0],L[1]):L[0]));for(let i=1;i<n-1;i++)q.quadraticCurveTo(...L[i],...md(L[i],L[i+1]));q.lineTo(...L[n-1]);
+    const an=Math.atan2(N[n-1][1],N[n-1][0]);q.arc(P[n-1][0],P[n-1][1],Wd[n-1]/2,an,an-Math.PI,true);for(let i=n-2;i>=1;i--)q.quadraticCurveTo(...R[i],...md(R[i],R[i-1]));q.lineTo(...(open?md(R[1],R[0]):R[0]));if(!open)q.closePath();return q};
+  ctx.fillStyle=teCol(col);ctx.fill(build(false));if(ink){ctx.strokeStyle=TE_INK;ctx.lineWidth=2.4;ctx.stroke(build(true))}}
+function teGlow(p,k,r){if(k<=.02)return;const gr=ctx.createRadialGradient(p[0],p[1],0,p[0],p[1],r);gr.addColorStop(0,`rgba(170,255,190,${.85*k})`);gr.addColorStop(1,'rgba(170,255,190,0)');ctx.fillStyle=gr;ctx.fillRect(p[0]-r,p[1]-r,r*2,r*2)}
+// a pose per game action; arms are [swing forward/up, out to the side, elbow, wrist, finger curl]
+function tePose(p,t){const s=Math.sin(t*2.4),b=Math.sin(t*1.6)*.05,idle=()=>[.06+b,.28,.25,.1,.35];
+  const P={lean:Math.sin(t*1.2)*.03,walk:0,head:0,crown:Math.sin(t*1.7)*.07,R:idle(),L:idle(),gR:0,gL:0};
+  if(p==='walk'){P.walk=1;P.lean=.08;P.R[0]=.05-.45*s;P.L[0]=.05+.45*s}
+  if(p==='wind'){P.lean=-.2;P.head=-.14;P.R=[3.3,.25,.7,.3,.9];P.L=[-.25,.35,.4,.2,.4]}
+  if(p==='slam'){P.lean=.3;P.head=.14;P.R=[1.05,.15,.3,.45,-.4];P.L=[1.05,.15,.3,.45,-.4]}
+  if(p==='cast'){P.lean=-.06;P.head=-.1;P.R=[2.05,.25,.25,.3,-.55];P.gR=1}
+  if(p==='eat'){P.lean=-.15;P.head=-.28;P.R=[2.55,.75,.35,.3,-.6];P.L=[2.55,.75,.35,.3,-.6];P.gR=P.gL=1}
+  return P}
+function teArm(sh,s,A,glow){const[a,b,c,d,curl]=A,el=teAd(sh,teSwing(s,a,b),23),wr=teAd(el,teSwing(s,a+c,b*.7),21),hd=teAd(wr,teSwing(s,a+c+d,b*.5),7),col=teDep(sh)<-3?TE_BACK:TE_BARK;
+  const P=[sh,el,wr,hd].map(tePr),fing=[];
+  for(const sp of[-.5,0,.5]){let f=a+c+d+curl*.4;const side=s*Math.sin(b*.5)+sp*.7,dirF=()=>teNz([side,Math.cos(f),Math.sin(f)]);const k1=teAd(hd,dirF(),9);f+=curl;const k2=teAd(k1,dirF(),7);f+=curl*.6;fing.push([P[3],...[k1,k2,teAd(k2,dirF(),4)].map(tePr)])}
+  teTube(P,[12,9.5,8,9],col);for(const q of fing)teTube(q,[5,4,3,1.4],col);
+  ctx.fillStyle=teCol(TE_MOSS_D);ctx.beginPath();ctx.arc(P[0][0],P[0][1]-3,5.5,0,6.28);ctx.fill();ctx.fillStyle=teCol(TE_MOSS);ctx.beginPath();ctx.arc(P[0][0]+1.5,P[0][1]-4.5,3.2,0,6.28);ctx.fill();teGlow(P[3],glow,22)}
+function teLeg(s,P){const ph=teT*2.4+(s>0?0:Math.PI),a=P.walk*.38*Math.sin(ph)+P.lean*.3,kn=.18+P.walk*.5*Math.max(0,Math.sin(ph+1.57)),hip=[s*12,-46,0],knee=teAd(hip,teNz([s*.08,Math.cos(a),Math.sin(a)]),21),ank=teAd(knee,teNz([s*.05,Math.cos(a-kn),Math.sin(a-kn)]),20),col=teDep(hip)<-3?TE_BACK:TE_BARK;
+  const Q=[hip,knee,ank].map(tePr),toes=[];
+  for(const tv of[[s*.3,.35,1],[s,.4,.15],[s*.2,.35,-1]]){const d1=teNz(tv),t1=teAd(ank,d1,9),t2=teAd(t1,teNz([d1[0],d1[1]+.6,d1[2]]),7);toes.push([Q[2],tePr(t1),tePr(t2)])}
+  teTube(Q,[13,10.5,9],col);for(const q of toes)teTube(q,[6,4.4,2.2],col)}
+// trunk: a bark cylinder, wider than deep; grooves and moss sit at fixed angles round it and turn with the facing
+function teTrunk(Sp3){const Sp=Sp3.map(tePr),HW=[[21,15],[20,15],[21,16],[15,12]].map(([x,z])=>Math.hypot(x*teC,z*teS)),N=i=>{const a=Sp[Math.min(i,2)],b=Sp[Math.min(i,2)+1],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;return[-dy/l,dx/l]};
+  const Lp=Sp.map((p,i)=>[p[0]-N(i)[0]*HW[i],p[1]-N(i)[1]*HW[i]]),Rp=Sp.map((p,i)=>[p[0]+N(i)[0]*HW[i],p[1]+N(i)[1]*HW[i]]);
+  const body=new Path2D();body.moveTo(Lp[0][0],Lp[0][1]);for(let i=1;i<4;i++)body.lineTo(Lp[i][0],Lp[i][1]);body.quadraticCurveTo(Sp[3][0],Sp[3][1]-8,Rp[3][0],Rp[3][1]);for(let i=2;i>=0;i--)body.lineTo(Rp[i][0],Rp[i][1]);body.quadraticCurveTo(Sp[0][0],Sp[0][1]+8,Lp[0][0],Lp[0][1]);
+  ctx.fillStyle=teCol(TE_BARK);ctx.fill(body);ctx.strokeStyle=TE_INK;ctx.lineWidth=2.4;ctx.stroke(body);if(teFl)return;ctx.save();ctx.clip(body);
+  for(let k=0;k<11;k++){const th=k/11*6.283+.2,vis=Math.cos(th-tePhi);if(vis<.08)continue;const o=Math.sin(tePhi-th);ctx.strokeStyle=k%4===1?`rgba(125,95,67,${vis})`:`rgba(58,40,24,${vis})`;ctx.lineWidth=k%4===1?1.1:2;ctx.beginPath();
+    Sp.forEach((p,i)=>{const n=N(i),x=p[0]+n[0]*HW[i]*o+Math.sin(i*2.1+k)*1.3,y=p[1]+n[1]*HW[i]*o;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
+  for(const[i,th,r,c]of[[1,-.9,7,TE_MOSS_D],[1,-.8,4,TE_MOSS],[2,1.0,6,TE_MOSS_D],[2,1.1,3.5,TE_MOSS],[0,.4,5,TE_MOSS_D],[2,2.9,9,TE_MOSS_D],[2,2.8,5,TE_MOSS],[1,3.7,6,TE_MOSS_D]]){const vis=Math.cos(th-tePhi);if(vis<.05)continue;const o=Math.sin(tePhi-th)*.85,n=N(i),p=Sp[i];ctx.fillStyle=c;ctx.beginPath();ctx.ellipse(p[0]+n[0]*HW[i]*o,p[1]+n[1]*HW[i]*o,r*(.4+.6*vis),r,0,0,6.28);ctx.fill()}
+  ctx.restore()}
+// one antler branch in the plane of "up" and a sideways direction L: three joints and a twig, leaves at the tip
+function teBranch(base,L,a0,sd,P){let a=a0+P.crown,p=base;const at=(q,a,l)=>teAd(q,[Math.sin(a)*L[0],-Math.cos(a),Math.sin(a)*L[2]],l),bp=[tePr(p)];let twig=null;
+  for(const[l,k]of[[11,0],[9,1],[7,2]]){const q=at(p,a,l);bp.push(tePr(q));if(k===0)twig=[tePr(q),tePr(at(q,a+sd*.85,7))];p=q;a+=sd*(k%2?.32:-.28)}
+  teTube(twig,[3.2,1.6],TE_BARK);teTube(bp,[6,5,3.8,2.2],TE_BARK);const tip=bp[3];for(const[dx,dy,r,c]of[[0,-3,5.5,TE_MOSS_D],[-3,-1,4,TE_MOSS],[3,-4,3.5,TE_LEAF]]){ctx.fillStyle=teCol(c);ctx.beginPath();ctx.arc(tip[0]+dx,tip[1]+dy,r,0,6.28);ctx.fill()}
+  ctx.fillStyle=teCol(TE_LEAF);ctx.beginPath();ctx.arc(bp[1][0],bp[1][1]-2,3,0,6.28);ctx.fill()}
+// head: a bark cylinder; the brow juts out so it reads in profile, and the eyes and mouth turn round with the facing
+function teHead(hc3,P,st,eyes){const hc=tePr(hc3),hy=hc[1],R=14,HWd=Math.hypot(15*teC,12*teS),face=(th,r=R)=>hc[0]+r*(HWd/15)*Math.sin(tePhi-th),vis=th=>Math.cos(th-tePhi),fy=P.head*7;
+  for(const[x,z,L,a0,sd]of[[-9,0,[-1,0,.2],.6,1],[0,-2,[0,0,-1],.1,-1],[9,0,[1,0,.2],.6,1]])teBranch([hc3[0]+x,hc3[1]-11,hc3[2]+z],L,a0,sd,P);
+  const hd=new Path2D();hd.moveTo(hc[0]-HWd,hy-11);hd.quadraticCurveTo(hc[0],hy-16,hc[0]+HWd,hy-11);hd.lineTo(hc[0]+HWd,hy+5);hd.quadraticCurveTo(hc[0]+HWd*.66,hy+14,hc[0],hy+14);hd.quadraticCurveTo(hc[0]-HWd*.66,hy+14,hc[0]-HWd,hy+5);hd.closePath();
+  ctx.fillStyle=teCol(TE_BARK);ctx.fill(hd);ctx.strokeStyle=TE_INK;ctx.lineWidth=2.2;ctx.stroke(hd);if(teFl)return;ctx.save();ctx.clip(hd);
+  for(let k=0;k<7;k++){const th=k/7*6.283+.45,v=vis(th);if(v<.1)continue;ctx.strokeStyle=`rgba(58,40,24,${v})`;ctx.lineWidth=1.5;ctx.beginPath();const x=face(th);ctx.moveTo(x,hy-10);ctx.quadraticCurveTo(x+1.5,hy+1,x-1,hy+12);ctx.stroke()}
+  if(vis(Math.PI)>.05){const v=vis(Math.PI);ctx.fillStyle=TE_MOSS_D;ctx.beginPath();ctx.ellipse(face(Math.PI+.3,10),hy+4,6*(.4+.6*v),6,0,0,6.28);ctx.fill();ctx.fillStyle=TE_MOSS;ctx.beginPath();ctx.arc(face(Math.PI+.2,10),hy+2,3*v,0,6.28);ctx.fill()}
+  ctx.restore();
+  const top=[],bot=[];for(let u=-1;u<=1.001;u+=.125){const th=u*.75;if(vis(th)<-.15)continue;const r=R+3.5*(1-Math.abs(u));top.push([face(th,r),hy-1-5*Math.abs(u)+fy]);bot.push([face(th,r-1),hy+5-2*Math.abs(u)+fy])}
+  if(top.length>1){ctx.fillStyle='#2c1e13';ctx.beginPath();top.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));for(let i=bot.length-1;i>=0;i--)ctx.lineTo(bot[i][0],bot[i][1]);ctx.closePath();ctx.fill()}
+  if(vis(0)>0)teGlow([face(0),hy+fy],Math.max(P.gR,P.gL)*.6*vis(0),24);
+  ctx.fillStyle=st==='swind'?'#ffd27a':TE_EYE;for(const s of[1,-1]){const th=s*.42,v=vis(th);if(v<.12)continue;const x=face(th,R+1.5),w=3.5*v,inn=Math.sign(face(0)-x)||1;ctx.beginPath();ctx.moveTo(x-w*inn,hy-2+fy);ctx.lineTo(x+w*inn,hy+fy);ctx.lineTo(x-w*inn*.8,hy+2+fy);ctx.closePath();ctx.fill();eyes.push([x,hy+fy])}
+  const mo=st==='eat'||st==='heal'?3:0;ctx.strokeStyle='#1a120b';ctx.lineWidth=1.8;ctx.beginPath();let first=true;for(let k=-3;k<=3;k++){const th=k*.15;if(vis(th)<.05)continue;const x=face(th,R+.5),y=hy+9+fy+(k%2?mo+1:0);first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false}ctx.stroke();
+  ctx.fillStyle=TE_MOSS_D;ctx.beginPath();ctx.arc(hc[0]+11,hy-9,4,0,6.28);ctx.fill()}
+function drawTreant(m,f){const st=m.state;
   // tells on the ground, in world space
   if(st==='swind'){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(255,80,50,${.16+p*.14})`;ctx.strokeStyle=`rgba(255,150,110,${.6+p*.35})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.arc(m.x,m.y,TR_SLAM_R,m.face-TR_SLAM_ARC,m.face+TR_SLAM_ARC);ctx.closePath();ctx.fill();ctx.stroke()}
   if(st==='heal'){const p=.5+Math.sin(time*9)*.5;ctx.strokeStyle=`rgba(150,255,170,${.45+p*.4})`;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(m.x,m.y,69+p*12,30+p*4,0,0,6.28);ctx.stroke()}
-  shadow(m.x,m.y+3,48,16);ctx.save();ctx.translate(m.x,m.y);ctx.scale(flip*1.2,1.2);ctx.lineCap='round';ctx.lineJoin='round';
-  // arms by state, angle from straight ahead (0) round to straight down (1.57)
-  const sway=Math.sin(m.anim*2.4)*.1,FA=st==='swind'?-1.95:st==='trec'?.45:st==='seedc'?-.2:st==='rootc'?-1.15:st==='heal'?-.55:1.25+sway,BA=st==='rootc'?-1.95:st==='heal'?-2.6:st==='swind'?2.1:1.9-sway;
-  const arm=(sx,sy,a,len)=>{const ex=sx+Math.cos(a)*len,ey=sy+Math.sin(a)*len,mx=(sx+ex)/2-Math.sin(a)*5,my=(sy+ey)/2+Math.cos(a)*5,seg=(lw,q)=>{ctx.strokeStyle=k(q);ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(mx,my,ex,ey);ctx.stroke()};
-    ctx.strokeStyle=k(INK);ctx.lineWidth=5.6;ctx.beginPath();for(const d of[-.6,0,.6]){ctx.moveTo(ex,ey);ctx.lineTo(ex+Math.cos(a+d)*13,ey+Math.sin(a+d)*13)}ctx.stroke();ctx.strokeStyle=k('#6b4e34');ctx.lineWidth=3.4;ctx.stroke();
-    seg(15,INK);seg(12,'#5f452e');ctx.strokeStyle=k('#3a2818');ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(mx+2,my+1,ex,ey);ctx.stroke();ctx.fillStyle=k('#5f8a3a');ctx.beginPath();ctx.arc(sx+Math.cos(a)*9,sy+Math.sin(a)*9-3,4.2,0,6.28);ctx.fill()};
-  // root legs step slowly in turn, drawn first so the trunk sits on them
-  for(const q of[-1,1]){const lift=Math.max(0,w*q)*4,x=q*15,sx=-w*q*4;ctx.strokeStyle=k(INK);ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(x,-14);ctx.lineTo(x+sx,-2-lift);ctx.stroke();ctx.strokeStyle=k('#4a3424');ctx.lineWidth=12;ctx.stroke();
-    ctx.strokeStyle=k(INK);ctx.lineWidth=5.2;ctx.beginPath();for(const d of[-1,0,1]){ctx.moveTo(x+sx,-2-lift);ctx.lineTo(x+sx+d*13,3-lift+Math.abs(d)*-1)}ctx.stroke();ctx.strokeStyle=k('#4a3424');ctx.lineWidth=3;ctx.stroke()}
-  arm(-21,-64,BA,34);
-  // antler branches, then the trunk with its outline
-  ctx.strokeStyle=k(INK);ctx.lineWidth=7.5;ctx.stroke(TR_BRANCH);ctx.strokeStyle=k('#6b4e34');ctx.lineWidth=5;ctx.stroke(TR_BRANCH);ctx.fillStyle=k('#7ea64a');ctx.fill(TR_LEAF);
-  ctx.fillStyle=k('#5f452e');ctx.fill(TR_TRUNK);ctx.strokeStyle=k(INK);ctx.lineWidth=2.4;ctx.stroke(TR_TRUNK);
-  ctx.lineWidth=2.1;ctx.strokeStyle=k('#3a2818');ctx.stroke(TR_BARK_D);ctx.lineWidth=1.2;ctx.strokeStyle=k('#7d5f43');ctx.stroke(TR_BARK_L);
-  // moss, vines and leaves over the bark
-  ctx.fillStyle=k('#476d2c');ctx.fill(TR_MOSS_D);ctx.fillStyle=k('#7ea64a');ctx.fill(TR_MOSS_L);ctx.strokeStyle=k('#3f6a2a');ctx.lineWidth=2;ctx.stroke(TR_VINE);ctx.fillStyle=k('#8fb257');ctx.fill(TR_LEAF);
-  // face, turned toward where it faces: brow ridge, glowing eyes, a crack for a mouth
-  const eye=st==='swind'?'#ffd27a':'#b6ffc4',glow=st==='heal'||st==='rootc'||st==='seedc';
-  ctx.fillStyle=k('#2c1e13');ctx.beginPath();ctx.moveTo(-6,-73);ctx.lineTo(7,-67);ctx.lineTo(19,-73);ctx.lineTo(18,-62);ctx.lineTo(7,-59);ctx.lineTo(-5,-62);ctx.closePath();ctx.fill();
-  if(glow){const g=ctx.createRadialGradient(7,-66,0,7,-66,26);g.addColorStop(0,'rgba(170,255,190,.55)');g.addColorStop(1,'rgba(170,255,190,0)');ctx.fillStyle=g;ctx.fillRect(-19,-92,52,52)}
-  ctx.fillStyle=eye;ctx.beginPath();ctx.moveTo(-3,-68);ctx.lineTo(4,-65);ctx.lineTo(-2,-63.5);ctx.closePath();ctx.moveTo(16,-68);ctx.lineTo(10,-65);ctx.lineTo(15.5,-63.500);ctx.closePath();ctx.fill();
-  ctx.strokeStyle=k('#1a120b');ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(-1,-52);ctx.lineTo(4,-50);ctx.lineTo(8,-53);ctx.lineTo(12,-50);ctx.lineTo(16,-52);ctx.stroke();
-  arm(21,-64,FA,36);
-  // while casting seeds or roots the raised hand shows what is coming
-  if(st==='seedc'||st==='rootc'){const c=st==='seedc'?'255,220,120':'150,255,170',a=FA,ex=21+Math.cos(a)*48,ey=-64+Math.sin(a)*48,g=ctx.createRadialGradient(ex,ey,0,ex,ey,20);g.addColorStop(0,`rgba(${c},.9)`);g.addColorStop(1,`rgba(${c},0)`);ctx.fillStyle=g;ctx.fillRect(ex-20,ey-20,40,40)}
-  ctx.restore()}
+  // rig state lives on the mob and is updated here, so clients animate it from the synced state alone
+  const R=m.rg||(m.rg={t:Math.random()*9,phi:Math.PI/2-m.face,px:m.x,py:m.y,spd:0,st,prev:null,lt:time,cur:null}),dt=Math.max(0,Math.min(.05,time-R.lt));R.lt=time;
+  if(st!==R.st){R.prev=R.st;R.st=st}
+  if(dt>0){R.spd+=(Math.hypot(m.x-R.px,m.y-R.py)/dt-R.spd)*Math.min(1,dt*6);R.px=m.x;R.py=m.y}
+  const pose=st==='swind'?'wind':st==='trec'&&R.prev==='swind'?'slam':st==='heal'||st==='eat'?'eat':['rootc','seedc','callc','fogc','growc'].includes(st)?'cast':R.spd>8?'walk':'idle';
+  R.t+=dt*(pose==='walk'?Math.min(1.6,R.spd/40):1);
+  const T=tePose(pose,R.t);if(!R.cur)R.cur=JSON.parse(JSON.stringify(T));const k=Math.min(1,dt*7);for(const key in T){if(Array.isArray(T[key]))T[key].forEach((v,i)=>R.cur[key][i]+=(v-R.cur[key][i])*k);else R.cur[key]+=(T[key]-R.cur[key])*k}
+  // turn to the nearest of 8 facings: 0 = toward the camera (walking down), +90° = walking right
+  const want=Math.round((Math.PI/2-m.face)/(Math.PI/4))*(Math.PI/4),dp=Math.atan2(Math.sin(want-R.phi),Math.cos(want-R.phi));R.phi+=dp*Math.min(1,dt*9);
+  tePhi=R.phi;teC=Math.cos(tePhi);teS=Math.sin(tePhi);teFl=f;teT=R.t;const P=R.cur,eyes=[];
+  ctx.save();ctx.translate(m.x,m.y);ctx.scale(TE_SC,TE_SC);ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(0,3,40,9,0,0,6.28);ctx.fill();
+  const Sp3=[[0,-48,0]];let lean=0;for(const[i,l]of[[0,16],[1,15],[2,13]]){lean+=P.lean*[.5,.35,.25][i];Sp3.push(teAd(Sp3[i],[0,-Math.cos(lean),Math.sin(lean)],l))}
+  const chest=teAd(Sp3[2],[0,-1,0],5),arms=[[[chest[0]+20,chest[1],chest[2]],1,P.R,P.gR],[[chest[0]-20,chest[1],chest[2]],-1,P.L,P.gL]];
+  for(const s of[1,-1].sort((a,b)=>teDep([a*12,0,0])-teDep([b*12,0,0])))teLeg(s,P);
+  for(const a of arms)if(teDep(a[0])<-3)teArm(...a);
+  teTrunk(Sp3);teHead(teAd(Sp3[3],[0,-1,0],14),P,st,eyes);
+  for(const a of arms.filter(a=>teDep(a[0])>=-3).sort((a,b)=>teDep(a[0])-teDep(b[0])))teArm(...a);
+  ctx.restore();m.eyes=eyes.map(([x,y])=>[m.x+x*TE_SC,m.y+y*TE_SC]);m.eyeCol=st==='swind'?'#ffd27a':TE_EYE}
 function drawRootTrail(r){const al=Math.min(1,r.t/2)*.75,c=Math.cos(r.a),s=Math.sin(r.a),n=r.s>.5?1:-1;ctx.globalAlpha=al;ctx.lineCap='round';ctx.strokeStyle='#2a1c12';ctx.lineWidth=3.4;ctx.beginPath();ctx.moveTo(r.x-c*9,r.y-s*9);ctx.quadraticCurveTo(r.x-s*n*4,r.y+c*n*4,r.x+c*9,r.y+s*9);ctx.moveTo(r.x,r.y);ctx.lineTo(r.x-s*n*9+c*3,r.y+c*n*9+s*3);ctx.stroke();
   ctx.strokeStyle='#5a4028';ctx.lineWidth=1.8;ctx.stroke();ctx.globalAlpha=1}
 function drawRootMark(x){const p=1-x.t/x.T,a=.35+p*.5;ctx.fillStyle=`rgba(120,230,130,${.12+p*.2})`;ctx.strokeStyle=`rgba(170,255,175,${a})`;ctx.lineWidth=2.5;ctx.setLineDash([6,5]);ctx.beginPath();ctx.ellipse(x.x,x.y,ROOT_R,ROOT_R*.72,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([]);
