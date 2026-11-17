@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-北境求生 is a top-down survival game. The project has no build step, no npm dependencies, no tests, and no linter. It has three files:
+北境求生 is a top-down survival game. The project has no build step, no npm dependencies, no tests, and no linter. It has four files:
 
 - `北境求生.html`: the whole game, including CSS, HTML, and one `<script>` IIFE that draws on a canvas. UI text and comments are in Traditional Chinese.
 - `server.js`: the LAN multiplayer host. It uses only Node built-ins. It serves the HTML, relays messages over a hand-written WebSocket (RFC 6455), stores saves, and runs the world itself (see Server-run world).
+- `admin.html`: the admin page that `server.js` serves at `/admin` (host machine only).
 - `開主機.bat`: runs `node server.js 8080 --open`. It must keep CRLF line endings and use UTF-8 text with `chcp 65001`.
 
 ## Commands
@@ -67,6 +68,14 @@ This split is the core of the multiplayer design. Keep it when adding features.
 - The 灰鬃狼王 takes 獠牙 ×3 + 樹脂 ×5. Each later boss needs two things: the previous boss's keepsake, which is never used up, and a crafted summon item, which is. The player holds either one in hand (`hot[hotSel]`) at the altar. 狼王的心臟 + 古樹種子 wake the 樹精長老 (`treant`); the 長老年輪 is meant for the next boss.
 - A keepsake is given on a player's kill when they don't already have one (`pup` / `tdown` in `onPrivate`).
 - The 樹精長老 (`updateTreant`) calls a wave of 小樹精 (`sprout` mobs; 2 per player, 4 in phase 2, a new wave only once none are left; in phase 2 any still alive after `EAT_T` are called back and eaten, each healing `EAT_HEAL` of max HP; while it eats, state `eat`, it takes no damage, see `shielded`), casts black fog (`fogs`; each client checks its own player and shrinks the view to `BLIND_R`), and grows a ring of choppable `etree` resources that never regrow and wither after `ETREE_LIFE`. Below half HP it enters phase 2 (`m.p2`) with shorter cooldowns.
+
+### Admin page (`/admin`, `/api/admin/*` in server.js)
+
+- Only the host machine can use it: `localReq` needs a loopback remote address and a `localhost`/`127.0.0.1` Host header (403 otherwise). POSTs also need the header `X-North-Admin: 1`, so another web page cannot submit them.
+- `ADMIN_GET` (`status`, `worlds`, `accounts`, `download`) and `ADMIN_POST` (`newWorld`, `switchWorld`, `deleteWorld`, `restoreBackup`, `resetPin`, `kick`, `deleteAccount`) are the whole API. File names are checked against `WORLD_RE` / `BACKUP_RE`.
+- Live world numbers come from the sim: `askSim` sends `{t:'adm'}` to the host, the game answers `{t:'admr'}` (handled in `SRV.admr`, host only). `onMsg` drops `adm` from anyone but the sim, so a player cannot fake it.
+- Switching worlds, a new world and restoring a backup all `stopSim(true)` (save first), then `archiveWorld()` renames `world.json` to `world-<stamp>.json`, then `startSim()`; clients reload on `host`. Player saves are keyed by seed, so they follow the world. A restore first copies everything into `saves/backups/restore-<stamp>/` (newest `RESTORE_KEEP` kept). Accounts are never restored.
+- `kick(name, why)` sends `kicked` with a reason the client shows.
 
 ### Server routing (`onMsg` in server.js)
 

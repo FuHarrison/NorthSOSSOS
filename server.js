@@ -4,10 +4,12 @@
 'use strict';
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto'),os=require('os'),vm=require('vm');
 const PORT=+process.argv.slice(2).find(a=>/^\d+$/.test(a))||8080;
-const FILE=path.join(__dirname,'北境求生.html');
+const FILE=path.join(__dirname,'北境求生.html'),ADMIN_FILE=path.join(__dirname,'admin.html');
+const T0=Date.now();
 
 const server=http.createServer((req,res)=>{
   const u=req.url.split('?')[0];
+  if(u==='/admin'||u.startsWith('/api/admin/')){admin(req,res,u);return}
   if(u!=='/'&&u!=='/index.html'){res.writeHead(404);res.end();return}
   fs.readFile(FILE,'utf8',(e,d)=>{
     if(e){res.writeHead(500,{'Content-Type':'text/plain; charset=utf-8'});res.end('找不到 北境求生.html，請把它跟 server.js 放在同一個資料夾');return}
@@ -28,16 +30,19 @@ function loadSave(file){for(const f of[file,file+'.bak']){try{return JSON.parse(
 function storeSave(file,data){const tmp=file+'.tmp';fs.writeFileSync(tmp,JSON.stringify(data,null,2));
   if(fs.existsSync(file))fs.copyFileSync(file,file+'.bak');fs.renameSync(tmp,file)}
 // 名字裡不能當檔名的字元換成 %xx，其他（含中文）照原樣，檔名才看得懂
-const playerFile=(seed,n)=>path.join(PLAYER_DIR,`${seed}-${n.replace(/[\\/:*?"<>|%\x00-\x1f]/g,c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0'))}.json`);
+const encName=n=>n.replace(/[\\/:*?"<>|%\x00-\x1f]/g,c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0'));
+const playerFile=(seed,n)=>path.join(PLAYER_DIR,`${seed}-${encName(n)}.json`);
 // 本地時間的 YYYYMMDD-HHMMSS（檔名用）
 const stamp=(d=new Date())=>{const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`};
 // 每天備份一次到 saves/backups/<日期>/（世界、帳號、所有玩家），只留最近 7 天
 const BACKUP_DIR=path.join(SAVE_DIR,'backups'),BACKUP_KEEP=7;
+// 把現在的世界、帳號、所有玩家存檔整份複製到 dir
+function snapshot(dir){fs.mkdirSync(path.join(dir,'players'),{recursive:true});
+  for(const f of[WORLD_FILE,ACCT_FILE])if(fs.existsSync(f))fs.copyFileSync(f,path.join(dir,path.basename(f)));
+  for(const f of fs.readdirSync(PLAYER_DIR))if(f.endsWith('.json'))fs.copyFileSync(path.join(PLAYER_DIR,f),path.join(dir,'players',f))}
 function dailyBackup(){try{
   const dir=path.join(BACKUP_DIR,stamp().slice(0,8));if(fs.existsSync(dir))return;
-  fs.mkdirSync(path.join(dir,'players'),{recursive:true});
-  for(const f of[WORLD_FILE,ACCT_FILE])if(fs.existsSync(f))fs.copyFileSync(f,path.join(dir,path.basename(f)));
-  for(const f of fs.readdirSync(PLAYER_DIR))if(f.endsWith('.json'))fs.copyFileSync(path.join(PLAYER_DIR,f),path.join(dir,'players',f));
+  snapshot(dir);
   const old=fs.readdirSync(BACKUP_DIR).filter(f=>/^\d{8}$/.test(f)).sort().slice(0,-BACKUP_KEEP);
   for(const f of old)fs.rmSync(path.join(BACKUP_DIR,f),{recursive:true,force:true});
   console.log(`已備份存檔到 saves/backups/${path.basename(dir)}`)}catch(e){console.error('備份失敗：',e.message)}}
@@ -78,9 +83,11 @@ const SRV={
   wsave(p,m){if(p!==host||!m.d||typeof m.d!=='object')return;storeSave(WORLD_FILE,m.d);mapW=m.d.mapW||mapW;if(m.ack)send(p,{t:'saved',k:'w'})},
   // 「新世界」：只有主機那台電腦的分頁可以按。停掉世界（不存檔）→ 舊世界改名留著 → 重新開一個世界
   wipe(p){if(!p.local||p.sim)return;
-    stopSim(false);
-    if(fs.existsSync(WORLD_FILE))fs.renameSync(WORLD_FILE,path.join(SAVE_DIR,`world-${stamp()}.json`));
-    fs.rmSync(WORLD_FILE+'.bak',{force:true});console.log('開了新世界，舊世界已改名保留');send(p,{t:'wiped'});startSim()}};
+    stopSim(false);archiveWorld();console.log('開了新世界，舊世界已改名保留');send(p,{t:'wiped'});startSim()},
+  // 世界回覆後台的查詢（只收主機的）
+  admr(p,m){if(p!==host)return;const r=admWait.get(m.q);if(r){admWait.delete(m.q);r(m.d)}}};
+// 目前的世界改名成 world-<時間>.json 留著（沒有就算了）
+function archiveWorld(){if(fs.existsSync(WORLD_FILE))fs.renameSync(WORLD_FILE,path.join(SAVE_DIR,`world-${stamp()}.json`));fs.rmSync(WORLD_FILE+'.bak',{force:true})}
 
 /* ---------- 世界模擬：server 自己跑世界 ---------- */
 // 在 Node 裡執行北境求生.html 裡的同一份遊戲程式，當成主機（MODE='host'）：怪物、資源、熔爐、Boss、日夜和存世界都照原本主機分頁的邏輯，只是不畫畫面。
@@ -162,6 +169,7 @@ function onOpen(p){peers.set(p.id,p);
   else{console.log(`玩家 #${p.id} 連線（${p.addr}）`);if(host)send(host,{t:'peer',id:p.id})}}
 function onMsg(p,s){let m;try{m=JSON.parse(s)}catch(e){return}
   if(m&&Object.hasOwn(SRV,m.t)){try{SRV[m.t](p,m)}catch(e){console.error('存檔出錯：',e.message)}return}
+  if(!m||m.t==='adm'&&!p.sim)return; // 後台查詢只能由 server 自己送給世界
   m.from=p.id;const out=JSON.stringify(m);
   if(m.all){for(const q of peers.values())if(q!==p)send(q,out)}
   else if(p===host){if(m.to){const q=peers.get(m.to);if(q)send(q,out)}else for(const q of peers.values())if(q!==p)send(q,out)}
@@ -169,6 +177,70 @@ function onMsg(p,s){let m;try{m=JSON.parse(s)}catch(e){return}
 function onClose(p){if(!peers.delete(p.id))return;
   if(p===host){host=null;console.log('世界停止');for(const q of peers.values())send(q,{t:'nohost'})}
   else{console.log(`玩家 #${p.id} 離線`);for(const q of peers.values())send(q,{t:'leave',id:p.id})}}
+
+/* ---------- 後台管理（/admin）：只限主機這台電腦 ---------- */
+// 來源必須是本機、網址必須是 localhost；會改東西的請求必須帶 X-North-Admin 標頭（別的網頁不能偷送）
+const localReq=req=>isLoopback(req.socket.remoteAddress)&&/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(req.headers.host||'');
+const json=(res,code,o)=>{res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(o))};
+const WORLD_RE=/^world(-\d{8}-\d{6})?\.json$/,BACKUP_RE=/^(\d{8}|restore-\d{8}-\d{6})$/,RESTORE_KEEP=5;
+// 問正在跑的世界（天數、怪物等）：送 adm 給世界，等它回 admr；1 秒沒回就當沒有
+let admSeq=0;const admWait=new Map();
+function askSim(c){return new Promise(r=>{if(!host)return r(null);const q=++admSeq;admWait.set(q,r);send(host,{t:'adm',q,c});setTimeout(()=>{if(admWait.delete(q))r(null)},1000)})}
+function worldInfo(file){let st;try{st=fs.statSync(file)}catch(e){return null}const w=loadSave(file)||{};
+  const n=w.seed==null?0:fs.readdirSync(PLAYER_DIR).filter(f=>f.startsWith(w.seed+'-')&&f.endsWith('.json')).length;
+  return{file:path.basename(file),seed:w.seed??null,mapW:w.mapW||(w.seed==null?null:3200),day:w.day??null,size:st.size,mtime:st.mtimeMs,players:n}}
+function backupInfo(name){const dir=path.join(BACKUP_DIR,name),w=worldInfo(path.join(dir,'world.json'));let n=0;try{n=fs.readdirSync(path.join(dir,'players')).filter(f=>f.endsWith('.json')).length}catch(e){}
+  return{name,restore:name.startsWith('restore-'),world:w,players:n}}
+function kick(name,why){let n=0;for(const q of peers.values())if(!q.sim&&q.name===name){send(q,{t:'kicked',why});q.name=null;q.sock.end();n++}return n}
+const accounts=()=>loadSave(ACCT_FILE)||{};
+function needWorldFile(f){if(typeof f!=='string'||!WORLD_RE.test(f)||f==='world.json'||!fs.existsSync(path.join(SAVE_DIR,f)))throw new Error('找不到這個封存的世界');return path.join(SAVE_DIR,f)}
+function needAccount(n){const a=accounts();if(typeof n!=='string'||!Object.hasOwn(a,n))throw new Error('找不到這個帳號');return a}
+const ADMIN_GET={
+  async status(){const online=[...peers.values()].filter(p=>!p.sim);
+    return{uptime:Date.now()-T0,port:PORT,ips:lanIps(),running:!!host,world:await askSim('info'),saved:worldInfo(WORLD_FILE),
+      online:online.map(p=>({id:p.id,name:p.name||null,addr:p.addr,local:p.local}))}},
+  worlds(){const arch=fs.readdirSync(SAVE_DIR).filter(f=>WORLD_RE.test(f)&&f!=='world.json').sort().reverse().map(f=>worldInfo(path.join(SAVE_DIR,f))).filter(Boolean);
+    const bk=fs.existsSync(BACKUP_DIR)?fs.readdirSync(BACKUP_DIR).filter(f=>BACKUP_RE.test(f)).sort((a,b)=>b.replace('restore-','')>a.replace('restore-','')?1:-1).map(backupInfo):[];
+    return{current:worldInfo(WORLD_FILE),archived:arch,backups:bk}},
+  accounts(){const a=accounts(),seed=(loadSave(WORLD_FILE)||{}).seed,files=fs.readdirSync(PLAYER_DIR).filter(f=>f.endsWith('.json'));
+    return{seed:seed??null,list:Object.keys(a).sort().map(n=>{const pf=seed==null?null:playerFile(seed,n);let last=null;try{last=fs.statSync(pf).mtimeMs}catch(e){}
+      return{name:n,pin:!!a[n].pin,devices:(a[n].tokens||[]).length,online:[...peers.values()].some(p=>!p.sim&&p.name===n),last,worlds:files.filter(f=>f.endsWith(`-${encName(n)}.json`)).length}})}},
+  download(q,res){const f=q.get('f');let file;
+    if(BACKUP_RE.test(q.get('b')||''))file=path.join(BACKUP_DIR,q.get('b'),'world.json');else if(WORLD_RE.test(f||''))file=path.join(SAVE_DIR,f);
+    if(!file||!fs.existsSync(file)){json(res,404,{err:'找不到檔案'});return}
+    const nm=q.get('b')?`world-backup-${q.get('b')}.json`:f;
+    res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(nm)}`});fs.createReadStream(file).pipe(res)}};
+const ADMIN_POST={
+  // 開新世界：先存好現在的世界再封存（遊戲裡的「新世界」按鈕不存，最多少 8 秒）
+  newWorld(){stopSim(true);archiveWorld();console.log('後台：開了新世界，舊世界已改名保留');startSim()},
+  // 切換到封存的世界：現在的世界存好、封存，選的那個變成 world.json。玩家存檔跟著世界的種子走，不用搬
+  switchWorld(m){const src=needWorldFile(m.file);stopSim(true);archiveWorld();fs.renameSync(src,WORLD_FILE);console.log(`後台：切換到 ${m.file}`);startSim()},
+  deleteWorld(m){const src=needWorldFile(m.file);fs.rmSync(src);console.log(`後台：刪除 ${m.file}`)},
+  // 還原備份：先把現在的整份存檔再備份到 restore-<時間>，然後換上備份的世界與玩家存檔（帳號不動）
+  restoreBackup(m){if(typeof m.name!=='string'||!BACKUP_RE.test(m.name))throw new Error('找不到這個備份');const dir=path.join(BACKUP_DIR,m.name);
+    if(!fs.existsSync(path.join(dir,'world.json')))throw new Error('這個備份裡沒有世界');
+    stopSim(true);snapshot(path.join(BACKUP_DIR,`restore-${stamp()}`));
+    fs.copyFileSync(path.join(dir,'world.json'),WORLD_FILE);fs.rmSync(WORLD_FILE+'.bak',{force:true});
+    const pd=path.join(dir,'players');if(fs.existsSync(pd))for(const f of fs.readdirSync(pd))if(f.endsWith('.json'))fs.copyFileSync(path.join(pd,f),path.join(PLAYER_DIR,f));
+    const old=fs.readdirSync(BACKUP_DIR).filter(f=>f.startsWith('restore-')).sort().slice(0,-RESTORE_KEEP);for(const f of old)fs.rmSync(path.join(BACKUP_DIR,f),{recursive:true,force:true});
+    console.log(`後台：還原備份 ${m.name}（還原前的存檔在 restore-…）`);startSim()},
+  // 重設 PIN：拿掉 PIN 和記住的裝置，那個名字下次登入時輸入的 PIN 就是新的
+  resetPin(m){const a=needAccount(m.name);delete a[m.name].pin;a[m.name].tokens=[];storeSave(ACCT_FILE,a);kick(m.name,'主機重設了你的 PIN，請重新整理，用新的 PIN 登入。');console.log(`後台：重設 ${m.name} 的 PIN`)},
+  kick(m){if(!kick(String(m.name||''),'你被主機請出了遊戲。'))throw new Error('這個人不在線上')},
+  // 刪除帳號：名字空出來給別人用；他在各世界的背包存檔留著
+  deleteAccount(m){const a=needAccount(m.name);delete a[m.name];storeSave(ACCT_FILE,a);kick(m.name,'主機刪除了你的帳號。');console.log(`後台：刪除帳號 ${m.name}`)}};
+function admin(req,res,u){
+  if(!localReq(req)){res.writeHead(403,{'Content-Type':'text/plain; charset=utf-8'});res.end('後台只能在主機這台電腦，用 http://localhost 打開。');return}
+  if(u==='/admin'){fs.readFile(ADMIN_FILE,(e,d)=>{if(e){res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});res.end('找不到 admin.html');return}
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(d)});return}
+  const name=u.slice('/api/admin/'.length),q=new URL(req.url,'http://localhost').searchParams;
+  if(req.method==='GET'){if(!Object.hasOwn(ADMIN_GET,name))return json(res,404,{err:'沒有這個功能'});
+    Promise.resolve().then(()=>ADMIN_GET[name](q,res)).then(o=>{if(o!==undefined)json(res,200,o)},e=>json(res,500,{err:e.message}));return}
+  if(req.method!=='POST'||req.headers['x-north-admin']!=='1')return json(res,403,{err:'拒絕'});
+  if(!Object.hasOwn(ADMIN_POST,name))return json(res,404,{err:'沒有這個功能'});
+  let body='';req.on('data',d=>{body+=d;if(body.length>1e5)req.destroy()});
+  req.on('end',()=>{let m;try{m=JSON.parse(body||'{}')}catch(e){return json(res,400,{err:'格式錯誤'})}
+    try{json(res,200,ADMIN_POST[name](m)||{ok:1})}catch(e){json(res,400,{err:e.message})}})}
 
 // 關掉黑色視窗（Windows 送 SIGHUP）或按 Ctrl+C：先把世界存起來再結束
 let closing=false;
@@ -181,6 +253,7 @@ dailyBackup();setInterval(dailyBackup,60*60*1000); // 每小時檢查一次，�
 server.listen(PORT,'0.0.0.0',()=>{
   console.log(`\n北境求生 主機已啟動（埠 ${PORT}）`);
   console.log(`主機這台：在瀏覽器開 http://localhost:${PORT}`);
+  console.log(`後台管理：http://localhost:${PORT}/admin（只有這台電腦打得開）`);
   for(const ip of lanIps())console.log(`同事：在瀏覽器開 http://${ip}:${PORT}`);
   console.log('關掉這個視窗就會關閉伺服器。\n');
   if(process.argv.includes('--open')&&process.platform==='win32')require('child_process').exec(`start "" http://localhost:${PORT}`);

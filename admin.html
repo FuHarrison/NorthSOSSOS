@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>北境求生 後台</title>
+<style>
+/* 後台管理：server.js 在 /admin 提供，只有主機這台電腦打得開。資料都來自 /api/admin/* */
+:root{--bg:#0e1411;--panel:#18201b;--panel2:#212b24;--line:#35433a;--ink:#ebe5d3;--mute:#9aa496;--accent:#e0a646;--good:#7fb069;--bad:#d06a5a;
+  --display:"Noto Serif TC","Songti TC","PMingLiU",serif;--body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
+header{position:sticky;top:0;z-index:2;background:#0e1411f2;border-bottom:1px solid var(--line);padding:12px max(16px,calc(50vw - 520px)) 0}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:900;font-size:20px;letter-spacing:.08em;margin:0}
+.live{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}.live i{width:8px;height:8px;border-radius:50%;background:var(--bad)}.live.on i{background:var(--good)}
+.top a{margin-left:auto;color:var(--accent);font-size:13px}
+nav{display:flex;gap:4px;margin-top:8px}
+nav button{background:none;border:none;border-bottom:2px solid transparent;color:var(--mute);font:inherit;padding:8px 12px;cursor:pointer}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
+main{max-width:1072px;margin:0 auto;padding:18px 16px 60px;display:grid;gap:18px}
+h2{font-family:var(--display);font-size:16px;margin:0 0 8px;letter-spacing:.05em}
+.note{color:var(--mute);font-size:12px;margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card small{display:block;color:var(--mute);font-size:12px}.card b{display:block;font-size:22px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.card span{font-size:12px;color:var(--mute)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}.bar h2{margin:0}.bar .sp{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mute);font-weight:400;font-size:12px;background:var(--panel2)}
+tr:last-child td{border-bottom:none}
+td.num{font-variant-numeric:tabular-nums}
+td.acts{text-align:right;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mute);margin-left:6px}
+.tag.on{border-color:var(--good);color:var(--good)}.tag.warn{border-color:var(--accent);color:var(--accent)}
+button.b{font:inherit;font-size:12px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:5px 10px;cursor:pointer;margin-left:4px}
+button.b:hover{border-color:var(--accent)}button.b:disabled{opacity:.4;cursor:default}
+button.go{background:var(--accent);border-color:var(--accent);color:#1b1407;font-weight:700}
+button.danger{border-color:#6b3a33;background:#2a1714;color:#f0b4a8}button.danger.c{background:var(--bad);color:#fff}
+.empty{padding:14px;color:var(--mute);font-size:13px}
+#msg{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000d;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:5}
+#msg.on{opacity:1}#msg.err{border-color:var(--bad);color:#ffb4a8}
+.list{display:flex;flex-wrap:wrap;gap:6px}.who{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
+@media (max-width:640px){th.hide,td.hide{display:none}td.acts{white-space:normal}}
+</style></head><body>
+<header><div class="top"><h1>北境求生 後台</h1><span class="live" id="live"><i></i><span>連線中…</span></span><a href="/" target="_blank" rel="noopener">開遊戲 ↗</a></div>
+<nav><button class="on" data-p="home">總覽</button><button data-p="worlds">世界存檔</button><button data-p="accts">玩家帳號</button></nav></header>
+<main id="main"></main>
+<div id="msg"></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),main=$('main');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when=t=>{if(!t)return'—';const d=new Date(t),p=n=>String(n).padStart(2,'0');return`${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`};
+const dur=ms=>{const m=Math.floor(ms/60000),h=Math.floor(m/60);return h?`${h} 小時 ${m%60} 分`:`${m} 分鐘`};
+const kb=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+const tod=t=>t<.58?'白天':t<.68?'黃昏':'夜晚';
+const fileDate=f=>{const m=/(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/.exec(f);return m?`${+m[2]}/${+m[3]} ${m[4]}:${m[5]}`:f};
+let page='home',timer=null,msgT=0;
+function msg(t,err){const e=$('msg');e.textContent=t;e.className='on'+(err?' err':'');clearTimeout(msgT);msgT=setTimeout(()=>e.className='',3500)}
+async function get(n){const r=await fetch('/api/admin/'+n,{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.err||r.status);return d}
+async function post(n,body){const r=await fetch('/api/admin/'+n,{method:'POST',headers:{'Content-Type':'application/json','X-North-Admin':'1'},body:JSON.stringify(body||{})});const d=await r.json();if(!r.ok)throw new Error(d.err||r.status);return d}
+// a dangerous button asks twice: the first click turns it red and asks again, the second does it
+function confirmBtn(b,run){b.addEventListener('click',async()=>{if(!b.classList.contains('c')){document.querySelectorAll('button.c').forEach(x=>{x.classList.remove('c');x.textContent=x.dataset.t});b.dataset.t=b.textContent;b.classList.add('c');b.textContent='再按一次確認';return}
+  b.disabled=true;try{await run();}catch(e){msg(e.message,true)}b.disabled=false;b.classList.remove('c');b.textContent=b.dataset.t;show()})}
+function live(ok,t){$('live').classList.toggle('on',ok);$('live').lastElementChild.textContent=t}
+
+async function home(){const s=await get('status'),w=s.world,sv=s.saved;
+  live(s.running,s.running?'世界運作中':'世界沒有在跑');
+  const names=s.online.filter(o=>o.name);
+  main.innerHTML=`<section><div class="cards">
+    <div class="card"><small>世界</small><b>${w?`第 ${w.day} 天・${tod(w.dayT)}`:'—'}</b><span>${w?`地圖 ${w.mapW}・種子 ${w.seed}`:'世界沒有回應'}</span></div>
+    <div class="card"><small>線上玩家</small><b>${names.length}</b><span>另有 ${s.online.length-names.length} 個分頁還沒登入</span></div>
+    <div class="card"><small>怪物</small><b>${w?w.mobs:'—'}</b><span>${w&&w.boss?`王：${esc(w.boss)} 醒著`:'沒有王醒著'}</span></div>
+    <div class="card"><small>建築／地上的袋子</small><b>${w?`${w.structs}／${w.loots}`:'—'}</b><span>世界存檔 ${sv?when(sv.mtime):'還沒存過'}</span></div>
+    <div class="card"><small>伺服器</small><b>${dur(s.uptime)}</b><span>埠 ${s.port}</span></div></div></section>
+  <section><h2>線上玩家</h2>${names.length?`<div class="list">${names.map(o=>`<span class="who">${esc(o.name)}${o.local?'（主機這台）':''}</span>`).join('')}</div>`:'<p class="note">目前沒有人在線上。</p>'}</section>
+  <section><h2>同事怎麼連進來</h2><p class="note">${s.ips.length?s.ips.map(ip=>`http://${ip}:${s.port}`).join('　'):'找不到區網 IP'}</p></section>`}
+
+async function worlds(){const d=await get('worlds'),c=d.current;
+  const row=(w,acts,tag)=>`<tr><td>${tag||fileDate(w.file)}</td><td class="num">${w.day??'—'}</td><td class="num hide">${w.mapW??'—'}</td><td class="num">${w.players}</td><td class="num hide">${kb(w.size)}</td><td class="hide">${when(w.mtime)}</td><td class="acts">${acts}</td></tr>`;
+  main.innerHTML=`<section><div class="bar"><h2>世界</h2><span class="sp"></span><button class="b danger" id="newWorld">開新世界</button></div>
+    <p class="note">開新世界或切換時，現在的世界會先存好、改名封存，大家的畫面會自動重新載入。每個人的背包跟著世界走，切回舊世界就是當時的進度。</p>
+    <div class="box"><table><thead><tr><th>世界</th><th>天數</th><th class="hide">地圖</th><th>玩家</th><th class="hide">大小</th><th class="hide">最後存檔</th><th></th></tr></thead><tbody>
+    ${c?row(c,`<a href="/api/admin/download?f=world.json"><button class="b">下載</button></a>`,'目前的世界 <span class="tag on">使用中</span>'):'<tr><td colspan="7" class="empty">還沒有世界存檔（第一次存檔前）</td></tr>'}
+    ${d.archived.map(w=>row(w,`<button class="b" data-sw="${esc(w.file)}">切換到這個世界</button><a href="/api/admin/download?f=${encodeURIComponent(w.file)}"><button class="b">下載</button></a><button class="b danger" data-del="${esc(w.file)}">刪除</button>`)).join('')}
+    </tbody></table>${d.archived.length?'':'<p class="empty">沒有封存的舊世界。</p>'}</div></section>
+  <section><h2>備份</h2><p class="note">每天自動備份一次（世界、帳號、所有人的背包），留最近 7 天。還原會換上那天的世界和背包，帳號不動；還原前會先把現在的存檔再備份一份（「還原前」那幾筆，留最近 5 次）。</p>
+    <div class="box">${d.backups.length?`<table><thead><tr><th>備份</th><th>天數</th><th class="hide">種子</th><th>玩家</th><th></th></tr></thead><tbody>
+    ${d.backups.map(b=>`<tr><td>${b.restore?`還原前 ${fileDate(b.name)}`:`${+b.name.slice(4,6)}/${+b.name.slice(6,8)} 每日備份`}</td><td class="num">${b.world?b.world.day??'—':'—'}</td><td class="num hide">${b.world?b.world.seed??'—':'—'}</td><td class="num">${b.players}</td>
+      <td class="acts">${b.world?`<a href="/api/admin/download?b=${encodeURIComponent(b.name)}"><button class="b">下載</button></a><button class="b danger" data-rs="${esc(b.name)}">還原</button>`:'<span class="note">沒有世界</span>'}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">還沒有備份。</p>'}</div></section>`;
+  confirmBtn($('newWorld'),async()=>{await post('newWorld');msg('開好新世界了')});
+  main.querySelectorAll('[data-sw]').forEach(b=>confirmBtn(b,async()=>{await post('switchWorld',{file:b.dataset.sw});msg('已切換世界')}));
+  main.querySelectorAll('[data-del]').forEach(b=>confirmBtn(b,async()=>{await post('deleteWorld',{file:b.dataset.del});msg('刪除了')}));
+  main.querySelectorAll('[data-rs]').forEach(b=>confirmBtn(b,async()=>{await post('restoreBackup',{name:b.dataset.rs});msg('已還原備份')}))}
+
+async function accts(){const d=await get('accounts');
+  main.innerHTML=`<section><h2>玩家帳號</h2><p class="note">重設 PIN：那個名字下次登入時輸入的 PIN 就是新的（記住的電腦也要重新輸入）。刪除帳號會讓名字空出來，他在各世界的背包存檔還留著。</p>
+    <div class="box">${d.list.length?`<table><thead><tr><th>名字</th><th>PIN</th><th class="hide">記住的電腦</th><th class="hide">玩過的世界</th><th>這個世界最後存檔</th><th></th></tr></thead><tbody>
+    ${d.list.map(a=>`<tr><td>${esc(a.name)}${a.online?'<span class="tag on">線上</span>':''}</td><td>${a.pin?'已設定':'<span class="tag warn">等他設新的</span>'}</td><td class="num hide">${a.devices}</td><td class="num hide">${a.worlds}</td><td>${when(a.last)}</td>
+      <td class="acts">${a.online?`<button class="b" data-kick="${esc(a.name)}">踢出</button>`:''}<button class="b danger" data-pin="${esc(a.name)}" ${a.pin?'':'disabled'}>重設 PIN</button><button class="b danger" data-delacct="${esc(a.name)}">刪除帳號</button></td></tr>`).join('')}
+    </tbody></table>`:'<p class="empty">還沒有人註冊。</p>'}</div></section>`;
+  main.querySelectorAll('[data-kick]').forEach(b=>confirmBtn(b,async()=>{await post('kick',{name:b.dataset.kick});msg(`已請 ${b.dataset.kick} 離開`)}));
+  main.querySelectorAll('[data-pin]').forEach(b=>confirmBtn(b,async()=>{await post('resetPin',{name:b.dataset.pin});msg(`${b.dataset.pin} 的 PIN 已重設`)}));
+  main.querySelectorAll('[data-delacct]').forEach(b=>confirmBtn(b,async()=>{await post('deleteAccount',{name:b.dataset.delacct});msg('帳號刪除了')}))}
+
+const PAGES={home,worlds,accts};
+async function show(){clearTimeout(timer);try{await PAGES[page]();if(page!=='home')get('status').then(s=>live(s.running,s.running?'世界運作中':'世界沒有在跑'),()=>{})}
+  catch(e){live(false,'連不到伺服器');main.innerHTML=`<p class="empty">連不到伺服器：${esc(e.message)}。黑色的伺服器視窗還開著嗎？</p>`}
+  // the overview refreshes itself; the other pages only after an action, so a half-clicked confirm is not wiped out
+  if(page==='home')timer=setTimeout(show,3000)}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.p;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));show()}));
+show();
+</script></body></html>

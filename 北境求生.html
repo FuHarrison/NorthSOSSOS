@@ -976,7 +976,7 @@ function renderSettings(){const wipe=MODE==='solo'||netInfo&&netInfo.local;
   $('setBody').innerHTML=`<div class="sets"><section><h4>畫面</h4>${SET_OPTS.map(sw).join('')}</section>`+
     `<section><h4>聲音</h4>${sw(['sound','音效','預設關閉；在辦公室玩記得戴耳機'])}<div class="setrow"><span>音量</span><input type="range" id="volIn" min="0" max="100" step="5" value="${SET.vol}" aria-label="音量"><output id="volOut">${SET.vol}</output></div></section>`+
     (TOUCH?'':`<section><h4>按鍵</h4><div class="keys">${KEY_HELP.map(([a,b])=>`<kbd>${a}</kbd><b>${b}</b>`).join('')}</div></section>`)+
-    (wipe?`<section><h4>世界</h4><button class="danger" id="wipe" type="button">${MODE==='solo'?'開始新世界（刪除存檔）':'開始新世界（目前的世界會改名保留，大家會重新連線）'}</button></section>`:'')+'</div>';
+    (wipe?`<section><h4>世界</h4>${MODE!=='solo'?'<p class="note">存檔、帳號（重設 PIN、踢人）都在 <a href="/admin" target="_blank" rel="noopener" style="color:var(--accent)">後台管理</a>（只有這台電腦打得開）。</p>':''}<button class="danger" id="wipe" type="button">${MODE==='solo'?'開始新世界（刪除存檔）':'開始新世界（目前的世界會改名保留，大家會重新連線）'}</button></section>`:'')+'</div>';
   $('setBody').querySelectorAll('[data-set]').forEach(x=>x.addEventListener('click',()=>setOpt(x.dataset.set)));
   const vi=$('volIn');vi.addEventListener('input',()=>{SET.vol=+vi.value;$('volOut').textContent=SET.vol;if(MASTER)MASTER.gain.value=SET.vol/100});vi.addEventListener('change',()=>{saveSet();sfx('pick')});
   const w=$('wipe');if(w)w.addEventListener('click',()=>{if(w.dataset.c){resetSave()}else{w.dataset.c='1';w.textContent='再按一次確認刪除'}})}
@@ -1730,10 +1730,12 @@ function onNet(m){
   case'login':onLogin(m);return;
   case'saved':try{localStorage.removeItem(m.k==='w'?WKEY:pkey())}catch(e){}return;
   case'wiped':location.reload();return;
-  case'kicked':kicked=true;noSave=true;netMsg('你的名字在別的分頁或電腦登入了，這裡已經離線。');return;
+  case'kicked':kicked=true;noSave=true;netMsg(m.why||'你的名字在別的分頁或電腦登入了，這裡已經離線。');return;
   }
   if(m.t==='fog'){if(Array.isArray(m.c))ready?seeCells(m.c):fogPend.push(...m.c);return}
   if(!ready)return;
+  // the admin page (server.js /admin) asks the world how it is doing; only the server-run world answers
+  if(m.t==='adm'){if(MODE==='host')net({t:'admr',q:m.q,d:{seed,mapW:W,day,dayT,night:isNight(),mobs:mobs.length,boss:boss?(boss.k==='treant'?'樹精長老':'灰鬃狼王'):null,structs:structs.length,loots:loots.length}});return}
   if(m.t==='st'){updateOther(m);return}
   if(m.t==='ping'){addPing(m);return}
   if(MODE==='host'){handleAct(m,m.from);return}
