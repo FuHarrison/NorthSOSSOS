@@ -185,7 +185,7 @@ const json=(res,code,o)=>{res.writeHead(code,{'Content-Type':'application/json; 
 const WORLD_RE=/^world(-\d{8}-\d{6})?\.json$/,BACKUP_RE=/^(\d{8}|restore-\d{8}-\d{6})$/,RESTORE_KEEP=5;
 // 問正在跑的世界（天數、怪物等）：送 adm 給世界，等它回 admr；1 秒沒回就當沒有
 let admSeq=0;const admWait=new Map();
-function askSim(c,v){return new Promise(r=>{if(!host)return r(null);const q=++admSeq;admWait.set(q,r);send(host,{t:'adm',q,c,v});setTimeout(()=>{if(admWait.delete(q))r(null)},1000)})}
+function askSim(c,v,more){return new Promise(r=>{if(!host)return r(null);const q=++admSeq;admWait.set(q,r);send(host,Object.assign({t:'adm',q,c,v},more));setTimeout(()=>{if(admWait.delete(q))r(null)},1000)})}
 function worldInfo(file){let st;try{st=fs.statSync(file)}catch(e){return null}const w=loadSave(file)||{};
   const n=w.seed==null?0:fs.readdirSync(PLAYER_DIR).filter(f=>f.startsWith(w.seed+'-')&&f.endsWith('.json')).length;
   return{file:path.basename(file),seed:w.seed??null,mapW:w.mapW||(w.seed==null?null:3200),day:w.day??null,size:st.size,mtime:st.mtimeMs,players:n}}
@@ -196,6 +196,8 @@ const accounts=()=>loadSave(ACCT_FILE)||{};
 function needWorldFile(f){if(typeof f!=='string'||!WORLD_RE.test(f)||f==='world.json'||!fs.existsSync(path.join(SAVE_DIR,f)))throw new Error('找不到這個封存的世界');return path.join(SAVE_DIR,f)}
 function needAccount(n){const a=accounts();if(typeof n!=='string'||!Object.hasOwn(a,n))throw new Error('找不到這個帳號');return a}
 const ADMIN_GET={
+  // 世界數值與它們的範圍（向世界問）
+  async cfg(){const d=await askSim('getCfg');if(!d)throw new Error('世界沒有在跑');return{cfg:d.cfg,def:d.cfgDef}},
   async status(){const online=[...peers.values()].filter(p=>!p.sim);
     return{uptime:Date.now()-T0,port:PORT,ips:lanIps(),running:!!host,world:await askSim('info'),saved:worldInfo(WORLD_FILE),
       online:online.map(p=>({id:p.id,name:p.name||null,addr:p.addr,local:p.local}))}},
@@ -213,6 +215,10 @@ const ADMIN_GET={
 const SIM_CMDS={pause:'暫停世界',resume:'繼續世界',time:'調整時間',clearMobs:'清除怪物',endBoss:'結束王戰',announce:'發公告'};
 const ADMIN_POST={
   // 即時控制世界：交給 server 自己跑的世界去做，回傳世界現在的狀態
+  // 世界數值：v 是要改的那幾項（世界會檢查範圍），reset 是全部恢復預設
+  async cfg(m){if(!host)throw new Error('世界沒有在跑');const v=m.v&&typeof m.v==='object'&&!Array.isArray(m.v)?m.v:{};
+    const d=await askSim('setCfg',undefined,{v,reset:!!m.reset});if(!d)throw new Error('世界沒有回應');if(d.err)throw new Error(d.err);
+    console.log(`後台：${m.reset?'世界數值恢復預設':'調整世界數值 '+JSON.stringify(v)}`);return{ok:1,world:d}},
   async world(m){if(!Object.hasOwn(SIM_CMDS,m.c))throw new Error('沒有這個指令');if(!host)throw new Error('世界沒有在跑');
     const d=await askSim(m.c,typeof m.v==='string'?m.v.slice(0,60):undefined);if(!d)throw new Error('世界沒有回應');if(d.err)throw new Error(d.err);
     console.log(`後台：${SIM_CMDS[m.c]}${m.c==='announce'?`「${m.v}」`:m.c==='time'?` → ${m.v}`:''}`);return{ok:1,world:d}},

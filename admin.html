@@ -42,11 +42,20 @@ button.danger{border-color:#6b3a33;background:#2a1714;color:#f0b4a8}button.dange
 .ctl{display:grid;gap:10px}.ctl .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ctl .row>span{width:72px;color:var(--mute);font-size:12px}
 .ctl input{flex:1;min-width:180px;max-width:420px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font:inherit;font-size:13px;color:var(--ink)}
 .ctl button.b{margin-left:0}.tag.pause{border-color:var(--accent);background:var(--accent);color:#1b1407}
+.cfg{display:grid;gap:4px;padding:6px 0}.cr{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(160px,1.4fr) 72px 52px;gap:10px;align-items:center;padding:7px 14px}
+.cr+.cr{border-top:1px solid var(--line)}.cr b{font-weight:600;font-size:13px}.cr b.chg::after{content:'●';color:var(--accent);font-size:9px;margin-left:6px;vertical-align:2px}
+.cr small{display:block;color:var(--mute);font-size:11px;font-weight:400}.cr input[type=range]{width:100%;accent-color:var(--accent)}.cr output{font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
+.cr select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font:inherit;font-size:13px}
+.sw2{width:42px;height:24px;border-radius:12px;border:1px solid var(--line);background:#00000055;position:relative;padding:0;cursor:pointer}
+.sw2::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--mute);transition:left .15s}
+.sw2[aria-checked=true]{background:var(--accent);border-color:var(--accent)}.sw2[aria-checked=true]::after{left:20px;background:#1b1407}
+.savebar{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;justify-content:flex-end;background:#0e1411f2;border-top:1px solid var(--line);padding:10px 0}
+@media (max-width:640px){.cr{grid-template-columns:1fr 64px 48px}.cr>div:first-child{grid-column:1/-1}}
 .list{display:flex;flex-wrap:wrap;gap:6px}.who{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
 @media (max-width:640px){th.hide,td.hide{display:none}td.acts{white-space:normal}}
 </style></head><body>
 <header><div class="top"><h1>北境求生 後台</h1><span class="live" id="live"><i></i><span>連線中…</span></span><a href="/" target="_blank" rel="noopener">開遊戲 ↗</a></div>
-<nav><button class="on" data-p="home">總覽</button><button data-p="worlds">世界存檔</button><button data-p="accts">玩家帳號</button></nav></header>
+<nav><button class="on" data-p="home">總覽</button><button data-p="worlds">世界存檔</button><button data-p="accts">玩家帳號</button><button data-p="cfg">世界數值</button></nav></header>
 <main id="main"></main>
 <div id="msg"></div>
 <script>
@@ -125,7 +134,39 @@ async function accts(){const d=await get('accounts');
   main.querySelectorAll('[data-pin]').forEach(b=>confirmBtn(b,async()=>{await post('resetPin',{name:b.dataset.pin});msg(`${b.dataset.pin} 的 PIN 已重設`)}));
   main.querySelectorAll('[data-delacct]').forEach(b=>confirmBtn(b,async()=>{await post('deleteAccount',{name:b.dataset.delacct});msg('帳號刪除了')}))}
 
-const PAGES={home,worlds,accts};
+// world settings: labels and steps here; the ranges and defaults come from the world itself (cfgDef)
+const CFG_UI=[
+  ['難度',[['mobHp','怪物血量','之後生出來的怪','x',.05],['mobDmg','怪物傷害','','x',.05],['mobCount','怪物數量','野外怪物的上限','x',.05],
+    ['nightMobs','晚上的怪物數量','夜裡冒出來的苔精；0 就是晚上不冒怪','x',.05],['bossHp','王的血量','下一隻叫出來的王；人多時調高','x',.1],['passive','怪物不主動攻擊','苔精要先被打才會還手；王不受影響','bool']]],
+  ['經濟',[['drops','掉落量','砍樹、挖礦、打怪、打王、收成','x',.25],['cropSpeed','作物生長速度','','x',.5],['smeltSpeed','熔爐速度','煤炭也燒得一樣快','x',.5]]],
+  ['時間',[['dayMin','一天長度','白天加晚上','min',1]]],
+  ['規則',[['death','死亡懲罰','','death'],['bagSlots','背包格數','','slots',4],['wear','耐久消耗','0 就是永遠不會壞','x',.25],['skillRate','熟練度成長','','x',.25],
+    ['skillLoss','倒下掉的熟練度','','pct',1],['freeBuild','建造不耗材料','有配方就能蓋；裝備照樣要材料；拆除不退材料','bool']]]];
+const DEATH={keep:'全部保留',bag:'背包留在墓碑',all:'全部留在墓碑（含快捷欄和裝備）'};
+const fmt=(t,v)=>t==='x'?`×${+(+v).toFixed(2)}`:t==='min'?`${v} 分`:t==='slots'?`${v} 格`:t==='pct'?`${v}%`:v;
+let cfgNow=null,cfgDef=null;
+async function cfg(){const d=await get('cfg');cfgNow=d.cfg;cfgDef=d.def;const dflt=k=>k in cfgDef.num?cfgDef.num[k][0]:k in cfgDef.bool?cfgDef.bool[k]:'bag';
+  main.innerHTML=`<p class="note">這些數值只套用在目前的世界，切換世界時會跟著換。改完按「儲存並套用」，所有人馬上生效；怪物血量和王的血量只影響之後生出來的。</p>`+
+    CFG_UI.map(([g,rows])=>`<section><h2>${g}</h2><div class="box cfg">${rows.map(([k,n,note,t,step])=>{const v=cfgNow[k];
+      const ctl=t==='bool'?`<button type="button" class="sw2" role="switch" aria-checked="${!!v}" aria-label="${n}" data-k="${k}"></button><span></span>`
+        :t==='death'?`<select data-k="${k}" aria-label="${n}" style="grid-column:span 2">${Object.entries(DEATH).map(([o,l])=>`<option value="${o}"${o===v?' selected':''}>${l}</option>`).join('')}</select>`
+        :`<input type="range" data-k="${k}" data-t="${t}" min="${cfgDef.num[k][1]}" max="${cfgDef.num[k][2]}" step="${step}" value="${v}" aria-label="${n}"><output>${fmt(t,v)}</output>`;
+      return`<div class="cr"><div><b data-lab="${k}">${n}</b>${note?`<small>${note}</small>`:''}</div>${t==='death'?ctl:t==='bool'?`<div>${ctl}</div><span></span>`:ctl}<button class="b" data-def="${k}" title="恢復預設">預設</button></div>`}).join('')}</div></section>`).join('')+
+    `<div class="savebar"><span class="note" id="dirty" style="margin:0 auto 0 0"></span><button class="b danger" id="cfgReset">全部恢復預設</button><button class="b go" id="cfgSave" disabled>儲存並套用</button></div>`;
+  const val=k=>{const e=main.querySelector(`[data-k="${k}"]`);return e.classList.contains('sw2')?e.getAttribute('aria-checked')==='true':e.tagName==='SELECT'?e.value:+e.value};
+  const keys=CFG_UI.flatMap(([,r])=>r.map(x=>x[0]));
+  const mark=()=>{let n=0;for(const k of keys){const v=val(k);main.querySelector(`[data-lab="${k}"]`).classList.toggle('chg',v!==dflt(k));if(v!==cfgNow[k])n++}
+    $('cfgSave').disabled=!n;$('dirty').textContent=n?`改了 ${n} 項，還沒儲存`:''};
+  main.querySelectorAll('input[type=range]').forEach(e=>e.addEventListener('input',()=>{e.nextElementSibling.textContent=fmt(e.dataset.t,e.value);mark()}));
+  main.querySelectorAll('.sw2').forEach(e=>e.addEventListener('click',()=>{e.setAttribute('aria-checked',e.getAttribute('aria-checked')!=='true');mark()}));
+  main.querySelectorAll('select').forEach(e=>e.addEventListener('change',mark));
+  main.querySelectorAll('[data-def]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.def,e=main.querySelector(`[data-k="${k}"]`),d=dflt(k);
+    if(e.classList.contains('sw2'))e.setAttribute('aria-checked',d);else{e.value=d;if(e.nextElementSibling&&e.tagName==='INPUT')e.nextElementSibling.textContent=fmt(e.dataset.t,d)}mark()}));
+  $('cfgSave').addEventListener('click',async()=>{const v={};for(const k of keys)if(val(k)!==cfgNow[k])v[k]=val(k);
+    try{await post('cfg',{v});msg(`已套用 ${Object.keys(v).length} 項`);show()}catch(e){msg(e.message,true)}});
+  confirmBtn($('cfgReset'),async()=>{await post('cfg',{reset:true});msg('全部恢復預設了')});
+  mark()}
+const PAGES={home,worlds,accts,cfg};
 async function show(){clearTimeout(timer);try{await PAGES[page]();if(page!=='home')get('status').then(s=>live(s.running,s.running?'世界運作中':'世界沒有在跑'),()=>{})}
   catch(e){live(false,'連不到伺服器');main.innerHTML=`<p class="empty">連不到伺服器：${esc(e.message)}。黑色的伺服器視窗還開著嗎？</p>`}
   // the overview refreshes itself; the other pages only after an action, so a half-clicked confirm is not wiped out
