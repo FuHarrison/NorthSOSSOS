@@ -534,7 +534,13 @@ const KEY_HELP = [
   ['Esc', '設定・關閉視窗']
 ];
 function renderSettings() {
-  const wipe = MODE === 'solo' || (netInfo && netInfo.local);
+  // 單人在這裡開新世界；多人開新世界、管存檔都在後台（只有主機那台看得到連結）
+  const world =
+    MODE === 'solo'
+      ? `<button class="danger" id="wipe" type="button">開始新世界（刪除存檔）</button>`
+      : netInfo && netInfo.local
+        ? '<p class="note">開新世界、切換世界、存檔與帳號（重設 PIN、踢人）都在 <a href="/admin" target="_blank" rel="noopener" style="color:var(--accent)">後台管理</a>（只有這台電腦打得開）。</p>'
+        : '';
   const sw = ([k, t, d]) =>
     `<div class="setrow"><span>${t}<small>${d}</small></span><button type="button" class="sw2" role="switch" aria-checked="${!!SET[k]}" aria-label="${t}" data-set="${k}"></button></div>`;
   $('setBody').innerHTML =
@@ -543,9 +549,7 @@ function renderSettings() {
     (TOUCH
       ? ''
       : `<section><h4>按鍵</h4><div class="keys">${KEY_HELP.map(([a, b]) => `<kbd>${a}</kbd><b>${b}</b>`).join('')}</div></section>`) +
-    (wipe
-      ? `<section><h4>世界</h4>${MODE !== 'solo' ? '<p class="note">存檔、帳號（重設 PIN、踢人）都在 <a href="/admin" target="_blank" rel="noopener" style="color:var(--accent)">後台管理</a>（只有這台電腦打得開）。</p>' : ''}<button class="danger" id="wipe" type="button">${MODE === 'solo' ? '開始新世界（刪除存檔）' : '開始新世界（目前的世界會改名保留，大家會重新連線）'}</button></section>`
-      : '') +
+    (world ? `<section><h4>世界</h4>${world}</section>` : '') +
     '</div>';
   $('setBody')
     .querySelectorAll('[data-set]')

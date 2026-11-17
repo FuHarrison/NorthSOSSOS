@@ -60,17 +60,8 @@ function writeSave(ack) {
   if (MODE === 'host') net({ t: 'wsave', d: worldData(), ack: ack === 'w' ? 1 : 0 });
   if (started) net({ t: 'psave', d: personal(), ack: ack === 'p' ? 1 : 0 });
 }
-// multiplayer: only a tab on the host machine (netInfo.local) gets the button; the server archives the world and restarts it
+// solo only: a new world. In multiplayer the admin page starts new worlds (server.js ADMIN_POST.newWorld)
 function resetSave() {
-  if (MODE !== 'solo') {
-    noSave = true;
-    try {
-      localStorage.removeItem(WKEY);
-      sessionStorage.removeItem(MAPW_KEY);
-    } catch (e) {}
-    net({ t: 'wipe' });
-    return;
-  } // reloads on 'wiped'
   try {
     localStorage.removeItem(SKEY);
     sessionStorage.removeItem(MAPW_KEY);

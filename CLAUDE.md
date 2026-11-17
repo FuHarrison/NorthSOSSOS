@@ -39,7 +39,7 @@ The game has a `MODE` variable, which is set at boot:
 
 - `solo`: the page was opened as `file://`, or the WebSocket failed to connect. Everything pauses when `paused` is true.
 - `host`: only the copy of the game script that `server.js` runs in Node (`startSim`). It simulates the whole world. No browser tab is ever the host.
-- `client`: every browser tab in multiplayer, including tabs on the host machine (`netInfo.local`, which only adds the LAN address and the 新世界 button). It only simulates its own player, and renders mobs and the world from the host's snapshots.
+- `client`: every browser tab in multiplayer, including tabs on the host machine (`netInfo.local`, which only adds the LAN address and a link to the admin page in the settings). It only simulates its own player, and renders mobs and the world from the host's snapshots.
 
 Boot paths: `bootSolo`, `bootHost`, and `bootClient(worldMsg)`. Each one ends with `ready=true; setupIntro()`. Nothing in the world exists before `ready`. `genWorld()` is deterministic from `seed`, so a client regenerates the terrain and altar itself, then replaces `resGrid` with the resource list the host sends.
 
@@ -66,7 +66,7 @@ This split is the core of the multiplayer design. Keep it when adding features.
 - `startSim` reads the `<script src="js/…">` list from 北境求生.html (`gameScripts`) and runs each file in order with `vm.runInContext` in one context, so they share top-level declarations like in the browser; a single-file release (one inline `<script>`) works too. The context has fake browser globals: DOM, canvas and `Path2D` are a no-op Proxy `stub`, storage is in memory, `WebSocket` is `FakeSocket` wired straight into `onOpen`/`onMsg`, and `requestAnimationFrame` is a 30 Hz timer that keeps going if a frame throws.
 - The script sees `globalThis.__NORTH_HEADLESS__` as `HEADLESS` and skips `render`, `hud` and `sea.update`. Anything else it touches at load time must work against the stub, so a new top-level browser API needs a stub in `startSim` too.
 - `world.json` is put into the fake localStorage so the script picks the right map size (`W`) at load; `bootHost(hello.world)` then loads it.
-- `stopSim(true)` fires the script's `visibilitychange` listener, which calls `writeSave()` synchronously. `shutdown` does this on SIGINT/SIGHUP (closing the console window on Windows). `wipe` (only from a `local` peer) stops the sim without saving, archives `world.json`, and starts a new one.
+- `stopSim(true)` fires the script's `visibilitychange` listener, which calls `writeSave()` synchronously. `shutdown` does this on SIGINT/SIGHUP (closing the console window on Windows). In multiplayer, new worlds come only from the admin page (`ADMIN_POST.newWorld`); the game itself has a new-world button in solo only (`resetSave`).
 
 ### Bosses
 
@@ -112,7 +112,7 @@ In multiplayer the world keeps running while the panel is open or the player is 
   - `saves/world.json`: sent to the sim in `hello.world`; `bootHost(w)` uses it. Only the sim may `wsave`.
   - `saves/accounts.json`: per name, a scrypt PIN hash (`salt:hash`) and sha256 hashes of up to 5 remember-me tokens. Deleting a name's `pin` lets that name register a new PIN.
   - `saves/players/<seed>-<name>.json`: returned in the `login` reply (`d`). Characters invalid in file names become `%xx`.
-  - Files are read fresh on every load (no cache) and written via temp file + rename, keeping a `.bak` that `loadSave` falls back to. `wipe` renames `world.json` to `world-<local YYYYMMDD-HHMMSS>.json`. `dailyBackup` copies `world.json`, `accounts.json` and `players/*.json` to `saves/backups/<YYYYMMDD>/` at startup and hourly (once per day), keeping the newest 7.
+  - Files are read fresh on every load (no cache) and written via temp file + rename, keeping a `.bak` that `loadSave` falls back to. `archiveWorld` (admin new world / switch / restore) renames `world.json` to `world-<local YYYYMMDD-HHMMSS>.json`. `dailyBackup` copies `world.json`, `accounts.json` and `players/*.json` to `saves/backups/<YYYYMMDD>/` at startup and hourly (once per day), keeping the newest 7.
 - Login: the player sends name + PIN (or the token in localStorage `northland-tok`). 5 wrong PINs lock PIN entry for that name for 60 s; a valid token is not blocked. A new valid login kicks the older connection with the same name (`kicked`).
 - Migration: a player's old localStorage bag (`northland-mp-p-${seed}-${name}`) is uploaded once on login when the server has none, with `ack`; the browser copy is removed on the `saved` reply. (The old browser-host world, `northland-mp-world-v1`, is no longer uploaded: the sim has no browser storage.)
 

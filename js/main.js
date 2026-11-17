@@ -56,7 +56,6 @@ function setupIntro() {
       `<input class="namein" id="nameIn" maxlength="10" placeholder="你的名字" aria-label="你的名字" value="${esc(myName)}">` +
       `<input class="namein pinin" id="pinIn" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN" aria-label="PIN">` +
       `<button class="act go" id="go" type="button">加入（第 ${day} 天）</button>` +
-      (netInfo.local ? `<button class="act" id="fresh" type="button">新世界</button>` : '') +
       `<p class="sub" id="loginMsg" style="flex-basis:100%"></p>`;
     const n = $('introNet');
     n.hidden = false;

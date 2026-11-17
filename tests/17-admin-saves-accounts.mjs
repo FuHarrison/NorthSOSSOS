@@ -50,6 +50,16 @@ try {
   ok((await post('kick', { name: 'x' }, {})).code === 403, '沒帶 X-North-Admin 的修改請求：拒絕');
   // 總覽
   const a = await mpGame(br, PORT, '甲', '1111');
+  // 多人開新世界只在後台：主機那台的開始畫面、設定裡都沒有新世界按鈕，設定裡有後台連結
+  ok(!(await a.ev(`!!document.getElementById('fresh')`)), '多人開始畫面：沒有新世界按鈕');
+  await a.send('Page.bringToFront');
+  await a.key('Escape');
+  await sleep(200);
+  ok(
+    await a.ev(`!document.querySelector('#setBody #wipe')&&!!document.querySelector('#setBody a[href="/admin"]')`),
+    '多人設定：沒有新世界按鈕，改成後台連結'
+  );
+  await a.key('Escape');
   const b = await mpGame(br, PORT, '乙', '2222');
   let s = await waitRun();
   ok(s.running && s.world.day >= 1 && s.world.mobs > 0, '總覽：世界資料（天數、怪物）', s.world);

@@ -182,15 +182,6 @@ const SRV = {
     mapW = m.d.mapW || mapW;
     if (m.ack) send(p, { t: 'saved', k: 'w' });
   },
-  // 「新世界」：只有主機那台電腦的分頁可以按。停掉世界（不存檔）→ 舊世界改名留著 → 重新開一個世界
-  wipe(p) {
-    if (!p.local || p.sim) return;
-    stopSim(false);
-    archiveWorld();
-    console.log('開了新世界，舊世界已改名保留');
-    send(p, { t: 'wiped' });
-    startSim();
-  },
   // 世界回覆後台的查詢（只收主機的）
   admr(p, m) {
     if (p !== host) return;

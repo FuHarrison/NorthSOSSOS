@@ -831,9 +831,6 @@ function onNet(m) {
         localStorage.removeItem(m.k === 'w' ? WKEY : pkey());
       } catch (e) {}
       return;
-    case 'wiped':
-      location.reload();
-      return;
     case 'kicked':
       kicked = true;
       noSave = true;
