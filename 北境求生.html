@@ -367,7 +367,8 @@ function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1
 const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a',魔力水晶:'#9b7bff',發光蘑菇:'#6fe0ff',
   皮帽:'#8a5b3a',皮褲:'#7a4f30',青銅錠:'#c08a3e',青銅盔:'#b07a36',青銅甲:'#b07a36',青銅護腿:'#9c6a2e',鐵盔:'#8a939b',鐵甲:'#8a939b',鐵護腿:'#757e86',
   木盾:'#8f6a3e',青銅盾:'#b07a36',鐵盾:'#8a939b',
-  胡蘿蔔:'#e07a2a',胡蘿蔔種子:'#b59a5a',蘑菇湯:'#c98a4a',胡蘿蔔湯:'#e09a3a',燉肉:'#8a4a2b'};
+  胡蘿蔔:'#e07a2a',胡蘿蔔種子:'#b59a5a',蘑菇湯:'#c98a4a',胡蘿蔔湯:'#e09a3a',燉肉:'#8a4a2b',
+  狼王的心臟:'#d0485a',長老年輪:'#c9a26a'};
 // 背包與箱子都算格子：材料一格疊 50、食物 20，武器、工具、護甲一格一個
 const BAG_SLOTS=32,CHEST_SLOTS=24;
 /* ---------- icons ---------- */
@@ -402,6 +403,8 @@ const ICON={
   燧石矛:'<path d="M3.5 20.5L15 9" stroke="#7b5634" stroke-width="2.2" stroke-linecap="round"/><path d="M13.5 10.5L15.5 4.5 21 3 19.5 8.5z" fill="#6b7f92"/><path d="M12.5 9.5l2 2" stroke="#3d2a17" stroke-width="1.5"/>',
   狼牙劍:'<path d="M7 15L18 4h2v2L9 17z" fill="#b9d4e4"/><path d="M9.5 13.5L19 4" stroke="#fff" stroke-width=".8" opacity=".7"/><path d="M4.5 13.5l6 6" stroke="#8a6236" stroke-width="2.5" stroke-linecap="round"/><path d="M3 21l3.5-3.5" stroke="#5a3d22" stroke-width="2.6" stroke-linecap="round"/>',
   皮甲:'<path d="M8 3l4 3 4-3 4.5 3.5-2.5 5V21H6V11.5L3.5 6.5z" fill="#8a5b3a"/><path d="M12 6v15" stroke="#5e3c24" stroke-width="1"/><circle cx="12" cy="11" r=".9" fill="#d9b07a"/><circle cx="12" cy="15" r=".9" fill="#d9b07a"/>',
+  狼王的心臟:'<path d="M12 21C6 16.5 3 13 3 9a4.5 4.5 0 0 1 9-1 4.5 4.5 0 0 1 9 1c0 4-3 7.5-9 12z" fill="#a8323f"/><path d="M12 20C7.5 16.2 5 13.2 5 9.8" stroke="#e86a78" stroke-width="1.2" fill="none"/><path d="M8 7.5l2 2 1.5-2.5 1.5 3 2-2" stroke="#cfe3ef" stroke-width="1.1" fill="none"/>',
+  長老年輪:'<circle cx="12" cy="12" r="9.5" fill="#6b4e34"/><circle cx="12" cy="12" r="7.5" fill="#c9a26a"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#8a6a44" stroke-width="1"/><circle cx="12" cy="12" r="3.3" fill="none" stroke="#8a6a44" stroke-width="1"/><circle cx="12" cy="12" r="1.3" fill="#9dffb0"/>',
   古樹種子:'<path d="M12 21c-4.5 0-7-3-7-6.5C5 10 9 6 12 3c3 3 7 7 7 11.5 0 3.5-2.5 6.5-7 6.5z" fill="#6b4e34"/><path d="M12 5v15" stroke="#3f2c1b" stroke-width="1"/><path d="M12 8c2.5-2.5 5-3 7-2.5-.8 2.5-3.5 4-7 4z" fill="#8fb257"/><circle cx="9" cy="15" r="1.2" fill="#9dffb0"/>',
   樹精核心:'<path d="M12 2l7 6-2 10-5 4-5-4-2-10z" fill="#3d7a4a"/><path d="M12 2l7 6-7 3-7-3z" fill="#9dffb0"/><path d="M12 11v11" stroke="#d8ffe0" stroke-width="1" opacity=".7"/><circle cx="12" cy="11" r="2.4" fill="#eafff0"/>',
   堅硬樹皮:'<path d="M5 3h13l2 5-2 6 1 7H6l-2-7 2-5z" fill="#6b4e34"/><path d="M8 5l-1 6 1 8M12 4l1 7-1 8M16 5l-1 7 1 7" stroke="#3a2818" stroke-width="1.4" fill="none"/><circle cx="17" cy="16" r="2" fill="#6f9a4a"/>',
@@ -492,6 +495,7 @@ const RES={
   glowshroom:{hp:1,pick:true,drop:[['發光蘑菇',1,1]]},
   coal:{hp:70,solid:16,mine:true,tier:1,name:'煤礦',base:'#55534f',ore:'#1c1b1a',drop:[['煤炭',3,5],['石頭',1,2]]},
   copper:{hp:80,solid:16,mine:true,tier:1,name:'銅礦',base:'#77736c',ore:'#d0813f',drop:[['銅礦',3,4],['石頭',1,2]]},
+  etree:{hp:12,solid:9,drop:[['木頭',1,1]]}, // the Treant Elder's tree wall: never regrows, withers after ETREE_LIFE
   tin:{hp:80,solid:16,mine:true,tier:1,name:'錫礦',base:'#77736c',ore:'#dfe6ea',drop:[['錫礦',3,4],['石頭',1,2]]},
   iron:{hp:110,solid:16,mine:true,tier:2,name:'鐵礦',base:'#6a625d',ore:'#a0503a',drop:[['鐵礦',3,4],['石頭',1,2]]}
 };
@@ -544,9 +548,9 @@ const RECIPES=[
   {id:'青銅盾',name:'青銅盾',cost:{青銅錠:4,木頭:4},bench:true,lv:2,desc:'拿在副手，擋得比木盾多。'},
   {id:'鐵盾',name:'鐵盾',cost:{鐵錠:5,木頭:4},bench:true,lv:3,desc:'拿在副手，擋得最多。'},
   {id:'狼牙劍',name:'狼牙劍',cost:{狼王之牙:1,木頭:6,燧石:4},bench:true,lv:2,desc:'用狼王的牙磨成的劍。'},
-  {id:'古樹種子',name:'古樹種子',cost:{狼王之牙:1,木頭:20,樹脂:8,蘑菇:5},bench:true,desc:'帶到石祭壇種下，就會喚醒樹精。'},
-  {id:'樹精法杖',name:'樹精法杖',cost:{樹精核心:1,古老樹枝:3,自然精華:2},bench:true,lv:3,lock:true,desc:'朝游標方向射出一發自然能量。打倒樹精後解鎖。'},
-  {id:'樹精裝備',name:'樹精裝備',cost:{堅硬樹皮:8,古老樹枝:2,自然精華:2},bench:true,lv:3,lock:true,desc:'身體護甲，穿著時血量恢復變快。打倒樹精後解鎖。'}
+  {id:'古樹種子',name:'古樹種子',cost:{狼王之牙:1,木頭:20,樹脂:8,蘑菇:5},bench:true,desc:'和狼王的心臟一起帶到石祭壇（心臟拿在手上），就會喚醒樹精長老。種子會用掉，心臟不會。'},
+  {id:'樹精法杖',name:'樹精法杖',cost:{樹精核心:1,古老樹枝:3,自然精華:2},bench:true,lv:3,lock:true,desc:'朝游標方向射出一發自然能量。打倒樹精長老後解鎖。'},
+  {id:'樹精裝備',name:'樹精裝備',cost:{堅硬樹皮:8,古老樹枝:2,自然精華:2},bench:true,lv:3,lock:true,desc:'身體護甲，穿著時血量恢復變快。打倒樹精長老後解鎖。'}
 ];
 
 // pets: boar = tamed by feeding berries, gathers; wolf = pup from the Wolf King, fights
@@ -579,7 +583,7 @@ function packSeen(){let s='';for(let b=0;b<seen.length;b+=8){let v=0;for(let k=0
 function unpackSeen(str,merge){if(!merge)resetFog();let s;try{s=atob(str)}catch(e){return}
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1);if(merge&&MODE!=='solo')fogNew.push(c)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
-let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
+let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[],fogs=[],etrees=[],leaves=[]; // boss = whichever boss is awake; only one at a time
 let inv={},dur={},q={},sk={},eq=noEq(),known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
@@ -751,7 +755,7 @@ function addRes(k,x,y,c){const o={k,x,y,cell:c,hp:RES[k].hp,flash:0,dep:0,sz:.85
 
 /* ---------- mobs ---------- */
 function findSpot(cx,cy,minD,maxD,want){for(let t=0;t<40;t++){const a=Math.random()*6.28,r=rnd(minD,maxD),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r,c=ci(x,y);if(c<0)continue;const b=biome[c];if(b===0||b===B_LAVA||resGrid[c]&&RES[resGrid[c].k].solid||structGrid[c])continue;if(want&&!want.includes(b))continue;return{x,y}}return null}
-function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100},treant:{hp:1400,r:39,spd:42},frog:{hp:30,r:15,spd:60}}[k];
+function makeMob(k,x,y){const base={boar:{hp:26,r:13,spd:36},moss:{hp:20,r:11,spd:78},boss:{hp:480,r:30,spd:100},treant:{hp:1700,r:39,spd:42},frog:{hp:30,r:15,spd:60},sprout:{hp:24,r:11,spd:70}}[k];
   return{id:++mobSeq,k,x,y,tx:x,ty:y,hp:base.hp,max:base.hp,r:base.r,spd:base.spd,face:Math.random()*6.28,wt:0,wx:0,wy:0,aggro:0,acd:0,kx:0,ky:0,flash:0,state:'chase',t:0,atkT:2.5,lastAtk:'',howlT:9,cn:0,cph:'',hitDash:false,anim:Math.random()*9}}
 function spawnMob(k,x,y){const m=makeMob(k,x,y);mobs.push(m);return m}
 function populate(){
@@ -1023,7 +1027,7 @@ function attack(){
   if(w.proj){wear(P.weapon);act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1)*skMul('ranged'))});return} // ranged: the shot does its own hit test
   let hit=false;
   for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1)*skMul('melee'));
-    floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});if(!hit)sfx('hit');burst(m.x,m.y,m.k==='moss'||m.k==='treant'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
+    floats.push(shielded(m)?{x:m.x,y:m.y-m.r-8,txt:'無敵',t:.8,col:'#9dffb0'}:{x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});if(!hit)sfx('hit');burst(m.x,m.y,m.k==='moss'||m.k==='treant'||m.k==='sprout'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
     act({t:'hit',id:m.id,dmg,x:P.x,y:P.y});hit=true}}
   // 範圍攻擊：揮擊範圍內的樹、石頭、礦全部一起打；什麼都沒打到才撿最近的小東西
   const inArc=o=>{const d=dist(o,P)-(RES[o.k].solid||6)*o.sz;return d<w.range-4&&angDiff(Math.atan2(o.y-P.y,o.x-P.x),P.face)<w.arc+.3?d:-1};
@@ -1059,16 +1063,21 @@ function worldRes(c,dmg,from,toPet){const o=resGrid[c];if(!o)return;const d=RES[
   if(toPet)return;
   evt({t:'rh',c,hp:o.hp-dmg});
   if(o.hp<=0){for(const[k,a,b]of d.drop)giveTo(from,k,ri(a,b),o.x,o.y);removeRes(o)}}
-function removeRes(o){evt({t:'rx',c:o.cell});regrow.push({k:o.k,x:o.x,y:o.y,cell:o.cell,at:time+(o.k==='rock'?400:RES[o.k].ore?600:o.k.length<5?260:200)})}
-function hitMob(m,dmg,from,ax,ay,byPet){m.hp-=m.stun>0?dmg*1.5:dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:m.k==='treant'?20:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
+function removeRes(o){evt({t:'rx',c:o.cell});if(o.k==='etree')return;regrow.push({k:o.k,x:o.x,y:o.y,cell:o.cell,at:time+(o.k==='rock'?400:RES[o.k].ore?600:o.k.length<5?260:200)})}
+// the Treant Elder takes no damage while it devours its saplings
+function shielded(m){return m.k==='treant'&&m.state==='eat'}
+function hitMob(m,dmg,from,ax,ay,byPet){if(shielded(m))return;m.hp-=m.stun>0?dmg*1.5:dmg;m.flash=.15;const a=Math.atan2(m.y-ay,m.x-ax),kb=m.k==='boss'?60:m.k==='treant'?20:220;m.kx=Math.cos(a)*kb;m.ky=Math.sin(a)*kb;m.aggro=12;
   m.petT=byPet?{o:from,until:time+8}:null; // mobs only turn on a pet that hit them
   if(m.hp<=0)killMob(m,from)}
 function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y});
   if(m.k==='boar'){giveTo(from,'生肉',ri(1,2),m.x,m.y);if(Math.random()<.8)giveTo(from,'皮革',ri(1,2),m.x,m.y-14);if(Math.random()<.4)giveTo(from,'獠牙',1,m.x,m.y-28)}
   if(m.k==='frog'){giveTo(from,'生肉',1,m.x,m.y);if(Math.random()<.35)giveTo(from,'蘑菇',1,m.x,m.y-14)}
   if(m.k==='moss'){giveTo(from,'樹脂',ri(1,2),m.x,m.y);if(Math.random()<.25)giveTo(from,'燧石',1,m.x,m.y-14)}
-  if(m.k==='treant'){boss=null;giveAll('堅硬樹皮',ri(3,5),m.x,m.y);giveAll('古老樹枝',ri(2,3),m.x,m.y-14);giveAll('自然精華',ri(2,3),m.x,m.y-28);toAll({t:'tdown',x:m.x,y:m.y});evt({t:'bn',h:'樹精倒下了',s:'第一次打倒樹精會解鎖樹精法杖與樹精裝備，到工作台製作'});writeSave()}
-  if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'第一次打倒狼王的人會得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
+  if(m.k==='sprout')giveTo(from,'木頭',ri(1,2),m.x,m.y);
+  if(m.k==='treant'){boss=null;giveAll('堅硬樹皮',ri(3,5),m.x,m.y);giveAll('古老樹枝',ri(2,3),m.x,m.y-14);giveAll('自然精華',ri(3,4),m.x,m.y-28);
+    for(const s of mobs.filter(o=>o.k==='sprout')){mobs.splice(mobs.indexOf(s),1);evt({t:'mk',id:s.id,x:s.x,y:s.y})}for(const e of etrees)e.at=0; // its saplings and tree walls go with it
+    toAll({t:'tdown',x:m.x,y:m.y});evt({t:'bn',h:'樹精長老倒下了',s:'第一次打倒樹精長老會得到長老年輪，並解鎖樹精法杖與樹精裝備，到工作台製作'});writeSave()}
+  if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'第一次打倒狼王的人會得到一隻狼崽和狼王的心臟・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
 function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;
   if(P.blocking&&angDiff(Math.atan2(src.y-P.y,src.x-P.x),P.face)<1.6){
     if(P.blockT<PARRY_T){sfx('parry');floats.push({x:P.x,y:P.y-30,txt:'招架！',t:1,col:'#ffe08a'});burst(P.x+Math.cos(P.face)*14,P.y-10+Math.sin(P.face)*14,'#fff2b0',14);shake=Math.max(shake,5);
@@ -1106,7 +1115,7 @@ function landSpot(){let best=null,bd=1e9;for(let r=30;r<=62;r+=16)for(let k=0;k<
 function useLabel(u){if(!u)return null;if(u.land)return'下船';if(u.l&&u.l.g)return myGrave(u.l)?'拿回遺物':`${u.l.g}的墓碑`;if(u.o||u.l)return'撿起';if(u.m)return'餵'+TAME_FOOD[u.m.k];const s=u.s;
   if(s.k==='fire')return has('生肉')?'烤肉':'取暖';if(s.k==='bed')return isNight()?'睡覺':'設為重生點';if(s.k==='bench')return'製作';if(s.k==='furnace')return'熔爐';if(s.k==='chest')return'開箱子';if(s.k==='pot')return potLit(s)?'料理':'料理鍋（要放在營火旁）';
   if(s.k==='plot'){const c=s.crop;if(c)return c.g<=0?'收成':`${c.k}生長中 ${Math.floor((1-c.g/CROPS[c.k].t)*100)}%`;const sd=Object.keys(CROPS).find(k=>has(CROPS[k].seed));return sd?`種${sd}`:'菜圃（需要種子）'}if(s.k==='boat')return'上船';
-  if(s.k==='altar')return boss?(boss.k==='treant'?'樹精已醒':'狼王已醒'):has('古樹種子')?'種下古樹種子':'獻上祭品';return null}
+  if(s.k==='altar')return boss?(boss.k==='treant'?'樹精長老已醒':'狼王已醒'):(hot[hotSel]==='狼王的心臟'||hot[hotSel]==='古樹種子')?'獻上心臟與古樹種子':'獻上祭品';return null}
 function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒有可互動的東西');return}
   if(u.land){const bx=P.x,by=P.y;P.boat=false;P.x=u.land.x;P.y=u.land.y;act({t:'unboard',x:bx,y:by});toast('下船了');writeSave();return}
   if(u.o){hitRes(u.o);return}
@@ -1123,9 +1132,11 @@ function doUse(){if(placing)return;const u=nearestUse();if(!u){toast('附近沒�
   else if(s.k==='boat')act({t:'board',x:s.x,y:s.y});
   else if(s.k==='bed'){spawnPt={x:s.x,y:s.y+34};if(isNight()){P.hp=maxHp();P.restLv=comfortAt(s.x,s.y);P.rest=restDur(P.restLv);act({t:'sleep',x:P.x,y:P.y,n:myName})}else toast('重生點已設在這張床');writeSave()}
   else if(s.k==='altar'){if(boss)return;
-    if(has('古樹種子')){inv['古樹種子']--;act({t:'summont'});shake=12;return}
+    // each boss's keepsake, held in hand, wakes the next boss and is not used up
+    if((hot[hotSel]==='狼王的心臟'||hot[hotSel]==='古樹種子')){if(!has('狼王的心臟')||!has('古樹種子')){toast(`喚醒樹精長老需要：狼王的心臟 ${has('狼王的心臟')?1:0}/1、古樹種子 ${inv['古樹種子']||0}/1`);return}
+      inv['古樹種子']--;syncHeld();act({t:'summont'});shake=12;return}
     if((inv['獠牙']||0)>=3&&(inv['樹脂']||0)>=5){inv['獠牙']-=3;inv['樹脂']-=5;act({t:'summon'});shake=12}
-    else toast(`祭壇需要：獠牙 ${inv['獠牙']||0}/3、樹脂 ${inv['樹脂']||0}/5`)}}
+    else toast(has('狼王的心臟')?'手上拿著狼王的心臟、帶著古樹種子，可以喚醒樹精長老・狼王要獠牙 3、樹脂 5':`祭壇需要：獠牙 ${inv['獠牙']||0}/3、樹脂 ${inv['樹脂']||0}/5`)}}
 
 /* ---------- placement ---------- */
 // build mode (B): the hotbar lists every building plus a demolish tool; picking one sets `placing`
@@ -1237,7 +1248,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
     <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>料理鍋（銅錠、石頭）放在營火旁邊，按 E 就能煮湯和燉肉，比烤肉好很多。蓋菜圃種胡蘿蔔：種子在採莓果時有機會拿到，種下約 4 分鐘後收成。</li><li>熟練度：近戰、遠程、砍樹、挖礦、格擋、奔跑、閃避，做什麼就練什麼：傷害、力道、格擋值每級 +1%，耐力消耗每級少 0.5～0.6%，最高 ${SK_MAX} 級。打開背包的「技能」分頁看進度。倒下時每種掉 5%。</li><li>倒下時背包裡的東西會留在原地的墓碑裡，只有你撿得回來；快捷欄上的和身上穿的會跟著你。地圖上會標出墓碑。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。休息維持多久看舒適度：附近每多一種家具（床、椅子、毛皮地毯、旗幟、水晶燈）舒適度 +1，每級多 1 分鐘（3～8 分鐘）。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
-    <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
+    <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>第一次打倒狼王會得到狼王的心臟（不會用掉）。用狼王之牙在工作台做古樹種子，把心臟拿在手上、帶著種子到石祭壇喚醒樹精長老。第一次打倒樹精長老會得到長老年輪，並解鎖樹精法杖與樹精裝備。</li></ul></div>
     </div>`}}
 const CRAFT_CATS=[['gear','裝備'],['mat','材料'],['food','料理'],['build','建築']],craftCat=r=>r.build?'build':r.pot?'food':WEAPONS[r.id]||ARMOR[r.id]?'gear':'mat';let craftTab='gear',craftQty=1;const craftSel={};
 // upgrading gear you own: a share of its recipe, at a bench of level base + current level (at most 3); it comes out repaired
@@ -1336,8 +1347,9 @@ const GOALS=[
   ['跟著指針前往石祭壇，獻上祭品',()=>flags.summoned||flags.boss],
   ['擊敗灰鬃狼王',()=>flags.boss],
   ['用狼王之牙打造狼牙劍',()=>has('狼牙劍')],
+  ['打倒狼王，拿到狼王的心臟',()=>has('狼王的心臟')||boss&&boss.k==='treant'||treantDown],
   ['用狼王之牙與材料做一顆古樹種子',()=>has('古樹種子')||boss&&boss.k==='treant'||treantDown],
-  ['把古樹種子帶到石祭壇，打倒樹精',()=>treantDown],
+  ['手上拿著狼王的心臟、帶著古樹種子到石祭壇，打倒樹精長老',()=>treantDown],
   ['到工作台製作樹精法杖或樹精裝備',()=>has('樹精法杖')||has('樹精裝備')]
 ];
 function goalIdx(){for(let i=0;i<GOALS.length;i++)if(!GOALS[i][1]())return i;return GOALS.length}
@@ -1362,6 +1374,7 @@ function updateWorld(dt){
     if(T&&nearCount('frog',T)<4&&mobs.length<220){const s=findSpot(T.x,T.y,600,1100,[1,3]);if(s)spawnMob('frog',s.x,s.y)}
     if(!isNight())for(let i=mobs.length-1;i>=0;i--){const m=mobs[i];if(m.k==='moss'&&TG.every(t=>dist(m,t)>750)&&biome[ci(m.x,m.y)]!==3&&Math.random()<.3)mobs.splice(i,1)}}
   regrowT-=dt;if(regrowT<=0){regrowT=2;for(let i=regrow.length-1;i>=0;i--){const g=regrow[i];if(time>=g.at&&!resGrid[g.cell]&&!structGrid[g.cell]&&TG.every(t=>Math.hypot(g.x-t.x,g.y-t.y)>360)){evt({t:'ra',k:g.k,x:g.x,y:g.y,c:g.cell});regrow.splice(i,1)}}}
+  for(let i=etrees.length-1;i>=0;i--){const e=etrees[i],o=resGrid[e.c];if(!o||o.k!=='etree')etrees.splice(i,1);else if(time>=e.at){evt({t:'rx',c:e.c});etrees.splice(i,1)}}
   for(const s of structs)s.anim+=dt;
   // treant seeds: positions move in updateFx on every client, hits are decided here
   for(const s of seeds){const h=TG.find(q=>dist(s,q)<q.r+7);if(h){hurt(h,SEED_DMG,s);evt({t:'sx',id:s.id})}}
@@ -1412,11 +1425,20 @@ function updateFx(dt){
   for(let i=seeds.length-1;i>=0;i--){const s=seeds[i];s.x+=s.vx*dt;s.y+=s.vy*dt;if((s.t-=dt)<=0)seeds.splice(i,1)}
   // staff shots: the shooter's own client decides the hit, the treant's body counts as well as its feet
   for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.x+=s.vx*dt;s.y+=s.vy*dt;let gone=(s.t-=dt)<=0;
-    if(!gone&&s.own)for(const m of mobs){const by=m.k==='treant'?Math.min(Math.abs(s.y-m.y),Math.abs(s.y-(m.y-60))):Math.abs(s.y+12-m.y);if(Math.hypot(s.x-m.x,by)<m.r+8){skXP('ranged');floats.push({x:m.x,y:m.y-m.r-8,txt:String(s.dmg),t:.8,col:'#ffe9b8'});act({t:'hit',id:m.id,dmg:s.dmg,x:s.x,y:s.y});gone=true;break}}
+    if(!gone&&s.own)for(const m of mobs){const by=m.k==='treant'?Math.min(Math.abs(s.y-m.y),Math.abs(s.y-(m.y-60))):Math.abs(s.y+12-m.y);if(Math.hypot(s.x-m.x,by)<m.r+8){skXP('ranged');floats.push(shielded(m)?{x:m.x,y:m.y-m.r-8,txt:'無敵',t:.8,col:'#9dffb0'}:{x:m.x,y:m.y-m.r-8,txt:String(s.dmg),t:.8,col:'#ffe9b8'});act({t:'hit',id:m.id,dmg:s.dmg,x:s.x,y:s.y});gone=true;break}}
     if(gone){burst(s.x,s.y,'#9dffb0',6);shots.splice(i,1)}}
   // the treant leaves roots behind wherever it walks
   for(const m of mobs)if(m.k==='treant'){if(m.lrx===undefined||Math.hypot(m.x-m.lrx,m.y-m.lry)>20){if(m.lrx!==undefined){rootTrail.push({x:m.x,y:m.y+2,a:Math.atan2(m.y-m.lry,m.x-m.lrx),s:hash(rootTrail.length,seedSeq,7),t:7});if(rootTrail.length>70)rootTrail.shift()}m.lrx=m.x;m.lry=m.y}}
   for(let i=rootTrail.length-1;i>=0;i--)if((rootTrail[i].t-=dt)<=0)rootTrail.splice(i,1);
+  // black fog: each client checks its own player; inside it the view shrinks to BLIND_R
+  for(let i=fogs.length-1;i>=0;i--)if((fogs[i].t-=dt)<=0)fogs.splice(i,1);
+  if((MODE==='solo'||started)&&!P.dead&&fogs.some(f=>FOG_LIFE-f.t>.4&&Math.hypot(P.x-f.x,P.y-f.y)<FOG_CR)){if(!(P.blind>0))toast('被黑霧籠罩，看不清楚了！');P.blind=1.2}
+  P.blind=(P.blind||0)-dt;P.blindK=(P.blindK||0)+((P.blind>0?1:0)-(P.blindK||0))*Math.min(1,dt*4);
+  // devour: fade the magic in and out, spiral leaves into the elder, leaf sparks behind the recalled saplings
+  for(const m of mobs)if(m.k==='treant'){m.eatFx=m.state==='eat'?Math.min(1,(m.eatFx||0)+dt*3):Math.max(0,(m.eatFx||0)-dt*2);
+      if(m.state==='eat'&&Math.random()<dt*28)leaves.push({cx:m.x,cy:m.y-40,a:Math.random()*6.28,r:110+Math.random()*40,t:1.1,spin:Math.random()*6,col:LEAF_COL[Math.random()*3|0]})}
+    else if(m.k==='sprout'&&m.state==='recall'&&Math.random()<dt*14)parts.push({x:m.x+rnd(-6,6),y:m.y-10+rnd(-6,6),vx:rnd(-10,10),vy:-30,t:.7,col:Math.random()<.5?'#9dffb0':'#6fd06f',s:2.4});
+  for(let i=leaves.length-1;i>=0;i--){const l=leaves[i];l.t-=dt;l.a+=dt*3.2;l.r-=dt*105;l.spin+=dt*9;if(l.t<=0||l.r<8)leaves.splice(i,1)}
   shake=Math.max(0,shake-dt*30);
   cam.x+=(P.x-cam.x)*Math.min(1,dt*8);cam.y+=(P.y-cam.y)*Math.min(1,dt*8);
   saveT-=dt;if(saveT<=0){saveT=8;writeSave()}
@@ -1424,7 +1446,7 @@ function updateFx(dt){
   bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on');
 }
 // a mob that burns to death drops nothing (nobody hit it), but the bosses still go through killMob so their loot and flags work
-function burnMob(m,dt){if(!burnTick(m,dt))return false;m.hp-=BURN_MOB_DPS*dt;if(m.hp>0)return false;
+function burnMob(m,dt){if(!burnTick(m,dt))return false;if(!shielded(m))m.hp-=BURN_MOB_DPS*dt;if(m.hp>0)return false;
   if(m.k==='boss'||m.k==='treant'){killMob(m,ME);return true}const i=mobs.indexOf(m);if(i>=0){mobs.splice(i,1);evt({t:'mk',id:m.id,x:m.x,y:m.y})}return true}
 const lavaAhead=(m,dx,dy)=>biomeAt(m.x+dx*m.r*2,m.y+dy*m.r*2)===B_LAVA;
 function updateMob(m,dt){
@@ -1439,6 +1461,7 @@ function updateMob(m,dt){
   if(m.k==='boss'){updateBoss(m,dt,d,a,T);return}
   if(m.k==='treant'){updateTreant(m,dt,d,a,T);return}
   if(m.k==='frog'){updateFrog(m,dt,d,a,T);return}
+  if(m.state==='recall'){if(boss){const b=Math.atan2(boss.y-m.y,boss.x-m.x);m.face=b;moveTreant(m,Math.cos(b)*RECALL_SPD*dt,Math.sin(b)*RECALL_SPD*dt);return}m.state='idle'}
   const chase=T&&(m.k==='boar'?m.aggro>0&&d<520:(d<(isNight()?560:340)||m.aggro>0));
   if(chase){m.face=a;const spd=m.k==='boar'?108:m.spd;if(d>m.r+T.r+2)move(m,Math.cos(a)*spd*dt,Math.sin(a)*spd*dt);
     if(d<m.r+T.r+6&&m.acd<=0){hurt(T,m.k==='boar'?7:5,m);m.acd=m.k==='boar'?1.3:1.0}}
@@ -1488,20 +1511,35 @@ function updateBoss(m,dt,d,a,T){
 
 // Treant: slow; every skill stops it and shows a tell first
 const TR_SLAM_R=146,TR_SLAM_ARC=.95,TR_SLAM_DMG=20,ROOT_R=57,ROOT_T=1.6,ROOT_DMG=6,ROOT_MARK=.8,SEED_N=5,SEED_SPD=250,SEED_DMG=7,SEED_LIFE=2.2,TR_CAST_R=560;
+// Treant Elder: calls saplings, casts black fog (shrinks the view of whoever stands in it), grows a ring of choppable trees around you
+const LEAF_COL=['#7fd98a','#b6ff9a','#4f9a3a'],FOG_CR=150,FOG_LIFE=7,BLIND_R=105,ETREE_LIFE=30,EAT_T=15,EAT_WAIT=4,EAT_HEAL=.1,RECALL_SPD=170,TR_SAY={call:'孩子們，來！',fog:'黑霧…',grow:'森林啊，困住他們'};
+// a ring of trees around T with one gap; only on open land, never on anyone
+function growWall(T){const i0=Math.floor(T.x/CELL),j0=Math.floor(T.y/CELL),gap=Math.random()*6.28;
+  for(let j=j0-4;j<=j0+4;j++)for(let i=i0-4;i<=i0+4;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const x=(i+.5)*CELL,y=(j+.5)*CELL,r=Math.hypot(x-T.x,y-T.y),c=j*COLS+i;
+    if(r<92||r>132||angDiff(Math.atan2(y-T.y,x-T.x),gap)<.55||!biome[c]||biome[c]===B_LAVA||resGrid[c]||structGrid[c]||c===altar.cell||TG.some(q=>Math.hypot(q.x-x,q.y-y)<q.r+22))continue;
+    evt({t:'ra',k:'etree',x:Math.round(x+rnd(-4,4)),y:Math.round(y+rnd(-4,4)),c});etrees.push({c,at:time+ETREE_LIFE})}}
+// phase 2: saplings still alive EAT_T after a call are called back and eaten, each one heals EAT_HEAL of max hp
+function eatSprout(m,s){const i=mobs.indexOf(s);if(i<0)return;mobs.splice(i,1);const h=Math.round(m.max*EAT_HEAL);m.hp=Math.min(m.max,m.hp+h);
+  evt({t:'mk',id:s.id,x:s.x,y:s.y});evt({t:'et',x:Math.round(m.x),y:Math.round(m.y),h})}
 function rootPlayer(dur){if(P.roll>0||P.inv>0||P.dead)return;P.rooted=dur;toast('被根鬚纏住了！')}
 // the treant is the forest walking: trees, rocks and walls don't stop it (at its size it could never fit between them); only water does
 function moveTreant(m,dx,dy){if(biomeAt(m.x,m.y)===B_SWAMP){dx*=SWAMP_K;dy*=SWAMP_K}if(!isWater(m.x+dx,m.y))m.x+=dx;if(!isWater(m.x,m.y+dy))m.y+=dy}
 function treantList(T){return T&&!TG.includes(T)?[...TG,T]:TG}
 function updateTreant(m,dt,d,a,T){
+  if(!m.p2&&m.hp<m.max*.5){m.p2=true;evt({t:'bn',h:'樹精長老發怒了',s:'小樹精、黑霧和樹牆會來得更頻繁・小樹精 15 秒內沒清光，會被長老吃掉回血'})}
+  m.callT=(m.callT??6)-dt;m.fogT=(m.fogT??9)-dt;m.growT=(m.growT??12)-dt;
+  if(m.eatT!=null){m.eatT-=dt;if(m.eatT<=0&&m.state==='chase'){m.eatT=null;const sp=mobs.filter(o=>o.k==='sprout');
+    if(sp.length){for(const o of sp)o.state='recall';m.state='eat';m.t=EAT_WAIT;evt({t:'tc',x:Math.round(m.x),y:Math.round(m.y),s:'回來吧，孩子們…'})}}}
   if(Math.hypot(m.x-altar.x,m.y-altar.y)>1100||d>1000){m.state='chase';m.face=Math.atan2(altar.y-m.y,altar.x-m.x);moveTreant(m,Math.cos(m.face)*m.spd*dt,Math.sin(m.face)*m.spd*dt);m.hp=Math.min(m.max,m.hp+30*dt);return}
   m.healT=(m.healT??12)-dt;
   if(m.state==='chase'){m.face=a;if(d>m.r+T.r)moveTreant(m,Math.cos(a)*m.spd*dt,Math.sin(a)*m.spd*dt);
     if(d<m.r+T.r+8&&m.acd<=0){hurt(T,12,m);m.acd=1.6}
     m.atkT-=dt;
     if(m.healT<=0&&m.hp<m.max*.85){m.state='heal';m.t=2.4;m.healT=14;evt({t:'tf',x:Math.round(m.x),y:Math.round(m.y)})}
-    else if(m.atkT<=0){const opts=[];if(d<TR_SLAM_R+T.r)opts.push('slam');if(d<TR_CAST_R)opts.push('root','seed');
+    else if(m.atkT<=0){const opts=[];if(d<TR_SLAM_R+T.r)opts.push('slam');if(d<TR_CAST_R){opts.push('root','seed');if(m.callT<=0&&!mobs.some(o=>o.k==='sprout'))opts.push('call');if(m.fogT<=0)opts.push('fog');if(m.growT<=0)opts.push('grow')}
       if(opts.length){const o=opts.length>1?opts.filter(k=>k!==m.lastAtk):opts,k=o[Math.floor(Math.random()*o.length)];m.lastAtk=k;m.face=a;
-        if(k==='slam'){m.state='swind';m.t=.85}else if(k==='root'){m.state='rootc';m.t=.55}else{m.state='seedc';m.t=.7}}}}
+        if(k==='slam'){m.state='swind';m.t=.85}else if(k==='root'){m.state='rootc';m.t=.55}
+        else if(TR_SAY[k]){m.state=k+'c';m.t=k==='grow'?.9:.8;evt({t:'tc',x:Math.round(m.x),y:Math.round(m.y),s:TR_SAY[k]})}else{m.state='seedc';m.t=.7}}}}
   else if(m.state==='swind'){m.t-=dt;if(m.t<=0){for(const q of treantList(T))if(dist(m,q)<TR_SLAM_R+q.r&&angDiff(Math.atan2(q.y-m.y,q.x-m.x),m.face)<TR_SLAM_ARC)hurt(q,TR_SLAM_DMG,m);
       evt({t:'ts',x:Math.round(m.x),y:Math.round(m.y),a:Math.round(m.face*100)/100});m.state='trec';m.t=.65}}
   else if(m.state==='rootc'){m.t-=dt;m.face=a;if(m.t<=0){m.rootAt={x:T.x,y:T.y,T};evt({t:'rm',x:Math.round(T.x),y:Math.round(T.y)});m.state='rootw';m.t=ROOT_MARK}}
@@ -1509,6 +1547,10 @@ function updateTreant(m,dt,d,a,T){
       if(Math.hypot(q.x-r.x,q.y-r.y)<ROOT_R+q.r){if(q===P)rootPlayer(ROOT_T);else if(!q.isPet)sendTo(q.id,{t:'root',d:ROOT_T});hurt(q,ROOT_DMG,r)}
       m.state='trec';m.t=.5}}
   else if(m.state==='seedc'){m.t-=dt;m.face=a;if(m.t<=0){for(let i=0;i<SEED_N;i++)evt({t:'sd',id:++seedSeq,x:Math.round(m.x),y:Math.round(m.y-6),a:Math.round((a+(i-(SEED_N-1)/2)*.2)*100)/100});m.state='trec';m.t=.6}}
+  else if(m.state==='callc'){m.t-=dt;if(m.t<=0){for(let i=0,n=(m.p2?4:2)*Math.max(1,TG.length);i<n;i++){const s=findSpot(m.x,m.y,50,170);if(s){spawnMob('sprout',s.x,s.y).aggro=60;evt({t:'sp',x:Math.round(s.x),y:Math.round(s.y)})}}m.callT=m.p2?9:14;if(m.p2)m.eatT=EAT_T;m.state='trec';m.t=.5}}
+  else if(m.state==='fogc'){m.t-=dt;m.face=a;if(m.t<=0){evt({t:'fg',x:Math.round(T.x),y:Math.round(T.y)});m.fogT=m.p2?8:12;m.state='trec';m.t=.5}}
+  else if(m.state==='growc'){m.t-=dt;m.face=a;if(m.t<=0){growWall(T);m.growT=m.p2?10:15;m.state='trec';m.t=.6}}
+  else if(m.state==='eat'){m.t-=dt;for(const o of mobs.filter(o=>o.k==='sprout'&&o.state==='recall'))if(m.t<=0||dist(o,m)<m.r+o.r+6)eatSprout(m,o);if(m.t<=0){m.state='trec';m.t=.4}}
   else if(m.state==='heal'){m.t-=dt;m.hp=Math.min(m.max,m.hp+14*dt);if(m.t<=0){m.state='chase';m.atkT=rnd(1,2)}}
   else if(m.state==='trec'){m.t-=dt;if(m.t<=0){m.state='chase';m.atkT=rnd(1.6,2.6)}}
 }
@@ -1542,7 +1584,7 @@ function updatePet(dt){
   // fight: hostile mobs near the owner (wild boars only once they're angry, so taming isn't interrupted)
   let tgt=null,bd=1e9;for(const m of mobs){if((m.k==='boar'||m.k==='frog')&&m.aggro<=0)continue;const dm=dist(m,P);if(dm<220){const d=dist(m,p);if(d<bd){bd=d;tgt=m}}}
   if(tgt){const reach=p.r+tgt.r+4;if(bd>reach)petStep(p,tgt.x,tgt.y,D.spd*1.1,dt);else p.face=Math.atan2(tgt.y-p.y,tgt.x-p.x);
-    if(bd<=reach+4&&p.cd<=0){p.cd=D.cd;floats.push({x:tgt.x,y:tgt.y-tgt.r-8,txt:String(D.dmg),t:.7,col:'#d8f0b0'});burst(tgt.x,tgt.y,tgt.k==='moss'?'#9fc069':'#b84a3a',4);
+    if(bd<=reach+4&&p.cd<=0){p.cd=D.cd;floats.push({x:tgt.x,y:tgt.y-tgt.r-8,txt:shielded(tgt)?'無敵':String(D.dmg),t:.7,col:shielded(tgt)?'#9dffb0':'#d8f0b0'});burst(tgt.x,tgt.y,tgt.k==='moss'?'#9fc069':'#b84a3a',4);
       act({t:'hit',id:tgt.id,dmg:D.dmg,x:p.x,y:p.y,pet:1})}
     return}
   // gather: loose pickables near the owner
@@ -1563,8 +1605,8 @@ function toAll(o){onPrivate(o);for(const id of others.keys())sendTo(id,Object.as
 function onPrivate(m){switch(m.t){
   case'love':floats.push({x:m.x,y:m.y-24,txt:`♥ ${m.n}/${TAME_N}`,t:1.2,col:'#ff9fb8'});break;
   case'tame':{const k=m.k||'boar';addPet(k);banner('馴服了'+PETS[k].name,'打開背包的「寵物」分頁可以召喚或收回');break}
-  case'tdown':{const first=!treantDown;treantDown=true;if(first||Math.random()<.3)give('樹精核心',1,m.x,m.y-42);if(first)toast('解鎖配方：樹精法杖、樹精裝備');writeSave();if(!$('panel').hidden)renderPanel();break} // the rare core is rolled per player; a first kill always gets one
-  case'pup':if(!pets.some(p=>p.k==='wolf'))addPet('wolf');break;
+  case'tdown':{const first=!treantDown;treantDown=true;if(!has('長老年輪'))give('長老年輪',1,m.x,m.y-56);if(first||Math.random()<.3)give('樹精核心',1,m.x,m.y-42);if(first)toast('解鎖配方：樹精法杖、樹精裝備');writeSave();if(!$('panel').hidden)renderPanel();break} // the rare core is rolled per player; a first kill always gets one
+  case'pup':if(!pets.some(p=>p.k==='wolf'))addPet('wolf');if(!has('狼王的心臟')){give('狼王的心臟',1,P.x,P.y-20);toast('得到狼王的心臟・拿在手上、帶著古樹種子到石祭壇可以喚醒樹精長老，心臟不會用掉');writeSave()}break;
   case'board':P.boat=true;P.x=m.x;P.y=m.y;P.roll=0;toast('上船了・靠岸按 E 下船');break; // each player's first Wolf King only; pets can't be released, so owning a pup means this one's used
 }}
 function giveAll(k,n,x,y){giveTo(ME,k,n,x,y);for(const id of others.keys())giveTo(id,k,n,x,y)}
@@ -1605,7 +1647,7 @@ function handleAct(m,from){switch(m.t){
   case'sleep':if(!isNight())break;dayT=.02;day++;evt({t:'bn',h:`第 ${day} 天`,s:MODE==='solo'?'一夜好眠，獲得「休息」':`${m.n} 睡了一覺，天亮了`});
     for(let i=mobs.length-1;i>=0;i--)if(mobs[i].k==='moss'&&Math.hypot(mobs[i].x-m.x,mobs[i].y-m.y)<700)mobs.splice(i,1);break;
   case'summont':{if(boss){refund(from,{古樹種子:1},'已經有王醒著了');break}
-    const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('treant',sp.x,sp.y);evt({t:'bn',h:'樹精',s:'紅色扇形：樹枝重擊・地上的綠圈：根鬚纏繞，快離開・舉手發光：種子投擲・綠光環繞：正在恢復，趁機輸出'});break}
+    const sp=findSpot(altar.x,altar.y,140,200,[1,2,3])||{x:altar.x,y:altar.y-160};boss=spawnMob('treant',sp.x,sp.y);evt({t:'bn',h:'樹精長老',s:'紅色扇形：樹枝重擊・綠圈：根鬚纏繞・舉手發光：種子投擲・綠光：正在恢復・小樹精：長老的幫手・黑霧：看不清楚，快走出去・樹牆：可以砍掉'});break}
   case'plant':{const s=structGrid[m.c],cr=CROPS[m.k];if(!cr)break;if(!s||s.k!=='plot'||s.crop){refund(from,{[cr.seed]:1},'這塊菜圃不能種，種子退回');break}
     s.crop={k:m.k,g:cr.t};evt({t:'cp',c:m.c,cr:s.crop});break}
   case'harv':{const s=structGrid[m.c];if(!s||s.k!=='plot'||!s.crop||s.crop.g>0)break;const cr=CROPS[s.crop.k];s.crop=null;evt({t:'cp',c:m.c,cr:null});
@@ -1618,7 +1660,11 @@ function handleAct(m,from){switch(m.t){
 function applyEvt(m){switch(m.t){
   case'rh':{const o=resGrid[m.c];if(!o)break;o.hp=m.hp;o.flash=.15;burst(o.x,o.y-8,RES[o.k].mine?'#9a9d98':'#c9a26a',5);break}
   case'rx':{const o=resGrid[m.c];if(!o)break;const d=RES[o.k];resGrid[m.c]=null;if(d.pick)burst(o.x,o.y,ITEM[d.drop[0][0]],6);else burst(o.x,o.y-10,d.mine?'#8d918c':'#5d7f3a',16);break}
-  case'ra':addRes(m.k,m.x,m.y,m.c);break;
+  case'ra':{const o=addRes(m.k,m.x,m.y,m.c);if(m.k==='etree'){o.g=0;burst(m.x,m.y-6,'#3b4d2a',10)}break}
+  case'sp':burst(m.x,m.y-6,'#6f9a4a',14);break;
+  case'et':tfx.push({k:'bloom',x:m.x,y:m.y-50,t:.8,T:.8});floats.push({x:m.x,y:m.y-120,txt:`吞食 +${m.h}`,t:1.2,col:'#9dffb0'});burst(m.x,m.y-60,'#9dffb0',14);break;
+  case'tc':floats.push({x:m.x,y:m.y-140,txt:m.s,t:1.4,col:'#c9b6ff'});break;
+  case'fg':fogs.push({x:m.x,y:m.y,t:FOG_LIFE});burst(m.x,m.y,'#2a1d3a',18);break;
   case'bd':{const o=resGrid[m.c];if(o){o.dep=150;burst(o.x,o.y,ITEM['莓果'],6)}break}
   case'sa':if((isWallK(m.k)||!structGrid[ci(m.x,m.y)])&&addStruct(m.k,m.x,m.y,m.o))burst(m.x,m.y,m.k==='swall'||m.k==='furnace'?'#9a9d98':'#c9a26a',10);break;
   case'bn':banner(m.h,m.s);break;
@@ -1732,6 +1778,7 @@ function render(){
   sea.draw(cx,cy,hw,hh);
   for(const r of rootTrail)drawRootTrail(r);
   for(const x of tfx)if(x.k==='mark')drawRootMark(x);
+  for(const m of mobs)if(m.k==='treant'&&m.eatFx>0)drawEatCircle(m);
   // drawables
   const list=[];
   for(let j=j0;j<=j1+1&&j<ROWS;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i,o=resGrid[c];if(o)list.push([o.y,0,o]);const s=structGrid[c];if(s)list.push([s.y,1,s]);if(wallH[c])list.push([wallH[c].y,1,wallH[c]]);if(wallV[c])list.push([wallV[c].y,1,wallV[c]])}
@@ -1757,9 +1804,15 @@ function render(){
     ctx.lineCap='round';for(let j=-1;j<=1;j++){ctx.strokeStyle=`rgba(220,240,255,${.9*k})`;ctx.lineWidth=4*k+1;ctx.beginPath();ctx.moveTo(-26,j*9-6);ctx.quadraticCurveTo(0,j*9+8,26,j*9-6);ctx.stroke()}
     ctx.restore()}
   // treant effects and projectiles
-  for(const x of tfx){if(x.k==='slam')drawSlamFx(x);else if(x.k==='burst')drawRootBurst(x)}
+  // devour: life streams from the recalled saplings, leaves spiralling in, a shield around the elder
+  if(boss&&boss.k==='treant')drawEatFx(boss);
+  for(const x of tfx){if(x.k==='slam')drawSlamFx(x);else if(x.k==='burst')drawRootBurst(x);else if(x.k==='bloom')drawBloom(x)}
   for(const s of seeds){ctx.save();ctx.translate(s.x,s.y-12);ctx.rotate(time*12+s.id);ctx.fillStyle='#1f1712';ctx.beginPath();ctx.ellipse(0,0,6,4.2,0,0,6.28);ctx.fill();ctx.fillStyle='#8a6a44';ctx.beginPath();ctx.ellipse(0,0,4.8,3,0,0,6.28);ctx.fill();ctx.fillStyle='#c9a26a';ctx.fillRect(-2,-1.4,2.4,1);ctx.restore()}
   for(const s of shots){const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,13);g.addColorStop(0,'rgba(190,255,200,.9)');g.addColorStop(1,'rgba(90,220,120,0)');ctx.fillStyle=g;ctx.fillRect(s.x-13,s.y-13,26,26);ctx.fillStyle='#eafff0';ctx.beginPath();ctx.arc(s.x,s.y,3.2,0,6.28);ctx.fill()}
+  // black fog clouds
+  for(const f of fogs){const g=Math.min(1,(FOG_LIFE-f.t)/.5),R=FOG_CR*g;ctx.fillStyle=`rgba(14,8,24,${.3*Math.min(1,f.t)})`;
+    for(let k=0;k<9;k++){const an=k/9*6.28+time*.4*(k%2?1:-1);ctx.beginPath();ctx.arc(f.x+Math.cos(an)*R*.55,f.y+Math.sin(an)*R*.4,R*.5,0,6.28);ctx.fill()}
+    ctx.beginPath();ctx.ellipse(f.x,f.y,R*.7,R*.5,0,0,6.28);ctx.fill()}
   // particles
   for(const p of parts){ctx.globalAlpha=Math.min(1,p.t*2);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)}ctx.globalAlpha=1;
   // darkness
@@ -1768,15 +1821,19 @@ function render(){
     dctx.globalCompositeOperation='destination-out';const k=SCALE/2;
     const light=(x,y,r,f)=>{const X=(x-cx)*k+dark.width/2,Y=(y-cy)*k+dark.height/2,R=r*k;if(X<-R||Y<-R||X>dark.width+R||Y>dark.height+R)return;const g=dctx.createRadialGradient(X,Y,0,X,Y,R);g.addColorStop(0,`rgba(0,0,0,${f})`);g.addColorStop(1,'rgba(0,0,0,0)');dctx.fillStyle=g;dctx.fillRect(X-R,Y-R,R*2,R*2)};
     light(P.x,P.y,190,.75);for(const o of others.values())if(!o.dead)light(o.x,o.y,190,.75);for(const s of structs)if(s.k==='furnace'&&s.fz.burn>0)light(s.x,s.y,140,.6);for(const s of structs)if(s.k==='fire')light(s.x,s.y,300+Math.sin(time*9+s.anim)*8,1);
-    light(altar.x,altar.y,120,.6);for(const s of structs)if(s.k==='lamp')light(s.x,s.y-30,260,.95);
+    light(altar.x,altar.y,120,.6);for(const m of mobs)if(m.k==='treant'&&m.eatFx>0)light(m.x,m.y-40,230,.9*m.eatFx);else if(m.k==='sprout'&&m.state==='recall')light(m.x,m.y-8,60,.5);for(const s of structs)if(s.k==='lamp')light(s.x,s.y-30,260,.95);
     for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const c=j*COLS+i;if(biome[c]===B_LAVA&&(i+j)%2===0)light((i+.5)*CELL,(j+.5)*CELL,75,.55);const o=resGrid[c];if(o&&(o.k==='mtree'||o.k==='crystal'||o.k==='glowshroom'))light(o.x,o.y-(o.k==='mtree'?24:8),o.k==='glowshroom'?50:80,.5)}
     ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(dark,0,0,cv.width,cv.height);
     // warm glow
     ctx.globalCompositeOperation='lighter';ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
     for(const s of structs)if(s.k==='lamp'&&Math.abs(s.x-cx)<hw+200&&Math.abs(s.y-cy)<hh+200){const g=ctx.createRadialGradient(s.x,s.y-30,0,s.x,s.y-30,160);g.addColorStop(0,`rgba(150,120,255,${.2*dk})`);g.addColorStop(1,'rgba(120,100,255,0)');ctx.fillStyle=g;ctx.fillRect(s.x-160,s.y-190,320,320)}
+    for(const m of mobs)if(m.k==='treant'&&m.eatFx>0){const g=ctx.createRadialGradient(m.x,m.y-40,0,m.x,m.y-40,170);g.addColorStop(0,`rgba(120,255,150,${.25*dk*m.eatFx})`);g.addColorStop(1,'rgba(120,255,150,0)');ctx.fillStyle=g;ctx.fillRect(m.x-170,m.y-210,340,340)}
     for(const s of structs)if(s.k==='fire'&&Math.abs(s.x-cx)<hw+200&&Math.abs(s.y-cy)<hh+200){const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,180);g.addColorStop(0,`rgba(255,150,60,${.22*dk})`);g.addColorStop(1,'rgba(255,120,40,0)');ctx.fillStyle=g;ctx.fillRect(s.x-180,s.y-180,360,360)}
     ctx.globalCompositeOperation='source-over'}
   const dusk=dayT>.5&&dayT<.7?Math.sin((dayT-.5)/.2*Math.PI)*.16:0;if(dusk>0){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=`rgba(255,120,50,${dusk})`;ctx.fillRect(0,0,cv.width,cv.height)}
+  // blinded by the black fog: only a small circle around you stays visible
+  if(P.blindK>.01){const X=DPR*(VW/2+(P.x-cx)*SCALE),Y=DPR*(VH/2+(P.y-12-cy)*SCALE),R=BLIND_R*SCALE*DPR+(1-P.blindK)*Math.hypot(cv.width,cv.height);
+    ctx.setTransform(1,0,0,1,0,0);const g=ctx.createRadialGradient(X,Y,R*.45,X,Y,R);g.addColorStop(0,'rgba(8,4,14,0)');g.addColorStop(1,`rgba(8,4,14,${.97*P.blindK})`);ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height)}
   // overlay in world: eyes at night, floats, hint, compass
   ctx.setTransform(DPR*SCALE,0,0,DPR*SCALE,DPR*(VW/2-cx*SCALE),DPR*(VH/2-cy*SCALE));
   if(dk>.3)for(const m of mobs)if(m.k==='treant'){const fl=Math.cos(m.face)<0?-1:1;ctx.fillStyle='#b6ffc4';ctx.fillRect(m.x+fl*.6-2,m.y-80,4,3);ctx.fillRect(m.x+fl*15.6-2,m.y-80,4,3)}else if(m.k!=='boar'&&m.k!=='frog'){const ex=Math.cos(m.face),ey=Math.sin(m.face);ctx.fillStyle=m.k==='boss'?'#bfe8ff':'#ffe37a';const s=m.k==='boss'?2.6:1.7,o=m.k==='boss'?24:7;
@@ -1811,6 +1868,10 @@ function drawRes(o){const s=o.sz,f=o.flash>0;o.flash-=1/60;const wob=f?Math.sin(
   switch(o.k){
   case'tree':shadow(o.x+4,o.y+4,16*s,7*s);ctx.fillStyle='#d8d2c4';ctx.fillRect(o.x-2.5*s+wob,o.y-14*s,5*s,16*s);ctx.fillStyle='#3a3530';ctx.fillRect(o.x-2.5*s+wob,o.y-8*s,5*s,1.5);
     for(const[dx,dy,r,c]of[[0,-26,16,'#5f8a36'],[-9,-20,11,'#6d9a3e'],[9,-21,11,'#557f30'],[2,-31,10,'#7fae4a']]){ctx.fillStyle=f?'#c9e3a0':c;ctx.beginPath();ctx.arc(o.x+dx*s+wob,o.y+dy*s,r*s,0,6.28);ctx.fill()}break;
+  case'etree':{o.g=Math.min(1,(o.g??1)+1/60*2.5);const z=s*(.3+.7*o.g);shadow(o.x+4,o.y+4,15*z,6*z);ctx.strokeStyle=f?'#c9b6a0':'#2a1f17';ctx.lineCap='round';ctx.lineWidth=5*z;ctx.beginPath();ctx.moveTo(o.x,o.y+2);ctx.quadraticCurveTo(o.x-4*z+wob,o.y-10*z,o.x+wob,o.y-20*z);ctx.stroke();
+    ctx.lineWidth=2*z;ctx.beginPath();ctx.moveTo(o.x-1+wob,o.y-14*z);ctx.lineTo(o.x-11*z+wob,o.y-24*z);ctx.moveTo(o.x+1+wob,o.y-16*z);ctx.lineTo(o.x+12*z+wob,o.y-27*z);ctx.stroke();
+    for(const[dx,dy,r,c]of[[0,-28,12,'#1f2e1c'],[-10,-24,8,'#263821'],[10,-27,8,'#1b2a19'],[1,-36,7,'#2e4426']]){ctx.fillStyle=f?'#9aa88a':c;ctx.beginPath();ctx.arc(o.x+dx*z+wob,o.y+dy*z,r*z,0,6.28);ctx.fill()}
+    ctx.fillStyle='#b6ffc4';ctx.fillRect(o.x-3*z+wob,o.y-12*z,2,2);ctx.fillRect(o.x+1.5*z+wob,o.y-12*z,2,2);break}
   case'pine':shadow(o.x+5,o.y+4,17*s,7*s);ctx.fillStyle='#4a3424';ctx.fillRect(o.x-3*s,o.y-8*s,6*s,10*s);
     for(let k=0;k<3;k++){ctx.fillStyle=f?'#7da27a':['#1f3b26','#264730','#2e543a'][k];ctx.beginPath();const yy=o.y-6*s-k*13*s,ww=(19-k*4.5)*s;ctx.moveTo(o.x-ww+wob,yy);ctx.lineTo(o.x+ww+wob,yy);ctx.lineTo(o.x+wob,yy-22*s);ctx.closePath();ctx.fill()}break;
   case'rock':shadow(o.x+3,o.y+5,22*s,8*s);ctx.fillStyle=f?'#c9ccc6':'#7d817c';ctx.beginPath();ctx.moveTo(o.x-21*s+wob,o.y+3);ctx.lineTo(o.x-15*s,o.y-14*s);ctx.lineTo(o.x-2*s,o.y-21*s);ctx.lineTo(o.x+14*s,o.y-15*s);ctx.lineTo(o.x+21*s+wob,o.y);ctx.lineTo(o.x+10*s,o.y+6);ctx.lineTo(o.x-10*s,o.y+6);ctx.closePath();ctx.fill();
@@ -1922,6 +1983,7 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
   else if(m.k==='moss')drawMoss(m,f,c,sn);
   else if(m.k==='treant')drawTreant(m,f);
   else if(m.k==='frog')drawFrog(m,f);
+  else if(m.k==='sprout')drawSprout(m,f);
   else{const rw=m.state==='rwind';if(rw){const p=.5+Math.sin(time*18)*.5;ctx.fillStyle=`rgba(120,255,140,${.14+p*.12})`;ctx.strokeStyle=`rgba(170,255,175,${.65+p*.35})`;ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.beginPath();ctx.ellipse(m.x,m.y,ROAR_R,ROAR_R*.75,0,0,6.28);ctx.fill();ctx.stroke();ctx.setLineDash([])}
     shadow(m.x,m.y+10,34,11);const wind=m.state==='wind',cw=m.state==='cwind';ctx.save();ctx.translate(m.x,m.y-14);ctx.rotate(a);
     if(wind){ctx.fillStyle=`rgba(255,80,60,${.35+Math.sin(time*30)*.2})`;ctx.beginPath();ctx.ellipse(6,0,46,26,0,0,6.28);ctx.fill()}
@@ -1930,6 +1992,37 @@ function drawMob(m){const f=m.flash>0,a=m.face,c=Math.cos(a),sn=Math.sin(a);
       ctx.strokeStyle='#ffe3a8';ctx.lineWidth=2;for(const sy of[-1,1])for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(22,sy*(14+j*3));ctx.lineTo(32,sy*(18+j*3));ctx.stroke()}}
     drawWolf(m,f,wind,cw,rw);ctx.restore()}
   if(m.hp<m.max&&m.k!=='boss'&&m.k!=='treant'){const w=m.r*2,by=m.k==='frog'?m.y-58:m.y-m.r*2-12;ctx.fillStyle='#000a';ctx.fillRect(m.x-w/2,by,w,3);ctx.fillStyle='#d55a4a';ctx.fillRect(m.x-w/2,by,w*m.hp/m.max,3)}}
+// devour magic, under the elder: two glowing rings, petals turning one way and runes the other
+const RUNE7=[["...x...","..x.x..",".x...x.","x..x..x",".x...x.","..x.x..","...x..."],["x..x..x",".x.x.x.","..xxx..","...x...","...x...","..x.x..",".x...x."],[".......",".xx.xx.","x..x..x",".......",".xx.xx.","x..x..x","......."],["..xxx..",".x.x.x.","x..x..x","xxxxxxx","x..x..x",".x.x.x.","..xxx.."]];
+function drawEatCircle(m){const k=m.eatFx,R=96,p=.75+.25*Math.sin(time*6);ctx.save();ctx.translate(m.x,m.y);ctx.scale(1,.45);ctx.globalAlpha=k;
+  ctx.fillStyle=`rgba(90,220,120,${.12*p})`;ctx.beginPath();ctx.arc(0,0,R,0,6.28);ctx.fill();
+  ctx.strokeStyle=`rgba(170,255,190,${.85*p})`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R,0,6.28);ctx.stroke();ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,R*.72,0,6.28);ctx.stroke();
+  ctx.save();ctx.rotate(time*.8);ctx.fillStyle=`rgba(120,240,140,${.35*p})`;for(let i=0;i<6;i++){ctx.rotate(1.047);ctx.beginPath();ctx.ellipse(R*.36,0,R*.3,R*.1,0,0,6.28);ctx.fill()}ctx.restore();
+  for(let i=0;i<8;i++){const a=i/8*6.28-time*.6,g=RUNE7[i%4],rx=Math.cos(a)*R*.86,ry=Math.sin(a)*R*.86;ctx.fillStyle=`rgba(210,255,215,${.6+.4*Math.sin(time*5+i)})`;
+    for(let y=0;y<7;y++)for(let x=0;x<7;x++)if(g[y][x]==='x')ctx.fillRect(rx+(x-3.5)*2,ry+(y-3.5)*4.4,2,4.4)}
+  ctx.restore()}
+// devour magic, over everything: streams of life with motes flowing to the elder, spiralling leaves, a leaf-green shield
+function drawEatFx(m){
+  for(const o of mobs){if(o.k!=='sprout'||o.state!=='recall')continue;const x0=o.x,y0=o.y-10,x1=m.x,y1=m.y-60,mx=(x0+x1)/2+Math.sin(time*4+o.id)*30,my=Math.min(y0,y1)-50+Math.cos(time*3+o.id)*12;
+    const path=()=>{ctx.beginPath();ctx.moveTo(x0,y0);ctx.quadraticCurveTo(mx,my,x1,y1)};
+    ctx.lineCap='round';path();ctx.strokeStyle='rgba(120,255,150,.18)';ctx.lineWidth=9;ctx.stroke();path();ctx.strokeStyle='rgba(200,255,210,.75)';ctx.lineWidth=2;ctx.stroke();
+    for(let k=0;k<4;k++){const u=(time*1.4+k/4+o.id*.13)%1,v=1-u,px=v*v*x0+2*v*u*mx+u*u*x1,py=v*v*y0+2*v*u*my+u*u*y1;ctx.fillStyle='rgba(120,255,150,.35)';ctx.beginPath();ctx.arc(px,py,6,0,6.28);ctx.fill();ctx.fillStyle='#eafff0';ctx.beginPath();ctx.arc(px,py,2.6,0,6.28);ctx.fill()}
+    ctx.fillStyle=`rgba(140,255,160,${.25+.15*Math.sin(time*10+o.id)})`;ctx.beginPath();ctx.ellipse(o.x,o.y,16,7,0,0,6.28);ctx.fill()}
+  for(const l of leaves){ctx.save();ctx.translate(l.cx+Math.cos(l.a)*l.r,l.cy+Math.sin(l.a)*l.r*.6);ctx.rotate(l.spin);ctx.globalAlpha=Math.min(1,l.t*2);ctx.fillStyle=l.col;ctx.beginPath();ctx.ellipse(0,0,4.5,2,0,0,6.28);ctx.fill();ctx.restore()}ctx.globalAlpha=1;
+  const k=m.eatFx||0;if(k>0){const p=.7+.3*Math.sin(time*7);ctx.fillStyle=`rgba(110,240,140,${.1*k})`;ctx.strokeStyle=`rgba(190,255,200,${.7*k*p})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.ellipse(m.x,m.y-58,62,86,0,0,6.28);ctx.fill();ctx.stroke();
+    ctx.strokeStyle=`rgba(230,255,235,${.6*k})`;ctx.lineWidth=2;for(let i=0;i<3;i++){const a=time*2+i*2.09;ctx.beginPath();ctx.ellipse(m.x,m.y-58,62,86,0,a,a+.7);ctx.stroke()}}}
+// a sapling eaten: a ring and petals bursting out of the elder
+function drawBloom(x){const k=1-x.t/x.T;ctx.strokeStyle=`rgba(170,255,190,${1-k})`;ctx.lineWidth=4*(1-k)+1;ctx.beginPath();ctx.ellipse(x.x,x.y,20+70*k,(20+70*k)*.6,0,0,6.28);ctx.stroke();
+  ctx.fillStyle=`rgba(200,255,210,${.8*(1-k)})`;for(let i=0;i<8;i++){const a=i/8*6.28+k*2,r=10+55*k;ctx.beginPath();ctx.ellipse(x.x+Math.cos(a)*r,x.y+Math.sin(a)*r*.6,5*(1-k)+1,2.2,a,0,6.28);ctx.fill()}}
+// sapling the Treant Elder calls: a walking stump with a leaf crown
+function drawSprout(m,f){const k=q=>f?'#fff':q,b=Math.abs(Math.sin(m.anim*8))*2.5,sw=Math.sin(m.anim*8),fl=Math.cos(m.face)<0?-1:1;
+  shadow(m.x,m.y+5,11,4);ctx.save();ctx.translate(m.x,m.y-b);ctx.scale(fl,1);ctx.lineCap='round';
+  ctx.strokeStyle=k('#3b2a1c');ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(-4-sw*2,6+b);ctx.moveTo(3,0);ctx.lineTo(4+sw*2,6+b);ctx.stroke();
+  ctx.fillStyle=k('#6b4e34');ctx.beginPath();ctx.ellipse(0,-8,6,9,0,0,6.28);ctx.fill();
+  ctx.strokeStyle=k('#4a3424');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-2,-14);ctx.lineTo(-1,-3);ctx.stroke();
+  ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-5,-9);ctx.lineTo(-11,-14+sw*2);ctx.moveTo(5,-9);ctx.lineTo(11,-13-sw*2);ctx.stroke();
+  for(const[x,y,r,c]of[[0,-19,7,'#3f6a2a'],[-5,-16,5,'#4f7d32'],[5,-17,5,'#36592a']]){ctx.fillStyle=k(c);ctx.beginPath();ctx.arc(x,y,r,0,6.28);ctx.fill()}
+  ctx.fillStyle='#b6ffc4';ctx.fillRect(0,-11,2,2);ctx.fillRect(3.5,-11,2,2);ctx.restore()}
 // moss sprite: lumpy body, sprouting leaf and toadstool, drawn around its own centre
 const MOSS_DARK=(()=>{const p=new Path2D();for(const[x,y,r]of[[-5,-5,3.6],[5,2,3.2],[-6,5,2.6],[6,-6,2.2],[0,7,2]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
 const MOSS_LIGHT=(()=>{const p=new Path2D();for(const[x,y,r]of[[-2,-9,2.8],[3,-8.5,2],[-8,-3,1.8],[8,-2,1.6],[-3,0,1.2],[2,4,1.1]]){p.moveTo(x+r,y);p.arc(x,y,r,0,6.28)}return p})();
@@ -2181,7 +2274,7 @@ function hud(){const MH=maxHp(),MS=maxSt();learn();
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   syncHeld();renderHot();const hk=held();
   $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${wDmg(P.weapon)}${DUR_MAX[P.weapon]?`・耐久 ${durOf(P.weapon)}/${durMax(P.weapon)}`:''}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorTotal()?`・護甲 ${armorTotal()}（減傷 ${armorCut()}%）`:''}${bagFull()?'・<b style="color:var(--bad)">背包滿了</b>':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
-  $('bossBar').hidden=!boss;if(boss)$('bossName').textContent=boss.k==='treant'?'樹精':'灰鬃狼王';if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
+  $('bossBar').hidden=!boss;if(boss)$('bossName').textContent=boss.k==='treant'?'樹精長老':'灰鬃狼王';if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
 
