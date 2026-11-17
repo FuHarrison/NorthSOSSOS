@@ -187,6 +187,9 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .photh b{font-weight:600;font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}.photh b.full{color:var(--bad)}
 .photh .act{margin:0 0 0 auto;padding:3px 10px;font-size:12px}
 .eqsec{border-color:#8fc0d855}.eqsec .bs{cursor:pointer}.eqsec .bs.empty .hn{color:var(--mute)}
+.skills{display:grid;gap:8px}.sk{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;display:grid;gap:4px}
+.sk h3{margin:0;font-size:14px;display:flex;justify-content:space-between}.sk h3 b{color:var(--accent);font-variant-numeric:tabular-nums}.sk p{margin:0;font-size:12px;color:var(--mute)}
+.sk .fbar i{background:linear-gradient(90deg,#8fc0d8,#c8e6f2)}
 .upg{border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;gap:6px;background:#0000001f}.upg p{margin:0}
 .upg .act{margin:0;justify-self:start;padding:6px 14px}.ci .q{flex:none;font-size:11px;color:var(--accent)}
 .chestwrap .bagsec{flex:1 1 0}.chestwrap .bs{cursor:pointer}
@@ -272,6 +275,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
       <button class="tab on" data-tab="craft" type="button">製作</button>
       <button class="tab" data-tab="inv" type="button">背包</button>
       <button class="tab" data-tab="pets" type="button">寵物</button>
+      <button class="tab" data-tab="skills" type="button">技能</button>
       <button class="tab" data-tab="help" type="button">說明</button>
       <button class="x" id="panelX" type="button" aria-label="關閉">×</button>
     </header>
@@ -302,7 +306,7 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 <div class="modal" id="dead" hidden>
   <div class="sheet" style="padding:24px;gap:12px;max-width:360px;text-align:center">
     <h2 style="font-family:var(--display);font-size:28px;margin:0;letter-spacing:.1em">你倒下了</h2>
-    <p class="note" style="margin:0" id="deadMsg"></p><p class="note" style="margin:0">食物效果消失。你會在床邊（或出生點）醒來。</p>
+    <p class="note" style="margin:0" id="deadMsg"></p><p class="note" style="margin:0">食物效果消失，每種熟練度掉 5%。你會在床邊（或出生點）醒來。</p>
     <button class="act go" id="respawn" type="button">重新站起</button>
   </div>
 </div>
@@ -459,6 +463,12 @@ const DUR_MAX={木棒:50,燧石斧:120,燧石鎬:120,燧石矛:100,銅鎬:200,�
   皮帽:80,皮甲:100,皮褲:90,青銅盔:150,青銅甲:180,青銅護腿:160,鐵盔:220,鐵甲:260,鐵護腿:240,樹精裝備:240,木盾:80,青銅盾:150,鐵盾:220};
 // upgrades: each kind of gear has a level 1..Q_MAX for you (q). Per level: damage / tool power +20%, armour +30%, durability +50%
 const Q_MAX=3;
+// skills: practise by doing; level 0..SK_MAX (a float: the fraction is progress), each level +1% to its effect; dying takes 5% off every skill
+const SKILLS={melee:['近戰','近戰打中怪','近戰傷害'],ranged:['遠程','法杖打中怪','遠程傷害'],chop:['砍樹','砍中樹','砍樹力道'],mine:['挖礦','挖中石頭和礦','挖礦力道'],
+  block:['格擋','擋下攻擊（招架算 3 次）','格擋值提高、格擋耗的耐力減少'],run:['奔跑','衝刺','衝刺耗的耐力減少'],roll:['閃避','翻滾','翻滾耗的耐力減少']};
+const SK_MAX=50;
+// what a level does, in numbers (the stamina skills cut costs by .5% / .6% a level)
+const skEff=(k,lv)=>k==='block'?`格擋值 +${lv}%、格擋耗的耐力 -${Math.round(lv*.5)}%`:k==='run'?`衝刺耗的耐力 -${Math.round(lv*.6)}%`:k==='roll'?`翻滾耗的耐力 -${Math.round(lv*.6)}%`:`${SKILLS[k][2]} +${lv}%`;
 const CHOP={none:3,木棒:5,燧石斧:16,燧石鎬:3,銅鎬:4,燧石矛:3,狼牙劍:8};
 // 鎬的等級：大石頭、煤、銅、錫要 1 級（燧石鎬），鐵要 2 級（銅鎬）
 const MINE={燧石鎬:16,銅鎬:26},PICK_TIER={燧石鎬:1,銅鎬:2};
@@ -563,7 +573,7 @@ function unpackSeen(str,merge){if(!merge)resetFog();let s;try{s=atob(str)}catch(
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1);if(merge&&MODE!=='solo')fogNew.push(c)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
 let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
-let inv={},dur={},q={},eq=noEq(),known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
+let inv={},dur={},q={},sk={},eq=noEq(),known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
@@ -750,7 +760,7 @@ function populate(){
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
 function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box,cr:s.crop})),loots:loots.map(l=>({id:l.id,x:l.x,y:l.y,bag:l.bag,g:l.g}))};if(MODE!=='solo')w.seen=packSeen();return w}
-function personal(){return{inv,dur,q,eq,known:[...known],foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
+function personal(){return{inv,dur,q,sk,eq,known:[...known],foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 // ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
@@ -773,6 +783,7 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
   loots=(s.loots||[]).filter(l=>l&&isFinite(l.x)&&isFinite(l.y)&&l.bag).map(l=>({id:l.id|0,x:+l.x,y:+l.y,bag:normBox(l.bag),g:l.g?String(l.g).slice(0,10):undefined}));lootSeq=Math.max(0,...loots.map(l=>l.id));
   if(flags.summoned&&!flags.boss)flags.summoned=false}
 function applyPersonal(s){inv=s.inv||{};known=new Set((Array.isArray(s.known)?s.known:Object.keys(inv)).filter(k=>ITEM[k]));q={};for(const k in s.q||{})if(DUR_MAX[k]&&s.q[k]>1)q[k]=Math.min(Q_MAX,s.q[k]|0);
+  sk={};for(const k in s.sk||{})if(SKILLS[k]&&s.sk[k]>0)sk[k]=Math.min(SK_MAX,+s.sk[k]);
   dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(durMax(k),s.dur[k]);
   // older saves have no slots: wear the best piece you own in each
   eq=noEq();if(s.eq)for(const[sl]of EQ_SLOTS){const k=s.eq[sl];if(ARMOR[k]&&ARMOR[k].slot===sl&&(inv[k]||0)>0)eq[sl]=k}
@@ -830,6 +841,10 @@ function maxHp(){return 25+foods.reduce((s,f)=>s+foodVal(f,'hp'),0)}
 function maxSt(){return 50+foods.reduce((s,f)=>s+foodVal(f,'st'),0)}
 const has=k=>(inv[k]||0)>0;
 const stackOf=k=>WEAPONS[k]||ARMOR[k]?1:FOODS[k]?20:50;
+const skLv=k=>Math.floor(sk[k]||0),skMul=k=>1+.01*skLv(k),skCut=(k,per)=>1-per*skLv(k);
+const skNeed=lv=>8+lv*2; // practice needed for the next level
+function skXP(k,n=1){const lv0=skLv(k);if(lv0>=SK_MAX)return;let v=sk[k]||0;for(let i=0;i<n;i++)v+=1/skNeed(Math.floor(v));sk[k]=Math.min(SK_MAX,v);
+  if(skLv(k)>lv0){toast(`${SKILLS[k][0]}熟練度升到 ${skLv(k)}`);floats.push({x:P.x,y:P.y-40,txt:`${SKILLS[k][0]} Lv${skLv(k)}`,t:1.4,col:'#8fc0d8'})}}
 const qOf=k=>q[k]||1,qMul=(k,step)=>1+step*(qOf(k)-1);
 const wDmg=k=>Math.round(WEAPONS[k].dmg*qMul(k,.2)),toolPow=(T,k)=>Math.round(T[k]*qMul(k,.2)),armOf=k=>Math.round(ARMOR[k].arm*qMul(k,.3)),blkOf=k=>Math.round(ARMOR[k].blk*qMul(k,.2));
 const blockPow=()=>eq.off?blkOf(eq.off):BARE_BLOCK;
@@ -946,7 +961,7 @@ $('panel').addEventListener('pointerdown',e=>{if(e.target.id==='panel')togglePan
 
 /* ---------- actions ---------- */
 function worldMouse(){return{x:(mouse.x-VW/2)/SCALE+cam.x,y:(mouse.y-VH/2)/SCALE+cam.y}}
-function doRoll(){const cost=biomeAt(P.x,P.y)===B_SNOW?14*SNOW_ST:14;if(P.roll>0||P.st<cost||placing||P.rooted>0||P.boat)return;P.st-=cost;P.stDelay=.9;P.roll=.32;
+function doRoll(){const cost=(biomeAt(P.x,P.y)===B_SNOW?14*SNOW_ST:14)*skCut('roll',.006);if(P.roll>0||P.st<cost||placing||P.rooted>0||P.boat)return;P.st-=cost;P.stDelay=.9;P.roll=.32;skXP('roll');
   let dx=0,dy=0;if(TOUCH){dx=joy.dx;dy=joy.dy}else{dx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);dy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0)}
   if(!dx&&!dy){dx=Math.cos(P.face);dy=Math.sin(P.face)}const l=Math.hypot(dx,dy);P.rdx=dx/l;P.rdy=dy/l}
 /* ---------- hotbar ---------- */
@@ -974,9 +989,9 @@ function attack(){
     if(!best){forCells(P.x,P.y,2,o=>{const d=dist(o,P);if(d<bd&&!(o.k==='bush'&&o.dep>0)){bd=d;best=o}})}
     if(best)P.face=Math.atan2(best.y-P.y,best.x-P.x)}
   P.cd=w.cd;P.swing=.24;P.st-=w.st;P.stDelay=.9;
-  if(w.proj){wear(P.weapon);act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1))});return} // ranged: the shot does its own hit test
+  if(w.proj){wear(P.weapon);act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1)*skMul('ranged'))});return} // ranged: the shot does its own hit test
   let hit=false;
-  for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1));
+  for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1)*skMul('melee'));
     floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});burst(m.x,m.y,m.k==='moss'||m.k==='treant'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
     act({t:'hit',id:m.id,dmg,x:P.x,y:P.y});hit=true}}
   // 範圍攻擊：揮擊範圍內的樹、石頭、礦全部一起打；什麼都沒打到才撿最近的小東西
@@ -984,7 +999,7 @@ function attack(){
   const big=[];let best=null,bd=1e9;
   forCells(P.x,P.y,2,o=>{const d=inArc(o);if(d<0)return;if(!RES[o.k].pick)big.push(o);else if(d<bd){bd=d;best=o}});
   // wear: the weapon in hand if a mob was hit, and each tool that did the chopping or mining (once per swing)
-  const used=new Set();if(hit)used.add(P.weapon);
+  const used=new Set();if(hit){used.add(P.weapon);skXP('melee')}
   if(big.length){for(const o of big)used.add(hitRes(o))}else if(!hit&&best)hitRes(best);
   for(const k of used)wear(k);
 }
@@ -1003,8 +1018,8 @@ function hitRes(o){const d=RES[o.k];let dmg=0;
   let tool=null;
   if(d.pick){}
   else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need&&toolPow(MINE,n)>m){m=toolPow(MINE,n);tool=n}
-    if(!m){toast(need>1?`需要銅鎬才能挖${d.name}`:`需要燧石鎬才能挖${d.name}`);o.flash=.15;return}dmg=m;shake=Math.max(shake,2)}
-  else{[dmg,tool]=bestTool(CHOP);shake=Math.max(shake,2)}
+    if(!m){toast(need>1?`需要銅鎬才能挖${d.name}`:`需要燧石鎬才能挖${d.name}`);o.flash=.15;return}dmg=Math.round(m*skMul('mine'));skXP('mine');shake=Math.max(shake,2)}
+  else{[dmg,tool]=bestTool(CHOP);dmg=Math.round(dmg*skMul('chop'));skXP('chop');shake=Math.max(shake,2)}
   act({t:'res',c:o.cell,dmg});return tool}
 // world side (solo / host)
 function worldRes(c,dmg,from,toPet){const o=resGrid[c];if(!o)return;const d=RES[o.k];
@@ -1026,8 +1041,8 @@ function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);
 function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;
   if(P.blocking&&angDiff(Math.atan2(src.y-P.y,src.x-P.x),P.face)<1.6){
     if(P.blockT<PARRY_T){floats.push({x:P.x,y:P.y-30,txt:'招架！',t:1,col:'#ffe08a'});burst(P.x+Math.cos(P.face)*14,P.y-10+Math.sin(P.face)*14,'#fff2b0',14);shake=Math.max(shake,5);
-      if(src.id)act({t:'parry',id:src.id});if(eq.off)wear(eq.off);P.inv=.3;return}
-    const bp=blockPow(),cost=Math.min(dmg,bp)*1.2;
+      if(src.id)act({t:'parry',id:src.id});skXP('block',3);if(eq.off)wear(eq.off);P.inv=.3;return}
+    const bp=Math.round(blockPow()*skMul('block')),cost=Math.min(dmg,bp)*1.2*skCut('block',.005);skXP('block');
     if(P.st>=cost){P.st-=cost;P.stDelay=Math.max(P.stDelay,.6);if(eq.off)wear(eq.off);burst(P.x+Math.cos(P.face)*14,P.y-10+Math.sin(P.face)*14,'#c8c2b2',6);
       if(dmg<=bp){floats.push({x:P.x,y:P.y-30,txt:'格擋',t:.8,col:'#c8d6e2'});P.inv=.3;return}dmg-=bp}
     else{P.st=0;P.stag=.8;floats.push({x:P.x,y:P.y-30,txt:'防禦被打破',t:1,col:'#ff8a7a'})}}
@@ -1038,6 +1053,7 @@ function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;
 function die(){if(P.boat){P.boat=false;act({t:'unboard',x:P.x,y:P.y})}P.burn=0;
   const keep=new Set([...hot,...Object.values(eq)].filter(Boolean)),bag={};for(const k in inv)if(inv[k]>0&&!keep.has(k)){bag[k]=inv[k];inv[k]=0}
   if(Object.keys(bag).length)act({t:'drop',x:Math.round(P.x),y:Math.round(P.y),bag,g:myName});
+  for(const k in sk)sk[k]*=.95;
   $('deadMsg').textContent=Object.keys(bag).length?'背包裡的東西留在倒下的地方的墓碑裡（快捷欄和身上穿的還在）。地圖上有標記，回去按 E 拿回來。':'背包是空的，沒有留下東西。';P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
 $('respawn').addEventListener('click',()=>{P.rooted=0;foods=[];P.hp=25;P.st=50;P.rest=0;P.dead=false;const bed=MODE==='solo'&&structs.find(s=>s.k==='bed');const sp=bed?{x:bed.x,y:bed.y+34}:spawnPt;P.x=sp.x;P.y=sp.y;
   for(let k=0;k<20&&blocked(P.x,P.y,P.r);k++){P.x+=rnd(-30,30);P.y+=rnd(-30,30)}
@@ -1172,6 +1188,9 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       <h4 class="fzh">放進熔爐</h4>${ks.length?`<div class="inv fz">`+ks.map(k=>`<div class="slot">${icon(k)}<div class="n">${k}<small>×${inv[k]}</small></div><button type="button" data-fin="${k}" data-n="1">放 1</button><button type="button" data-fin="${k}" data-n="all">全部</button></div>`).join('')+'</div>':'<p class="note">背包裡沒有礦石或煤炭。用鎬去挖礦吧。</p>'}`;
     b.querySelectorAll('[data-fin]').forEach(x=>x.addEventListener('click',()=>{const k=x.dataset.fin,n=x.dataset.n==='all'?inv[k]:1;if(!(n>0)||!has(k))return;inv[k]-=n;act({t:'fput',c:furnaceC,k,n});writeSave();renderPanel()}));
     $('fzOut').addEventListener('click',()=>{act({t:'fout',c:furnaceC});setTimeout(renderPanel,150)})}
+  else if(panelTab==='skills'){
+    b.innerHTML=`<p class="note">做什麼就練什麼，每種最高 ${SK_MAX} 級。倒下時每種掉 5%。</p><div class="skills">`+Object.entries(SKILLS).map(([k,[n,how,eff]])=>{const lv=skLv(k),fr=(sk[k]||0)-lv;
+      return`<div class="sk"><h3>${n}<b>Lv ${lv}</b></h3><div class="fbar"><i style="width:${lv>=SK_MAX?100:Math.round(fr*100)}%"></i></div><p>怎麼練：${how}・效果：${skEff(k,lv)}</p></div>`}).join('')+'</div>'}
   else if(panelTab==='pets'){
     b.innerHTML=pets.length?`<p class="note">一次只能召喚一隻。野豬會幫忙撿東西，狼崽擅長戰鬥，奶蛙最耐打。寵物撿到的東西放在牠身上，倒下時會掉在地上。</p><div class="grid">`+pets.map(p=>{const D=PETS[p.k],out=p.id===petOut,n=Object.values(p.bag).reduce((a,b)=>a+b,0);
       return`<div class="card"><h3>${p.name}<em>${D.name}・${D.role}${out?'・召喚中':''}</em></h3><p>${p.down>0?`倒下了，${Math.ceil(p.down)} 秒後回來`:`血量 ${Math.ceil(p.hp)}/${D.hp}・傷害 ${D.dmg}`}・攜帶 ${n} 件</p>
@@ -1184,7 +1203,7 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>格擋：按住擋正面的攻擊，剛按下的瞬間被打中就是招架</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），按住右鍵格擋，空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>料理鍋（銅錠、石頭）放在營火旁邊，按 E 就能煮湯和燉肉，比烤肉好很多。蓋菜圃種胡蘿蔔：種子在採莓果時有機會拿到，種下約 4 分鐘後收成。</li><li>倒下時背包裡的東西會留在原地的墓碑裡，只有你撿得回來；快捷欄上的和身上穿的會跟著你。地圖上會標出墓碑。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。休息維持多久看舒適度：附近每多一種家具（床、椅子、毛皮地毯、旗幟、水晶燈）舒適度 +1，每級多 1 分鐘（3～8 分鐘）。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>料理鍋（銅錠、石頭）放在營火旁邊，按 E 就能煮湯和燉肉，比烤肉好很多。蓋菜圃種胡蘿蔔：種子在採莓果時有機會拿到，種下約 4 分鐘後收成。</li><li>熟練度：近戰、遠程、砍樹、挖礦、格擋、奔跑、閃避，做什麼就練什麼：傷害、力道、格擋值每級 +1%，耐力消耗每級少 0.5～0.6%，最高 ${SK_MAX} 級。打開背包的「技能」分頁看進度。倒下時每種掉 5%。</li><li>倒下時背包裡的東西會留在原地的墓碑裡，只有你撿得回來；快捷欄上的和身上穿的會跟著你。地圖上會標出墓碑。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。休息維持多久看舒適度：附近每多一種家具（床、椅子、毛皮地毯、旗幟、水晶燈）舒適度 +1，每級多 1 分鐘（3～8 分鐘）。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>按住右鍵格擋：擋得住正面的攻擊，用耐力抵掉盾牌格擋值以內的傷害，耐力不夠會被打破、硬直一下。剛舉起的 0.25 秒內被打中就是「招架」：完全不痛，對方暈眩，暈眩中多吃 50% 傷害。拿著盾擋得多，空手只擋 4。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
@@ -1335,7 +1354,7 @@ function updateLocal(dt){
   const ml=Math.hypot(mx,my);
   if(!TOUCH&&mouse.on){const w=worldMouse();P.face=Math.atan2(w.y-P.y,w.x-P.x)}else if(ml>.15)P.face=Math.atan2(my,mx);
   if(P.roll>0){P.roll-=dt;move(P,P.rdx*360*dt,P.rdy*360*dt)}
-  else if(ml>.1){if(ml>1){mx/=ml;my/=ml}let spd=P.blocking?60:118;if(sprint&&!P.blocking&&P.st>1){spd=185;P.st-=11*dt*(biomeAt(P.x,P.y)===B_SNOW?SNOW_ST:1);P.stDelay=.6}P.walk+=dt*(spd/14);move(P,mx*spd*dt,my*spd*dt)}
+  else if(ml>.1){if(ml>1){mx/=ml;my/=ml}let spd=P.blocking?60:118;if(sprint&&!P.blocking&&P.st>1){spd=185;P.st-=11*dt*(biomeAt(P.x,P.y)===B_SNOW?SNOW_ST:1)*skCut('run',.006);P.stDelay=.6;if((P.runT=(P.runT||0)+dt)>=2){P.runT=0;skXP('run')}}P.walk+=dt*(spd/14);move(P,mx*spd*dt,my*spd*dt)}
   // stats
   P.cd-=dt;P.swing-=dt;P.inv-=dt;P.hurt-=dt;P.stDelay-=dt;
   if(atkHeld&&!placing&&!P.blocking&&!(P.stag>0))attack();
@@ -1361,7 +1380,7 @@ function updateFx(dt){
   for(let i=seeds.length-1;i>=0;i--){const s=seeds[i];s.x+=s.vx*dt;s.y+=s.vy*dt;if((s.t-=dt)<=0)seeds.splice(i,1)}
   // staff shots: the shooter's own client decides the hit, the treant's body counts as well as its feet
   for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.x+=s.vx*dt;s.y+=s.vy*dt;let gone=(s.t-=dt)<=0;
-    if(!gone&&s.own)for(const m of mobs){const by=m.k==='treant'?Math.min(Math.abs(s.y-m.y),Math.abs(s.y-(m.y-60))):Math.abs(s.y+12-m.y);if(Math.hypot(s.x-m.x,by)<m.r+8){floats.push({x:m.x,y:m.y-m.r-8,txt:String(s.dmg),t:.8,col:'#ffe9b8'});act({t:'hit',id:m.id,dmg:s.dmg,x:s.x,y:s.y});gone=true;break}}
+    if(!gone&&s.own)for(const m of mobs){const by=m.k==='treant'?Math.min(Math.abs(s.y-m.y),Math.abs(s.y-(m.y-60))):Math.abs(s.y+12-m.y);if(Math.hypot(s.x-m.x,by)<m.r+8){skXP('ranged');floats.push({x:m.x,y:m.y-m.r-8,txt:String(s.dmg),t:.8,col:'#ffe9b8'});act({t:'hit',id:m.id,dmg:s.dmg,x:s.x,y:s.y});gone=true;break}}
     if(gone){burst(s.x,s.y,'#9dffb0',6);shots.splice(i,1)}}
   // the treant leaves roots behind wherever it walks
   for(const m of mobs)if(m.k==='treant'){if(m.lrx===undefined||Math.hypot(m.x-m.lrx,m.y-m.lry)>20){if(m.lrx!==undefined){rootTrail.push({x:m.x,y:m.y+2,a:Math.atan2(m.y-m.lry,m.x-m.lrx),s:hash(rootTrail.length,seedSeq,7),t:7});if(rootTrail.length>70)rootTrail.shift()}m.lrx=m.x;m.lry=m.y}}
