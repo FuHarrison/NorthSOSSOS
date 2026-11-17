@@ -185,6 +185,9 @@ body.touch .hs{width:38px;height:38px}body.touch .hs kbd{display:none}
 .bs.empty{cursor:default;background:#00000033}
 .photh b{font-weight:600;font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}.photh b.full{color:var(--bad)}
 .photh .act{margin:0 0 0 auto;padding:3px 10px;font-size:12px}
+.eqsec{border-color:#8fc0d855}.eqsec .bs{cursor:pointer}.eqsec .bs.empty .hn{color:var(--mute)}
+.upg{border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;gap:6px;background:#0000001f}.upg p{margin:0}
+.upg .act{margin:0;justify-self:start;padding:6px 14px}.ci .q{flex:none;font-size:11px;color:var(--accent)}
 .chestwrap .bagsec{flex:1 1 0}.chestwrap .bs{cursor:pointer}
 .benchlv{margin-left:auto;align-self:center;font-size:12px;color:var(--mute);white-space:nowrap}.benchlv b{color:var(--accent)}
 #repairBtn{margin:0 0 0 8px;padding:5px 12px;font-size:12px;flex:none}
@@ -348,7 +351,8 @@ function fbm(x,y,o){let s=0,a=.5,f=1,n=0;for(let i=0;i<o;i++){s+=a*vnoise(x*f,y*
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 /* ---------- data ---------- */
-const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a',魔力水晶:'#9b7bff',發光蘑菇:'#6fe0ff'};
+const ITEM={木頭:'#a0703f',石頭:'#8d918c',燧石:'#45586b',樹脂:'#d89a2c',皮革:'#9b6a46',生肉:'#c95b5b',烤肉:'#8a4a2b',莓果:'#b8324a',蘑菇:'#d98a3d',獠牙:'#e8e0c8',狼王之牙:'#cfe3ef',木棒:'#7b5634',燧石斧:'#56697c',燧石鎬:'#5c6670',燧石矛:'#6b7f92',皮甲:'#8a5b3a',狼牙劍:'#b9d4e4',煤炭:'#2e2c2b',銅礦:'#b5703a',錫礦:'#a9b4b8',鐵礦:'#8a5a4a',銅錠:'#d4863f',錫錠:'#cfd6da',鐵錠:'#9aa3ab',銅鎬:'#c47a3c',古樹種子:'#8fb257',樹精核心:'#9dffb0',堅硬樹皮:'#6b4e34',古老樹枝:'#8a6a44',自然精華:'#7fd98a',樹精法杖:'#7fd98a',樹精裝備:'#5a6e3a',魔力水晶:'#9b7bff',發光蘑菇:'#6fe0ff',
+  皮帽:'#8a5b3a',皮褲:'#7a4f30',青銅錠:'#c08a3e',青銅盔:'#b07a36',青銅甲:'#b07a36',青銅護腿:'#9c6a2e',鐵盔:'#8a939b',鐵甲:'#8a939b',鐵護腿:'#757e86'};
 // 背包與箱子都算格子：材料一格疊 50、食物 20，武器、工具、護甲一格一個
 const BAG_SLOTS=32,CHEST_SLOTS=24;
 /* ---------- icons ---------- */
@@ -358,6 +362,10 @@ const ore=(b,o)=>`<path d="M3 18l2-7 6-5 7 2 3 10-8 3z" fill="${b}"/><path d="M5
 const ingot=(c,l,d)=>`<path d="M2.5 18l3.5-8h12l3.5 8z" fill="${c}"/><path d="M6 10h12l-1.4 3H7.4z" fill="${l}"/><path d="M2.5 18h19v2h-19z" fill="${d}"/>`;
 const handle=(x1,y1,x2,y2)=>`<path d="M${x1} ${y1}L${x2} ${y2}" stroke="#7b5634" stroke-width="2.6" stroke-linecap="round"/>`;
 const pick=c=>handle(6,21,15,7)+`<path d="M3.5 9.5Q12 1 21 8Q12 5 3.5 9.5z" fill="${c}"/>`;
+// armour pieces: helmet, body, legs, in a base colour c and a light trim l
+const helm=(c,l)=>`<path d="M4 15a8 8 0 0 1 16 0v3H4z" fill="${c}"/><path d="M4 15h16v3H4z" fill="${l}"/><path d="M12 7v8" stroke="${l}" stroke-width="1.6"/><rect x="10.5" y="15" width="3" height="5" fill="${c}"/>`;
+const bodyA=(c,l)=>`<path d="M8 3l4 3 4-3 4.5 3.5-2.5 5V21H6V11.5L3.5 6.5z" fill="${c}"/><path d="M12 6v15M7 12h10" stroke="${l}" stroke-width="1"/><circle cx="12" cy="9" r=".9" fill="${l}"/>`;
+const legsA=(c,l)=>`<path d="M5 3h14v5l-1.5 13h-4L12 10l-1.5 11h-4L5 8z" fill="${c}"/><path d="M5 6h14" stroke="${l}" stroke-width="1.6"/><path d="M7 15h3M14 15h3" stroke="${l}" stroke-width="1"/>`;
 const ICON={
   木頭:'<rect x="2" y="12" width="17" height="7" rx="3.5" fill="#7a4f2a"/><ellipse cx="19" cy="15.5" rx="2.6" ry="3.5" fill="#d9b07a"/><circle cx="19" cy="15.5" r="1.1" fill="#a0703f"/><rect x="4" y="5" width="16" height="7" rx="3.5" fill="#8f6236"/><ellipse cx="20" cy="8.5" rx="2.6" ry="3.5" fill="#e3bf8a"/><circle cx="20" cy="8.5" r="1.1" fill="#a0703f"/>',
   石頭:'<path d="M3 18l2-8 6-5 7 3 3 10-8 3z" fill="#8d918c"/><path d="M5 10l6-5 7 3-6 3z" fill="#b4b8b1"/>',
@@ -389,6 +397,10 @@ const ICON={
   錫礦:ore('#77736c','#dfe6ea'),
   鐵礦:ore('#6a625d','#a0503a'),
   銅錠:ingot('#d4863f','#f0b070','#9c5a26'),
+  青銅錠:ingot('#c08a3e','#e6b468','#87602a'),
+  皮帽:helm('#8a5b3a','#d9b07a'),皮褲:legsA('#7a4f30','#d9b07a'),
+  青銅盔:helm('#b07a36','#e6b468'),青銅甲:bodyA('#b07a36','#e6b468'),青銅護腿:legsA('#9c6a2e','#e6b468'),
+  鐵盔:helm('#8a939b','#c8cfd5'),鐵甲:bodyA('#8a939b','#c8cfd5'),鐵護腿:legsA('#757e86','#c8cfd5'),
   錫錠:ingot('#cfd6da','#f2f6f8','#98a3a8'),
   鐵錠:ingot('#9aa3ab','#c8cfd5','#646c73'),
   bench:'<rect x="3" y="9" width="18" height="4" rx="1" fill="#a87d4a"/><rect x="5" y="13" width="2.5" height="7" fill="#6b4a2b"/><rect x="16.5" y="13" width="2.5" height="7" fill="#6b4a2b"/><rect x="6" y="6" width="5" height="3" fill="#56697c"/><rect x="14" y="4.5" width="3" height="4.5" fill="#c8c2b2"/>',
@@ -414,11 +426,17 @@ const WEAPONS={
   狼牙劍:{name:'狼牙劍',dmg:38,range:52,arc:1.25,cd:.45,st:8,len:30},
   樹精法杖:{name:'樹精法杖',dmg:24,range:340,arc:.12,cd:.6,st:9,len:30,proj:true}
 };
-// armour is worn just by owning it; the best one counts
-const ARMORS={皮甲:{mul:.7,regen:0},樹精裝備:{mul:.55,regen:.6}};
-const armorKey=()=>has('樹精裝備')?'樹精裝備':has('皮甲')?'皮甲':null;
+// armour goes in three slots (eq); damage taken is multiplied by ARM_K / (ARM_K + total armour)
+const EQ_SLOTS=[['head','頭'],['body','身體'],['legs','腿']],ARM_K=40;
+const ARMOR={皮帽:{slot:'head',arm:4},皮甲:{slot:'body',arm:8},皮褲:{slot:'legs',arm:6},
+  青銅盔:{slot:'head',arm:8},青銅甲:{slot:'body',arm:14},青銅護腿:{slot:'legs',arm:10},
+  鐵盔:{slot:'head',arm:12},鐵甲:{slot:'body',arm:20},鐵護腿:{slot:'legs',arm:16},
+  樹精裝備:{slot:'body',arm:18,regen:.6}};
 // 耐久：打中東西才扣 1；用完就壞掉。在工作台旁免費修理
-const DUR_MAX={木棒:50,燧石斧:120,燧石鎬:120,燧石矛:100,銅鎬:200,狼牙劍:250,樹精法杖:200};
+const DUR_MAX={木棒:50,燧石斧:120,燧石鎬:120,燧石矛:100,銅鎬:200,狼牙劍:250,樹精法杖:200,
+  皮帽:80,皮甲:100,皮褲:90,青銅盔:150,青銅甲:180,青銅護腿:160,鐵盔:220,鐵甲:260,鐵護腿:240,樹精裝備:240};
+// upgrades: each kind of gear has a level 1..Q_MAX for you (q). Per level: damage / tool power +20%, armour +30%, durability +50%
+const Q_MAX=3;
 const CHOP={none:3,木棒:5,燧石斧:16,燧石鎬:3,銅鎬:4,燧石矛:3,狼牙劍:8};
 // 鎬的等級：大石頭、煤、銅、錫要 1 級（燧石鎬），鐵要 2 級（銅鎬）
 const MINE={燧石鎬:16,銅鎬:26},PICK_TIER={燧石鎬:1,銅鎬:2};
@@ -465,11 +483,20 @@ const RECIPES=[
   {id:'燧石鎬',name:'燧石鎬',cost:{木頭:6,燧石:6},bench:true,desc:'能敲碎大石頭，挖煤、銅、錫礦。擁有後採礦自動使用。'},
   {id:'銅鎬',name:'銅鎬',cost:{銅錠:3,木頭:4},bench:true,lv:2,desc:'挖得更快，也能挖鐵礦。'},
   {id:'燧石矛',name:'燧石矛',cost:{木頭:8,燧石:6,皮革:2},bench:true,desc:'攻擊距離最長，適合邊退邊打。'},
-  {id:'皮甲',name:'皮甲',cost:{皮革:6},bench:true,desc:'受到的傷害減少 30%。'},
+  {id:'皮帽',name:'皮帽',cost:{皮革:3},bench:true,desc:'頭部護甲。'},
+  {id:'皮甲',name:'皮甲',cost:{皮革:6},bench:true,desc:'身體護甲。'},
+  {id:'皮褲',name:'皮褲',cost:{皮革:4},bench:true,desc:'腿部護甲。'},
+  {id:'青銅錠',name:'青銅錠',cost:{銅錠:2,錫錠:1},bench:true,lv:2,desc:'銅和錫熔成的合金，用來打造青銅護甲。'},
+  {id:'青銅盔',name:'青銅盔',cost:{青銅錠:4,皮革:2},bench:true,lv:2,desc:'頭部護甲。'},
+  {id:'青銅甲',name:'青銅甲',cost:{青銅錠:8,皮革:3},bench:true,lv:2,desc:'身體護甲。'},
+  {id:'青銅護腿',name:'青銅護腿',cost:{青銅錠:6,皮革:2},bench:true,lv:2,desc:'腿部護甲。'},
+  {id:'鐵盔',name:'鐵盔',cost:{鐵錠:5,皮革:2},bench:true,lv:3,desc:'頭部護甲。'},
+  {id:'鐵甲',name:'鐵甲',cost:{鐵錠:10,皮革:3},bench:true,lv:3,desc:'身體護甲。'},
+  {id:'鐵護腿',name:'鐵護腿',cost:{鐵錠:8,皮革:2},bench:true,lv:3,desc:'腿部護甲。'},
   {id:'狼牙劍',name:'狼牙劍',cost:{狼王之牙:1,木頭:6,燧石:4},bench:true,lv:2,desc:'用狼王的牙磨成的劍。'},
   {id:'古樹種子',name:'古樹種子',cost:{狼王之牙:1,木頭:20,樹脂:8,蘑菇:5},bench:true,desc:'帶到石祭壇種下，就會喚醒樹精。'},
   {id:'樹精法杖',name:'樹精法杖',cost:{樹精核心:1,古老樹枝:3,自然精華:2},bench:true,lv:3,lock:true,desc:'朝游標方向射出一發自然能量。打倒樹精後解鎖。'},
-  {id:'樹精裝備',name:'樹精裝備',cost:{堅硬樹皮:8,古老樹枝:2,自然精華:2},bench:true,lv:3,lock:true,desc:'受到的傷害減少 45%，血量恢復變快。打倒樹精後解鎖。'}
+  {id:'樹精裝備',name:'樹精裝備',cost:{堅硬樹皮:8,古老樹枝:2,自然精華:2},bench:true,lv:3,lock:true,desc:'身體護甲，穿著時血量恢復變快。打倒樹精後解鎖。'}
 ];
 
 // pets: boar = tamed by feeding berries, gathers; wolf = pup from the Wolf King, fights
@@ -503,7 +530,7 @@ function unpackSeen(str,merge){if(!merge)resetFog();let s;try{s=atob(str)}catch(
   for(let b=0;b<s.length;b++){const v=s.charCodeAt(b);for(let k=0;k<8;k++)if(v>>k&1){const c=b*8+k;if(c<seen.length&&!seen[c]){seen[c]=1;fctx.clearRect(c%COLS,Math.floor(c/COLS),1,1);if(merge&&MODE!=='solo')fogNew.push(c)}}}}
 let structs=[],mobs=[],parts=[],floats=[],regrow=[],slashes=[],rings=[];
 let altar=null,boss=null,treantDown=false,shots=[],seeds=[],seedSeq=0,tfx=[],rootTrail=[]; // boss = whichever boss is awake; only one at a time
-let inv={},dur={},known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
+let inv={},dur={},q={},eq={head:null,body:null,legs:null},known=new Set(),foods=[],ate=false,pets=[],petOut=null,loots=[],lootSeq=0;
 let dayT=.05,day=1,flags={summoned:false,boss:false};
 let spawnPt={x:W/2,y:H/2};
 const P={x:W/2,y:H/2,r:12,face:0,hp:25,st:50,stDelay:0,cd:0,swing:0,roll:0,rdx:0,rdy:0,inv:0,hurt:0,weapon:'none',rest:0,restT:0,walk:0,dead:false};
@@ -690,7 +717,7 @@ function populate(){
 // WKEY / pkey() are the old multiplayer localStorage saves: uploaded once, then removed when the server confirms (saved).
 let noSave=false,loggingIn=false,kicked=false;
 function worldData(){const w={mapW:W,seed,day,dayT,flags:{summoned:flags.summoned,boss:flags.boss},structs:structs.map(s=>({k:s.k,x:s.x,y:s.y,o:s.o,fz:s.fz,b:s.box}))};if(MODE!=='solo')w.seen=packSeen();return w}
-function personal(){return{inv,dur,known:[...known],foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
+function personal(){return{inv,dur,q,eq,known:[...known],foods,ate,spawn:spawnPt,p:{x:P.x,y:P.y,hp:P.hp,w:P.weapon,b:P.boat?1:0},hot,hotSel,
   pets:pets.map(p=>({id:p.id,k:p.k,name:p.name,hp:p.hp,bag:p.bag,down:p.down})),petOut,seen:packSeen(),treant:treantDown,pins}}
 function pkey(){return`northland-mp-p-${seed}-${myName}`}
 // ack: 'w' / 'p' asks the server to confirm that save, so the old localStorage copy can be removed
@@ -711,7 +738,11 @@ function applyWorld(s){day=s.day||1;dayT=s.dayT||.05;if(s.flags){flags.summoned=
     if(v)addWall('wall',st.x-CELL/2,st.y,'v');if(h||!v)addWall('wall',st.x,st.y+CELL/2,'h')}
   if(MODE!=='solo'&&s.seen)unpackSeen(s.seen);
   if(flags.summoned&&!flags.boss)flags.summoned=false}
-function applyPersonal(s){inv=s.inv||{};known=new Set((Array.isArray(s.known)?s.known:Object.keys(inv)).filter(k=>ITEM[k]));dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(DUR_MAX[k],s.dur[k]);foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
+function applyPersonal(s){inv=s.inv||{};known=new Set((Array.isArray(s.known)?s.known:Object.keys(inv)).filter(k=>ITEM[k]));q={};for(const k in s.q||{})if(DUR_MAX[k]&&s.q[k]>1)q[k]=Math.min(Q_MAX,s.q[k]|0);
+  dur={};for(const k in s.dur||{})if(DUR_MAX[k]&&s.dur[k]>0)dur[k]=Math.min(durMax(k),s.dur[k]);
+  // older saves have no slots: wear the best piece you own in each
+  eq={head:null,body:null,legs:null};if(s.eq)for(const[sl]of EQ_SLOTS){const k=s.eq[sl];if(ARMOR[k]&&ARMOR[k].slot===sl&&(inv[k]||0)>0)eq[sl]=k}
+  else for(const k in ARMOR)if((inv[k]||0)>0){const sl=ARMOR[k].slot;if(!eq[sl]||ARMOR[k].arm>ARMOR[eq[sl]].arm)eq[sl]=k}foods=(s.foods||[]).filter(f=>FOODS[f.k]);ate=!!(s.ate||s.flags&&s.flags.ate);spawnPt=s.spawn||spawnPt;
   if(s.p){P.x=s.p.x;P.y=s.p.y;P.hp=s.p.hp||25;P.weapon=WEAPONS[s.p.w]?s.p.w:'none';P.boat=!!s.p.b}
   // older saves have no hotbar: fill it from the bag and select the weapon that was in hand
   if(Array.isArray(s.hot)&&s.hot.length===HOT_N){hot=s.hot.map(k=>typeof k==='string'&&ITEM[k]?k:null);hotSel=Math.min(HOT_N-1,Math.max(0,s.hotSel|0))}
@@ -762,7 +793,15 @@ function foodVal(f,key){const d=FOODS[f.k];return d[key]*Math.min(1,f.t/(d.t*.4)
 function maxHp(){return 25+foods.reduce((s,f)=>s+foodVal(f,'hp'),0)}
 function maxSt(){return 50+foods.reduce((s,f)=>s+foodVal(f,'st'),0)}
 const has=k=>(inv[k]||0)>0;
-const stackOf=k=>WEAPONS[k]||ARMORS[k]?1:FOODS[k]?20:50;
+const stackOf=k=>WEAPONS[k]||ARMOR[k]?1:FOODS[k]?20:50;
+const qOf=k=>q[k]||1,qMul=(k,step)=>1+step*(qOf(k)-1);
+const wDmg=k=>Math.round(WEAPONS[k].dmg*qMul(k,.2)),toolPow=(T,k)=>Math.round(T[k]*qMul(k,.2)),armOf=k=>Math.round(ARMOR[k].arm*qMul(k,.3));
+const durMax=k=>DUR_MAX[k]&&Math.round(DUR_MAX[k]*qMul(k,.5));
+const armorTotal=()=>EQ_SLOTS.reduce((a,[sl])=>a+(eq[sl]?armOf(eq[sl]):0),0);
+const armorCut=()=>Math.round((1-ARM_K/(ARM_K+armorTotal()))*100);
+// how other players draw you: 2 = treant armour, 1 = any armour, 0 = none
+const armorLook=()=>eq.body==='樹精裝備'?2:eq.head||eq.body||eq.legs?1:0;
+function toggleEq(k){const sl=ARMOR[k]&&ARMOR[k].slot;if(!sl||!has(k))return;eq[sl]=eq[sl]===k?null:k}
 // a bag (yours, a chest's) as stacks: [[item, count], ...]; how many slots it takes; how many more of k still fit in cap slots
 function stacks(b){const o=[];for(const k in b){let n=b[k];const s=stackOf(k);while(n>0){o.push([k,Math.min(n,s)]);n-=s}}return o}
 function slotsOf(b){let n=0;for(const k in b)if(b[k]>0)n+=Math.ceil(b[k]/stackOf(k));return n}
@@ -872,7 +911,7 @@ const HOT_N=8;let hot=new Array(HOT_N).fill(null),hotSel=0,hotSig='';
 function hotAdd(k){if(!(WEAPONS[k]||FOODS[k])||hot.includes(k))return;const i=hot.indexOf(null);if(i>=0)hot[i]=k} // new weapons/food fill the first empty slot
 function hotPut(k){const i=hot.indexOf(k);if(i>=0)hot[i]=null;hot[hotSel]=k;syncHeld()}                       // bag button: into the selected slot
 const held=()=>hot[hotSel];
-function syncHeld(){for(let i=0;i<HOT_N;i++)if(hot[i]&&!has(hot[i]))hot[i]=null;const k=hot[hotSel];P.weapon=WEAPONS[k]?k:'none'}
+function syncHeld(){for(let i=0;i<HOT_N;i++)if(hot[i]&&!has(hot[i]))hot[i]=null;for(const[sl]of EQ_SLOTS)if(eq[sl]&&!has(eq[sl]))eq[sl]=null;const k=hot[hotSel];P.weapon=WEAPONS[k]?k:'none'}
 function hotSelect(i,quiet){hotSel=(i+HOT_N)%HOT_N;syncHeld();if(!quiet)toast(`${hotSel+1}：${held()||'空手'}`)}
 function hotNext(){for(let d=1;d<=HOT_N;d++){const i=(hotSel+d)%HOT_N;if(hot[i]){hotSelect(i);return}}toast('快捷欄是空的')}
 function useHeld(){const k=held();if(!FOODS[k])return false;eat(k);syncHeld();return true}
@@ -891,9 +930,9 @@ function attack(){
     if(!best){forCells(P.x,P.y,2,o=>{const d=dist(o,P);if(d<bd&&!(o.k==='bush'&&o.dep>0)){bd=d;best=o}})}
     if(best)P.face=Math.atan2(best.y-P.y,best.x-P.x)}
   P.cd=w.cd;P.swing=.24;P.st-=w.st;P.stDelay=.9;
-  if(w.proj){wear(P.weapon);act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(w.dmg*(P.rest>0?1.1:1))});return} // ranged: the shot does its own hit test
+  if(w.proj){wear(P.weapon);act({t:'shot',x:Math.round(P.x),y:Math.round(P.y),a:Math.round(P.face*100)/100,dmg:Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1))});return} // ranged: the shot does its own hit test
   let hit=false;
-  for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(w.dmg*(P.rest>0?1.1:1));
+  for(const m of [...mobs]){const d=dist(m,P);if(d<w.range+m.r&&angDiff(Math.atan2(m.y-P.y,m.x-P.x),P.face)<w.arc){const dmg=Math.round(wDmg(P.weapon)*(P.rest>0?1.1:1));
     floats.push({x:m.x,y:m.y-m.r-8,txt:String(dmg),t:.8,col:'#ffe9b8'});burst(m.x,m.y,m.k==='moss'||m.k==='treant'?'#9fc069':'#b84a3a',6);shake=Math.max(shake,3);
     act({t:'hit',id:m.id,dmg,x:P.x,y:P.y});hit=true}}
   // 範圍攻擊：揮擊範圍內的樹、石頭、礦全部一起打；什麼都沒打到才撿最近的小東西
@@ -906,20 +945,20 @@ function attack(){
   for(const k of used)wear(k);
 }
 // durability of the one in use (you can carry more than one of a kind: the next one starts fresh)
-const durOf=k=>has(k)&&dur[k]!==undefined?dur[k]:DUR_MAX[k];
-function wear(k){const M=DUR_MAX[k];if(!M||!has(k))return;const d=durOf(k)-1;
+const durOf=k=>has(k)&&dur[k]!==undefined?dur[k]:durMax(k);
+function wear(k){const M=durMax(k);if(!M||!has(k))return;const d=durOf(k)-1;
   if(d>0){dur[k]=d;if(d===Math.ceil(M*.15))toast(`${k}快壞了，到工作台旁修理`);return}
   inv[k]--;delete dur[k];syncHeld();burst(P.x,P.y-14,'#c8c2b2',12);toast(has(k)?`${k}壞了，換上下一把`:`${k}壞了`)}
-const damaged=()=>Object.keys(dur).filter(k=>has(k)&&dur[k]<DUR_MAX[k]);
-function durBar(k){const M=DUR_MAX[k];if(!M||!has(k)||durOf(k)>=M)return'';const f=durOf(k)/M;return`<span class="dur"><i style="width:${Math.round(f*100)}%;background:${f>.5?'#7fb069':f>.15?'#e2c14d':'#d06a5a'}"></i></span>`}
+const damaged=()=>Object.keys(dur).filter(k=>has(k)&&dur[k]<durMax(k));
+function durBar(k){const M=durMax(k);if(!M||!has(k)||durOf(k)>=M)return'';const f=durOf(k)/M;return`<span class="dur"><i style="width:${Math.round(f*100)}%;background:${f>.5?'#7fb069':f>.15?'#e2c14d':'#d06a5a'}"></i></span>`}
 function forCells(x,y,sp,fn){const i0=Math.floor(x/CELL),j0=Math.floor(y/CELL);for(let j=j0-sp;j<=j0+sp;j++)for(let i=i0-sp;i<=i0+sp;i++){if(i<0||j<0||i>=COLS||j>=ROWS)continue;const o=resGrid[j*COLS+i];if(o)fn(o)}}
-function bestTool(table){let b=0,k=null;for(const n in table){if((n==='none'||has(n))&&table[n]>b){b=table[n];k=n}}return[b,k]}
+function bestTool(table){let b=0,k=null;for(const n in table){if((n==='none'||has(n))&&toolPow(table,n)>b){b=toolPow(table,n);k=n}}return[b,k]}
 // local intent: tool checks use this player's bag, the world change itself goes through act()
 function hitRes(o){const d=RES[o.k];let dmg=0;
   if(d.pick){if(o.k==='bush'&&o.dep>0){toast('莓果還沒長回來');return}if(!d.drop.some(([k])=>roomFor(inv,k,BAG_SLOTS)>0)){toast('背包滿了');return}}
   let tool=null;
   if(d.pick){}
-  else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need&&MINE[n]>m){m=MINE[n];tool=n}
+  else if(d.mine){const need=d.tier||1;let m=0;for(const n in MINE)if(has(n)&&PICK_TIER[n]>=need&&toolPow(MINE,n)>m){m=toolPow(MINE,n);tool=n}
     if(!m){toast(need>1?`需要銅鎬才能挖${d.name}`:`需要燧石鎬才能挖${d.name}`);o.flash=.15;return}dmg=m;shake=Math.max(shake,2)}
   else{[dmg,tool]=bestTool(CHOP);shake=Math.max(shake,2)}
   act({t:'res',c:o.cell,dmg});return tool}
@@ -940,7 +979,7 @@ function killMob(m,from){const i=mobs.indexOf(m);if(i<0)return;mobs.splice(i,1);
   if(m.k==='moss'){giveTo(from,'樹脂',ri(1,2),m.x,m.y);if(Math.random()<.25)giveTo(from,'燧石',1,m.x,m.y-14)}
   if(m.k==='treant'){boss=null;giveAll('堅硬樹皮',ri(3,5),m.x,m.y);giveAll('古老樹枝',ri(2,3),m.x,m.y-14);giveAll('自然精華',ri(2,3),m.x,m.y-28);toAll({t:'tdown',x:m.x,y:m.y});evt({t:'bn',h:'樹精倒下了',s:'第一次打倒樹精會解鎖樹精法杖與樹精裝備，到工作台製作'});writeSave()}
   if(m.k==='boss'){boss=null;flags.boss=true;giveAll('狼王之牙',1,m.x,m.y);giveAll('皮革',6,m.x,m.y-14);toAll({t:'pup'});evt({t:'bn',h:'狼王倒下了',s:'第一次打倒狼王的人會得到一隻狼崽・到工作台用狼王之牙打造狼牙劍'});writeSave()}}
-function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;const ak=armorKey();if(ak)dmg*=ARMORS[ak].mul;P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
+function hitPlayer(dmg,src){if(P.roll>0||P.inv>0||P.dead)return;dmg*=ARM_K/(ARM_K+armorTotal());for(const[sl]of EQ_SLOTS)if(eq[sl])wear(eq[sl]);P.hp-=dmg;P.inv=.45;P.hurt=.25;shake=7;
   const a=Math.atan2(P.y-src.y,P.x-src.x);move(P,Math.cos(a)*14,Math.sin(a)*14);floats.push({x:P.x,y:P.y-26,txt:'-'+Math.round(dmg),t:.9,col:'#ff8a7a'});
   if(P.hp<=0){P.hp=0;die()}}
 function die(){if(P.boat){P.boat=false;act({t:'unboard',x:P.x,y:P.y})}P.burn=0;P.dead=true;paused=true;$('dead').hidden=false;$('bigmap').hidden=true;atkHeld=false}
@@ -1026,21 +1065,22 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
   if(panelTab==='craft'){const nb=nearBench(),blv=benchLv(),shown=RECIPES.filter(recipeOpen),canMake=r=>afford(r.cost)&&(!r.bench||nb&&blv>=(r.lv||1));
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
     const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r&&L.length){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
-    if(!r){b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><p class="note">還沒有${craftTab==='build'?'建築':'裝備'}配方。拿到新的材料就會解鎖新的配方，先去砍樹、撿石頭和燧石吧。</p></div>`;
+    if(!r){b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><p class="note">還沒有${CRAFT_CATS.find(c=>c[0]===craftTab)[1]}配方。拿到新的材料就會解鎖新的配方，先去砍樹、撿石頭和燧石吧。</p></div>`;
       b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));return}
     const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
     const why=r.bench&&!nb?'要站在工作台附近才能做':r.bench&&blv<(r.lv||1)?`要 Lv${r.lv} 工作台：在工作台旁邊蓋${upNames(r.lv)}`:'',dm=damaged(),fix=dm.filter(k=>recipeLv(k)<=blv),hard=dm.filter(k=>recipeLv(k)>blv);
     b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}<span class="benchlv">${nb?`工作台 <b>Lv${blv}</b>`:'不在工作台旁'}</span><button class="act ${nb&&fix.length?'go':''}" type="button" id="repairBtn" ${nb&&fix.length?'':'disabled'} title="${hard.length?`要更高等級的工作台才能修：${hard.join('、')}`:dm.join('、')}">${!dm.length?'裝備都完好':!nb?'修理要在工作台旁':fix.length?`修理 ${fix.length} 件`:`要 Lv${Math.min(...hard.map(recipeLv))} 才能修`}</button></div><div class="craftwrap">
-      <div class="clist">${L.map(x=>`<button type="button" class="ci${x===r?' on':''}" data-pick="${x.id}">${icon(x.id)}<span>${x.name}</span><i class="${canMake(x)?'ok':''}"></i></button>`).join('')}</div>
+      <div class="clist">${L.map(x=>`<button type="button" class="ci${x===r?' on':''}" data-pick="${x.id}">${icon(x.id)}<span>${x.name}</span>${qOf(x.id)>1?`<em class="q">${'★'.repeat(qOf(x.id))}</em>`:''}<i class="${canMake(x)?'ok':''}"></i></button>`).join('')}</div>
       <div class="cinfo"><div class="cbody">
         <div class="chead">${icon(r.id)}<div><h3>${r.name}</h3><em>${r.build?'建築':'裝備'}${r.bench?(r.lv>1?`・需要 Lv${r.lv} 工作台`:'・需要工作台'):''}${!r.build&&has(r.id)?`・背包裡有 ${inv[r.id]} 個`:''}</em></div></div>
-        <p>${r.desc}</p>${statsHtml(r.id)}
+        <p>${r.desc}</p>${statsHtml(r.id)}${upHtml(r.id,blv,nb)}
         <h4>需要材料${q>1?`（×${q}）`:''}</h4><div class="mats">${mats.map(([k,n])=>{const need=n*q,have=inv[k]||0;return`<div class="mat ${have>=need?'ok':'no'}">${icon(k)}<span>${k}</span><b>${have} / ${need}</b></div>`}).join('')}</div>
       </div><div class="cfoot">${r.build
         ?`<span class="cmax">材料夠蓋 ${max} 個</span><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>建造</button>`
         :`<div class="qty"><button type="button" data-q="-1" aria-label="少一個">−</button><input type="number" id="craftQ" min="1" max="${Math.max(1,max)}" value="${q}" aria-label="製作數量"><button type="button" data-q="1" aria-label="多一個">＋</button><button type="button" data-q="max">最大</button></div><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>製作 ×${q}</button>`}
         ${why?`<small class="cwhy">${why}</small>`:''}</div></div></div></div>`;
     b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));
+    const ub=b.querySelector('[data-up]');if(ub)ub.addEventListener('click',()=>upgrade(r.id));
     $('repairBtn').addEventListener('click',()=>{const lv=benchLv();if(!lv)return;const L=damaged().filter(k=>recipeLv(k)<=lv);for(const k of L)delete dur[k];toast(`修好了 ${L.length} 件裝備`);writeSave();renderPanel()});
     b.querySelectorAll('[data-pick]').forEach(x=>x.addEventListener('click',()=>{craftSel[craftTab]=x.dataset.pick;craftQty=1;renderPanel()}));
     b.querySelectorAll('[data-q]').forEach(x=>x.addEventListener('click',()=>{const v=x.dataset.q;craftQty=v==='max'?Math.max(1,max):Math.max(1,Math.min(Math.max(1,max),q+(+v)));renderPanel()}));
@@ -1049,7 +1089,9 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
   else if(panelTab==='inv'){const st=stacks(inv),used=slotsOf(inv);
     // bag on top (one slot per stack, BAG_SLOTS in all), hotbar pinned at the bottom, each in its own frame
     b.innerHTML=`<div class="bagwrap"><section class="bagsec"><p class="photh">背包<b class="${used>=BAG_SLOTS?'full':''}">${used} / ${BAG_SLOTS} 格</b><span>${st.length?(TOUCH?'點一下物品可以吃、裝備、丟出':'右鍵物品可以吃、裝備、丟出')+'；拖出視窗就丟在地上':'背包是空的，去砍棵樹吧'}</span></p><div class="bag">`+st.map(([k,n],i)=>bagSlot(k,n,!i||st[i-1][0]!==k)).join('')+'<div class="bs empty"></div>'.repeat(Math.max(0,BAG_SLOTS-st.length))+'</div></section>'+
-      `<section class="hotsec"><p class="photh">快捷欄<span>拖進來放、拖出去拿掉、拖到別格交換</span></p><div class="phot">`+hot.map((k,i)=>`<div class="bs${i===hotSel?' held':''}${k?'':' empty'}" data-hk="${i}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</div>`).join('')+'</div></section></div>'}
+      `<section class="hotsec eqsec"><p class="photh">穿戴<b>護甲 ${armorTotal()}・減傷 ${armorCut()}%</b><span>點一下脫下；背包裡的護甲右鍵選「穿上」</span></p><div class="phot">`+EQ_SLOTS.map(([sl,nm])=>{const k=eq[sl];return`<div class="bs${k?'':' empty'}" data-ek="${sl}" title="${k?k+'・'+statsText(k):nm+'：空'}">${k?`${icon(k)}<span class="hn">${k}</span>${durBar(k)}`:`<span class="hn">${nm}</span>`}</div>`}).join('')+'</div></section>'+
+      `<section class="hotsec"><p class="photh">快捷欄<span>拖進來放、拖出去拿掉、拖到別格交換</span></p><div class="phot">`+hot.map((k,i)=>`<div class="bs${i===hotSel?' held':''}${k?'':' empty'}" data-hk="${i}"><kbd>${i+1}</kbd>${k?`${icon(k)}<span class="hn">${k}</span>${WEAPONS[k]?'':`<small>${inv[k]}</small>`}`:''}</div>`).join('')+'</div></section></div>';
+    b.querySelectorAll('[data-ek]').forEach(x=>x.addEventListener('click',()=>{const sl=x.dataset.ek;if(!eq[sl])return;eq[sl]=null;writeSave();renderPanel()}))}
   else if(panelTab==='chest'){const s=structGrid[chestC];if(!s||s.k!=='chest'){togglePanel(false);return}chSig=chestSig(s);
     const cs=stacks(s.box),ps=stacks(inv),cu=slotsOf(s.box),pu=slotsOf(inv),slot=(k,n,a)=>`<div class="bs" data-${a}="${k}" data-n="${n}" title="${k} ×${n}">${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}</div>`,pad=n=>'<div class="bs empty"></div>'.repeat(Math.max(0,n));
     b.innerHTML=`<div class="bagwrap chestwrap"><p id="chMsg">${chMsg}</p>
@@ -1081,12 +1123,23 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
       toast(Object.keys(p.bag).length?`背包滿了，從${p.name}身上取出 ${got} 件，其他的還在牠身上`:`從${p.name}身上取出 ${got} 件物品`);writeSave();renderPanel()}))}
   else{b.innerHTML=`<div class="help">
     <div><h4>操作</h4><ul>${TOUCH?'<li>左半邊螢幕拖曳：移動，推到底會衝刺</li><li>攻擊鈕：揮擊（自動瞄準最近目標，也用來砍樹、採石）</li><li>翻滾：閃避，翻滾中不會受傷</li><li>互動：撿東西、烤肉、睡覺、獻祭</li><li>右上角「建造」：進入建造模式，點左下角的格子選建築或「拆除」，按攻擊蓋或拆</li><li>快捷欄：點左下角的格子選要拿的東西，「切換」鈕跳到下一格。選到食物時按攻擊就會吃掉</li><li>點左上角的小地圖：開大地圖</li>':'<li>WASD／方向鍵移動，Shift 衝刺</li><li>滑鼠左鍵揮擊（朝游標方向），右鍵或空白鍵翻滾</li><li>E 互動，Tab 開背包，M 開大地圖（也可以點左上角的小地圖）</li><li>B 進入建造模式：1～8 或滾輪選建築，左鍵蓋、右鍵拆；拆掉會退回全部材料</li><li>快捷欄：1～8 或滑鼠滾輪選格子，Q 跳到下一個有東西的格子。選到食物時按左鍵就會吃掉</li>'}</ul></div>
-    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
+    <div><h4>生存</h4><ul><li>不吃東西血量只有 25。吃莓果、蘑菇、烤肉能提高血量與耐力上限，效果會隨時間消退。</li><li>夜裡苔精會從暗處冒出來。蓋營火、做床、圍上木牆。</li><li>靠近營火幾秒獲得「休息」：耐力恢復更快、傷害 +10%。</li><li>護甲穿在頭、身體、腿三個部位，在背包頁的「穿戴」欄看得到；右鍵背包裡的護甲選「穿上」。被打中時護甲會磨損。</li><li>裝備可以在製作頁升級（最多 3 級）：要一部分原本的材料和夠高等級的工作台，升級後順便修好。</li><li>工作台旁邊蓋砧台、工具架，工作台會升級（Lv2、Lv3）。比較好的裝備要高等級的工作台才能做，修理也要工作台等級夠。</li><li>配方要先拿過它需要的每一種材料才會出現。撿到新東西時，畫面上方會提示解鎖了哪些新配方。</li><li>工具會自動使用：有斧頭就用斧頭砍樹，有鎬就用鎬敲石頭。</li><li>背包有 ${BAG_SLOTS} 格：材料一格疊 50 個、食物 20 個，武器、工具、護甲一格一個。滿了就撿不起小東西，打下來的東西會掉在腳邊。在工作台旁蓋箱子（${CHEST_SLOTS} 格）來放東西。</li><li>一次揮擊會打到範圍內所有的敵人、樹和石頭。</li><li>武器和工具有耐久，打中東西才會扣，用完就壞掉。快捷欄底下的細條是耐久；到工作台旁打開「製作」按「修理」，免費全部修好。</li></ul></div>
     <div><h4>挖礦與熔爐</h4><ul><li>燧石鎬能挖煤礦、銅礦、錫礦；鐵礦要銅鎬。鐵礦只在離出生點比較遠的地方。</li><li>熔爐用石頭、煤炭、木頭在工作台旁蓋。放入礦石和煤炭，就會把礦石燒成金屬錠。</li><li>一塊煤炭燒 ${COAL_T} 秒，大約燒好 ${Math.floor(COAL_T/SMELT_T)} 塊錠。</li></ul></div>
     <div><h4>寵物</h4><ul><li>帶著莓果靠近沒在生氣的野豬，按${TOUCH?'互動':' E '}餵牠，餵 ${TAME_N} 次就會跟你走。奶蛙也一樣，但要餵蘑菇。</li><li>第一次打倒狼王時，每個人都會得到一隻狼崽，之後再打就不會再給。</li><li>寵物會幫你打附近的敵人；野豬還會順手撿石頭、燧石、莓果和蘑菇。</li><li>寵物倒下後 ${PET_DOWN} 秒會在你身邊復活，身上的東西會掉在原地。</li></ul></div>
     <div><h4>目標</h4><ul><li>野豬掉落獠牙，苔精掉落樹脂。湊齊 3 獠牙、5 樹脂後，帶到石祭壇喚醒灰鬃狼王。</li><li>打倒狼王後，用狼王之牙在工作台做古樹種子，帶到石祭壇喚醒樹精。第一次打倒樹精會解鎖樹精法杖與樹精裝備。</li></ul></div>
     </div>`}}
-const CRAFT_CATS=[['gear','裝備'],['build','建築']],craftCat=r=>r.build?'build':'gear';let craftTab='gear',craftQty=1;const craftSel={};
+const CRAFT_CATS=[['gear','裝備'],['mat','材料'],['build','建築']],craftCat=r=>r.build?'build':WEAPONS[r.id]||ARMOR[r.id]?'gear':'mat';let craftTab='gear',craftQty=1;const craftSel={};
+// upgrading gear you own: a share of its recipe, at a bench of level base + current level (at most 3); it comes out repaired
+const canUp=k=>!!(DUR_MAX[k]&&RECIPES.some(r=>r.id===k));
+const upLv=k=>Math.min(3,recipeLv(k)+qOf(k));
+function upCost(k){const r=RECIPES.find(r=>r.id===k),c={};for(const m in r.cost)c[m]=Math.ceil(r.cost[m]*.6);return c}
+function upHtml(k,blv,nb){if(!canUp(k)||!has(k))return'';const lv=qOf(k);
+  if(lv>=Q_MAX)return`<div class="upg"><h4>升級</h4><p>已經升到最高的 ${Q_MAX} 級了。</p></div>`;
+  const c=upCost(k),need=upLv(k),ok=nb&&blv>=need&&afford(c),gain=ARMOR[k]?'護甲 +30%':WEAPONS[k]?'傷害與工具力道 +20%':'';
+  return`<div class="upg"><h4>升級（目前 ${lv} / ${Q_MAX} 級）</h4><p>升到 ${lv+1} 級：${gain}、耐久上限 +50%，順便修好。需要 Lv${need} 工作台。</p>
+    <div class="mats">${Object.entries(c).map(([m,n])=>`<div class="mat ${(inv[m]||0)>=n?'ok':'no'}">${icon(m)}<span>${m}</span><b>${inv[m]||0} / ${n}</b></div>`).join('')}</div>
+    <button class="act ${ok?'go':''}" type="button" data-up ${ok?'':'disabled'}>${!nb?'升級要在工作台旁':blv<need?`要 Lv${need} 工作台`:`升級到 ${lv+1} 級`}</button></div>`}
+function upgrade(k){const c=upCost(k);if(!has(k)||qOf(k)>=Q_MAX||benchLv()<upLv(k)||!afford(c))return;take(c);q[k]=qOf(k)+1;delete dur[k];toast(`${k}升到 ${q[k]} 級`);writeSave();renderPanel()}
 let furnaceC=-1,fzSig='',chestC=-1,chSig='',chMsg='';
 const chestSig=s=>JSON.stringify([s.box,inv]);
 // move items between your bag and the open chest: only what fits is sent; the host checks again (cput / cget)
@@ -1106,22 +1159,25 @@ function refreshFurnacePanel(){if($('panel').hidden)return;
   if(furnaceSig(s.fz)!==fzSig)renderPanel();else{const e=$('fzStat');if(e)e.innerHTML=furnaceStat(s.fz)}}
 /* ---------- bag ---------- */
 // numbers for weapons, tools and armour: [label, value]
-function equipStats(k){const o=[],w=WEAPONS[k];if(!w&&!ARMORS[k])return o;
-  if(w)o.push(['傷害',w.dmg],['距離',w.range],['範圍',w.proj?'遠程單體':Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
-  if(CHOP[k]>3)o.push(['砍樹',CHOP[k]]);
-  if(DUR_MAX[k])o.push(['耐久',has(k)?`${durOf(k)}/${DUR_MAX[k]}`:DUR_MAX[k]]);
-  if(MINE[k])o.push(['挖礦',MINE[k]],['可挖',PICK_TIER[k]>1?'所有礦石':'石頭、煤、銅、錫']);
-  if(ARMORS[k])o.push(['減傷',Math.round((1-ARMORS[k].mul)*100)+'%']);if(ARMORS[k]&&ARMORS[k].regen)o.push(['回血','+'+ARMORS[k].regen+'/秒']);return o}
+function equipStats(k){const o=[],w=WEAPONS[k],a=ARMOR[k];if(!w&&!a)return o;
+  if(qOf(k)>1)o.push(['等級',`${qOf(k)}/${Q_MAX}`]);
+  if(a)o.push(['部位',EQ_SLOTS.find(([sl])=>sl===a.slot)[1]],['護甲',armOf(k)]);if(a&&a.regen)o.push(['回血','+'+a.regen+'/秒']);
+  if(w)o.push(['傷害',wDmg(k)],['距離',w.range],['範圍',w.proj?'遠程單體':Math.round(w.arc*360/Math.PI)+'°'],['攻速',(1/w.cd).toFixed(1)+' 次/秒'],['耐力',w.st]);
+  if(CHOP[k]>3)o.push(['砍樹',toolPow(CHOP,k)]);
+  if(DUR_MAX[k])o.push(['耐久',has(k)?`${durOf(k)}/${durMax(k)}`:durMax(k)]);
+  if(MINE[k])o.push(['挖礦',toolPow(MINE,k)],['可挖',PICK_TIER[k]>1?'所有礦石':'石頭、煤、銅、錫']);return o}
 const statsText=k=>equipStats(k).map(([a,b])=>`${a} ${b}`).join('・');
 function statsHtml(k){const o=equipStats(k);return o.length?`<div class="stats">${o.map(([a,b])=>`<span>${a}<b>${b}</b></span>`).join('')}</div>`:''}
 function itemSub(k){return FOODS[k]?`血+${FOODS[k].hp} 耐+${FOODS[k].st}`:statsText(k)}
 function bagSlot(k,n,first){const hi=hot.indexOf(k),sub=itemSub(k);
-  return`<div class="bs${held()===k?' held':''}" data-bk="${k}" title="${k} ×${n}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:''}${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}${first?durBar(k):''}</div>`}
+  const worn=ARMOR[k]&&eq[ARMOR[k].slot]===k;
+  return`<div class="bs${held()===k||worn?' held':''}" data-bk="${k}" title="${k} ×${n}${sub?'・'+sub:''}">${hi>=0?`<em>${hi+1}</em>`:worn&&first?'<em>穿</em>':''}${icon(k)}<span class="hn">${k}</span>${stackOf(k)>1?`<small>${n}</small>`:''}${first?durBar(k):''}</div>`}
 // right-click (or tap) menu for one bag item
 function closeBagMenu(){const m=$('bagMenu');if(m)m.remove()}
 function openBagMenu(k,x,y){closeBagMenu();if(!has(k))return;const n=inv[k],sub=itemSub(k),m=document.createElement('div');m.id='bagMenu';
   const acts=[];if(FOODS[k])acts.push(['吃',()=>eat(k)]);
-  if(!ARMORS[k])acts.push([held()===k?'手持中':WEAPONS[k]?'裝備':`放快捷欄第 ${hotSel+1} 格`,()=>{if(held()!==k)hotPut(k)}]);
+  if(ARMOR[k])acts.push([eq[ARMOR[k].slot]===k?'脫下':'穿上',()=>toggleEq(k)]);
+  else acts.push([held()===k?'手持中':WEAPONS[k]?'裝備':`放快捷欄第 ${hotSel+1} 格`,()=>{if(held()!==k)hotPut(k)}]);
   acts.push(['丟出 1',()=>dropItem(k,1)]);if(n>2)acts.push([`丟出一半（${Math.floor(n/2)}）`,()=>dropItem(k,Math.floor(n/2))]);if(n>1)acts.push([`全部丟出（${n}）`,()=>dropItem(k,n),1]);
   m.innerHTML=`<b>${k} ×${n}</b>${equipStats(k).length?statsHtml(k):sub?`<p>${sub}</p>`:''}`+acts.map(([t,,d],i)=>`<button type="button" data-mi="${i}"${d?' class="danger"':''}>${t}</button>`).join('');
   document.body.appendChild(m);m.style.left=Math.max(8,Math.min(x,innerWidth-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(y,innerHeight-m.offsetHeight-8))+'px';
@@ -1155,7 +1211,7 @@ function dropItem(k,n){n=Math.floor(+n);if(!(n>0)||!has(k)){renderPanel();return
 function craft(r,n=1){if(!afford(r.cost))return;if(r.build){startPlace(r);return}if(r.bench&&benchLv()<(r.lv||1))return;let made=0;
   // the materials used free their slots first, so check for room after taking them
   while(made<n&&afford(r.cost)){take(r.cost);if(roomFor(inv,r.id,BAG_SLOTS)<1){for(const k in r.cost)inv[k]+=r.cost[k];break}inv[r.id]=(inv[r.id]||0)+1;made++}
-  if(!made){toast('背包滿了，空出位置才能做');renderPanel();return}hotAdd(r.id);
+  if(!made){toast('背包滿了，空出位置才能做');renderPanel();return}hotAdd(r.id);if(ARMOR[r.id]&&!eq[ARMOR[r.id].slot])eq[ARMOR[r.id].slot]=r.id;
   if(WEAPONS[r.id]&&WEAPONS[r.id].dmg>WEAPONS[P.weapon].dmg&&hot.includes(r.id))hotSelect(hot.indexOf(r.id),true);toast(`做好了：${r.name}${made>1?' ×'+made:''}`);writeSave();renderPanel()}
 
 /* ---------- goals ---------- */
@@ -1219,7 +1275,7 @@ function updateLocal(dt){
   if(atkHeld&&!placing)attack();
   const MH=maxHp(),MS=maxSt();
   if(P.stDelay<=0)P.st=Math.min(MS,P.st+(P.rest>0?22:14)*dt);
-  const ak=armorKey();P.hp=Math.min(MH,P.hp+(.35+foods.length*.45+(ak?ARMORS[ak].regen:0))*dt);P.st=Math.min(P.st,MS);
+  const regen=EQ_SLOTS.reduce((a,[sl])=>a+(eq[sl]&&ARMOR[eq[sl]].regen||0),0);P.hp=Math.min(MH,P.hp+(.35+foods.length*.45+regen)*dt);P.st=Math.min(P.st,MS);
   for(let i=foods.length-1;i>=0;i--){foods[i].t-=dt;if(foods[i].t<=0){toast(foods[i].k+'的效果消退了');foods.splice(i,1)}}
   if(P.rest>0)P.rest-=dt;
   if(!P.dead){const was=P.burn>0;if(burnTick(P,dt)){if(!was)toast('踩到熔岩，著火了！');P.hp-=BURN_DPS*dt;if(P.hp<=0){P.hp=0;die()}}}
@@ -1466,7 +1522,7 @@ function applySnap(s){day=s.day;dayT=s.dt;flags.summoned=s.fs;flags.boss=s.fb;co
     if(!m){m=makeMob(k,x,y);m.id=id;mobs.push(m)}
     m.tx=x;m.ty=y;m.face=f;m.hp=hp;m.max=max;if(fl)m.flash=.15;m.state=st;m.aggro=ag}
   mobs=mobs.filter(m=>seen.has(m.id));boss=mobs.find(m=>m.id===s.b)||null}
-function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorKey()==='樹精裝備'?2:armorKey()?1:0,ro:P.rooted>0?1:0,d:P.dead?1:0,b:P.boat?1:0,...petState()})}
+function sendState(){net({t:'st',all:1,n:myName,x:Math.round(P.x),y:Math.round(P.y),f:Math.round(P.face*100)/100,w:P.weapon,s:P.swing>0?Math.round(P.swing*100)/100:0,r:P.roll>0?1:0,h:P.hurt>0?1:0,a:armorLook(),ro:P.rooted>0?1:0,d:P.dead?1:0,b:P.boat?1:0,...petState()})}
 function petState(){const p=curPet();return p?{pk:p.k,px:Math.round(p.x),py:Math.round(p.y),pf:Math.round(p.face*100)/100,ph:Math.ceil(p.hp),pg:p.glow>0?1:0,pw:p.moving?1:0}:{}}
 function updateOther(m){let o=others.get(m.from);if(!o){o={id:m.from,x:m.x,y:m.y,r:12,walk:0,inv:0,swing:0};others.set(m.from,o)}
   o.n=String(m.n||'').slice(0,10);o.tx=m.x;o.ty=m.y;o.face=m.f;o.weapon=WEAPONS[m.w]?m.w:'none';if(m.s)o.swing=m.s;o.roll=m.r?.1:0;o.hurt=m.h?.1:0;o.armor=m.a|0;o.rooted=m.ro?.1:0;o.dead=!!m.d;o.boat=!!m.b;
@@ -1917,7 +1973,7 @@ function drawPlayer(pl){const x=pl.x,y=pl.y,a=pl.face,c=Math.cos(a),s=Math.sin(a
   const fold=Math.sin(pl.walk*.5);ctx.save();ctx.translate(x-c*5,y-8-s*5+bob);ctx.rotate(a);ctx.lineJoin='miter';ctx.miterLimit=5;ctx.scale(1+fold*.04,1);ctx.fillStyle=capeCol;ctx.fill(PL_CAPE);ctx.fillStyle='rgba(0,0,0,.26)';ctx.fill(PL_CAPE_S);ctx.strokeStyle=PL_INK;ctx.lineWidth=1.1;ctx.stroke(PL_CAPE);
   ctx.strokeStyle='rgba(0,0,0,.34)';ctx.lineWidth=1;ctx.beginPath();for(const q of[-1,1]){ctx.moveTo(0,q*5);ctx.lineTo(-10,q*(3.4+fold*.6));ctx.moveTo(1,q*1.6);ctx.lineTo(-10.4,q*(.6-fold*.4))}ctx.stroke();ctx.restore();
   // body: outlined tunic, shading and seams; leather armour adds a stitched chest plate and rivets
-  const armored=pl===P?(armorKey()==='樹精裝備'?2:armorKey()?1:0):pl.armor,hit=pl.hurt>0,cx0=x,cy0=y-10+bob;
+  const armored=pl===P?armorLook():pl.armor,hit=pl.hurt>0,cx0=x,cy0=y-10+bob;
   plEl(cx0,cy0,11,11,0,PL_INK);plEl(cx0,cy0,10,10,0,hit?'#fff':armored===2?'#566b38':armored?'#7a5236':'#3f6688');
   if(!hit){plEl(cx0,cy0+4,8.6,5,0,armored===2?'#465a2d':armored?'#6a452c':'#35587a');plEl(cx0-1,cy0-5,6.5,3,0,armored===2?'#6d8547':armored?'#8d6444':'#4f7a9e');
     ctx.strokeStyle=armored===2?'#33451f':armored?'#3f2818':'#274660';ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(cx0,cy0,8.2,.45,2.69);ctx.moveTo(cx0,cy0+3.4);ctx.lineTo(cx0,cy0+9);ctx.stroke();
@@ -1966,7 +2022,7 @@ function hud(){const MH=maxHp(),MS=maxSt();learn();
   const tod=dayT<.58?'白天':dayT<.68?'黃昏':'夜晚';$('clock').textContent=`第 ${day} 天・${tod}`;
   const gi=goalIdx();$('goal').innerHTML=gi<GOALS.length?`<b>目標</b>${GOALS[gi][0]}`:'<b>完成</b>這片草原是你的了';
   syncHeld();renderHot();const hk=held();
-  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${WEAPONS[P.weapon].dmg}${DUR_MAX[P.weapon]?`・耐久 ${durOf(P.weapon)}/${DUR_MAX[P.weapon]}`:''}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorKey()?'・穿著'+armorKey():''}${bagFull()?'・<b style="color:var(--bad)">背包滿了</b>':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
+  $('weaponTag').innerHTML=`手持 <b>${WEAPONS[hk]?WEAPONS[hk].name:hk||'空手'}</b>（傷害 ${wDmg(P.weapon)}${DUR_MAX[P.weapon]?`・耐久 ${durOf(P.weapon)}/${durMax(P.weapon)}`:''}）${FOODS[hk]?(TOUCH?'・按攻擊吃':'・左鍵吃'):''}${armorTotal()?`・護甲 ${armorTotal()}（減傷 ${armorCut()}%）`:''}${bagFull()?'・<b style="color:var(--bad)">背包滿了</b>':''}${TOUCH?'':'　<kbd>1</kbd>~<kbd>8</kbd>／滾輪／<kbd>Q</kbd> 切換'}`;
   $('bossBar').hidden=!boss;if(boss)$('bossName').textContent=boss.k==='treant'?'樹精':'灰鬃狼王';if(boss)$('bossFill').style.width=(boss.hp/boss.max*100)+'%';
   if(MODE==='solo'||started)reveal(P.x,P.y);
   drawMap($('mini'),P.x,P.y,MINI_SPAN,false);if(!$('bigmap').hidden)drawMap($('bigCv'),W/2,H/2,W,true)}
