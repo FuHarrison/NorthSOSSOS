@@ -1065,11 +1065,13 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
   if(panelTab==='craft'){const nb=nearBench(),blv=benchLv(),shown=RECIPES.filter(recipeOpen),canMake=r=>afford(r.cost)&&(!r.bench||nb&&blv>=(r.lv||1));
     const cats=CRAFT_CATS.map(([id,name])=>{const L=shown.filter(r=>craftCat(r)===id);return`<button type="button" class="subtab${id===craftTab?' on':''}" data-cat="${id}">${name}<small>${L.filter(canMake).length}/${L.length}</small></button>`}).join('');
     const L=shown.filter(r=>craftCat(r)===craftTab);let r=L.find(x=>x.id===craftSel[craftTab]);if(!r&&L.length){r=L[0];craftSel[craftTab]=r.id;craftQty=1}
-    if(!r){b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}</div><p class="note">還沒有${CRAFT_CATS.find(c=>c[0]===craftTab)[1]}配方。拿到新的材料就會解鎖新的配方，先去砍樹、撿石頭和燧石吧。</p></div>`;
-      b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));return}
+    const dm=damaged(),fix=dm.filter(k=>recipeLv(k)<=blv),hard=dm.filter(k=>recipeLv(k)>blv);
+    // the top row (categories, bench level, repair) is on every craft page, an empty category too
+    const head=`<div class="subtabs">${cats}<span class="benchlv">${nb?`工作台 <b>Lv${blv}</b>`:'不在工作台旁'}</span><button class="act ${nb&&fix.length?'go':''}" type="button" id="repairBtn" ${nb&&fix.length?'':'disabled'} title="${hard.length?`要更高等級的工作台才能修：${hard.join('、')}`:dm.join('、')}">${!dm.length?'裝備都完好':!nb?'修理要在工作台旁':fix.length?`修理 ${fix.length} 件`:`要 Lv${Math.min(...hard.map(recipeLv))} 才能修`}</button></div>`,bindHead=()=>{b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));$('repairBtn').addEventListener('click',()=>{const lv=benchLv();if(!lv)return;const L=damaged().filter(k=>recipeLv(k)<=lv);for(const k of L)delete dur[k];toast(`修好了 ${L.length} 件裝備`);writeSave();renderPanel()});};
+    if(!r){b.innerHTML=`<div class="craftpage">${head}<p class="note">還沒有${CRAFT_CATS.find(c=>c[0]===craftTab)[1]}配方。拿到新的材料就會解鎖新的配方，先去砍樹、撿石頭和燧石吧。</p></div>`;bindHead();return}
     const max=buildN(r),q=r.build?1:Math.max(1,Math.min(craftQty,Math.max(1,max))),ok=canMake(r)&&max>=q,mats=Object.entries(r.cost);
-    const why=r.bench&&!nb?'要站在工作台附近才能做':r.bench&&blv<(r.lv||1)?`要 Lv${r.lv} 工作台：在工作台旁邊蓋${upNames(r.lv)}`:'',dm=damaged(),fix=dm.filter(k=>recipeLv(k)<=blv),hard=dm.filter(k=>recipeLv(k)>blv);
-    b.innerHTML=`<div class="craftpage"><div class="subtabs">${cats}<span class="benchlv">${nb?`工作台 <b>Lv${blv}</b>`:'不在工作台旁'}</span><button class="act ${nb&&fix.length?'go':''}" type="button" id="repairBtn" ${nb&&fix.length?'':'disabled'} title="${hard.length?`要更高等級的工作台才能修：${hard.join('、')}`:dm.join('、')}">${!dm.length?'裝備都完好':!nb?'修理要在工作台旁':fix.length?`修理 ${fix.length} 件`:`要 Lv${Math.min(...hard.map(recipeLv))} 才能修`}</button></div><div class="craftwrap">
+    const why=r.bench&&!nb?'要站在工作台附近才能做':r.bench&&blv<(r.lv||1)?`要 Lv${r.lv} 工作台：在工作台旁邊蓋${upNames(r.lv)}`:'';
+    b.innerHTML=`<div class="craftpage">${head}<div class="craftwrap">
       <div class="clist">${L.map(x=>`<button type="button" class="ci${x===r?' on':''}" data-pick="${x.id}">${icon(x.id)}<span>${x.name}</span>${qOf(x.id)>1?`<em class="q">${'★'.repeat(qOf(x.id))}</em>`:''}<i class="${canMake(x)?'ok':''}"></i></button>`).join('')}</div>
       <div class="cinfo"><div class="cbody">
         <div class="chead">${icon(r.id)}<div><h3>${r.name}</h3><em>${r.build?'建築':'裝備'}${r.bench?(r.lv>1?`・需要 Lv${r.lv} 工作台`:'・需要工作台'):''}${!r.build&&has(r.id)?`・背包裡有 ${inv[r.id]} 個`:''}</em></div></div>
@@ -1079,9 +1081,8 @@ function renderPanel(){document.querySelectorAll('.tab').forEach(t=>t.classList.
         ?`<span class="cmax">材料夠蓋 ${max} 個</span><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>建造</button>`
         :`<div class="qty"><button type="button" data-q="-1" aria-label="少一個">−</button><input type="number" id="craftQ" min="1" max="${Math.max(1,max)}" value="${q}" aria-label="製作數量"><button type="button" data-q="1" aria-label="多一個">＋</button><button type="button" data-q="max">最大</button></div><button class="act ${ok?'go':''}" type="button" data-make ${ok?'':'disabled'}>製作 ×${q}</button>`}
         ${why?`<small class="cwhy">${why}</small>`:''}</div></div></div></div>`;
-    b.querySelectorAll('[data-cat]').forEach(x=>x.addEventListener('click',()=>{craftTab=x.dataset.cat;craftQty=1;renderPanel()}));
+    bindHead();
     const ub=b.querySelector('[data-up]');if(ub)ub.addEventListener('click',()=>upgrade(r.id));
-    $('repairBtn').addEventListener('click',()=>{const lv=benchLv();if(!lv)return;const L=damaged().filter(k=>recipeLv(k)<=lv);for(const k of L)delete dur[k];toast(`修好了 ${L.length} 件裝備`);writeSave();renderPanel()});
     b.querySelectorAll('[data-pick]').forEach(x=>x.addEventListener('click',()=>{craftSel[craftTab]=x.dataset.pick;craftQty=1;renderPanel()}));
     b.querySelectorAll('[data-q]').forEach(x=>x.addEventListener('click',()=>{const v=x.dataset.q;craftQty=v==='max'?Math.max(1,max):Math.max(1,Math.min(Math.max(1,max),q+(+v)));renderPanel()}));
     const qi=$('craftQ');if(qi)qi.addEventListener('change',()=>{craftQty=Math.max(1,Math.floor(+qi.value)||1);renderPanel()});
